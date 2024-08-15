@@ -33,3 +33,7 @@
 
 # Apptainer
 *.sif
+
+# Ignore the llvm-build directory
+llvm-build/
+
