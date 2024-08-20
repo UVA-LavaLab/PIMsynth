@@ -5,10 +5,11 @@
 # clone
 git clone --recursive-submodules https://github.com/deyuan/bit-serial-compiler.git
 
-# update fetch and push url of submodules
-# do not push to original llvm-project repo
+# make sure submodules use originial fetch url but local push url
 cd llvm-project
-git remote set-url origin https://github.com/llvm/llvm-project.git
+git remote set-url --push origin https://github.com/deyuan/bit-serial-compiler.git
+git remote -v
+cd abc
 git remote set-url --push origin https://github.com/deyuan/bit-serial-compiler.git
 git remote -v
 
