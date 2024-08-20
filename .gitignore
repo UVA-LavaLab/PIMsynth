@@ -37,3 +37,6 @@
 # Ignore the llvm-build directory
 llvm-build/
 
+# Ignore abc related files
+abc.history
+
