@@ -1,0 +1,13 @@
+# Convert verilog to AIG
+
+echo "Reading Verilog ..."
+read_verilog 1bit_full_adder.v
+
+echo "Structural Hashing ..."
+strash
+
+echo "Writing AIGER ..."
+write_aiger result.aig
+
+quit
+
