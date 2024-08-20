@@ -25,6 +25,7 @@ From: ubuntu:24.04
         libxml2-dev \
         pkg-config \
         libffi-dev \
+        libreadline-dev \
         curl \
         vim \
         wget \
