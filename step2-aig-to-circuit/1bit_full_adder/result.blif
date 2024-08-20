@@ -1,0 +1,20 @@
+# Benchmark "../../step1-verilog-to-aig/1bit-full-adder/result" written by ABC on Tue Aug 20 06:03:07 2024
+.model ../../step1-verilog-to-aig/1bit-full-adder/result
+.inputs pi0 pi1 pi2
+.outputs po0 po1
+.gate inv1  a=pi2 O=new_n6
+.gate inv1  a=pi1 O=new_n7
+.gate nand2 a=new_n7 b=pi0 O=new_n8
+.gate inv1  a=pi0 O=new_n9
+.gate nand2 a=pi1 b=new_n9 O=new_n10
+.gate nand2 a=new_n10 b=new_n8 O=new_n11
+.gate nand2 a=new_n11 b=new_n6 O=new_n12
+.gate nor2  a=pi1 b=new_n9 O=new_n13
+.gate nor2  a=new_n7 b=pi0 O=new_n14
+.gate nor2  a=new_n14 b=new_n13 O=new_n15
+.gate nand2 a=new_n15 b=pi2 O=new_n16
+.gate nand2 a=new_n16 b=new_n12 O=po0
+.gate nand2 a=pi1 b=pi0 O=new_n18
+.gate nand2 a=new_n11 b=pi2 O=new_n19
+.gate nand2 a=new_n19 b=new_n18 O=po1
+.end

@@ -1,0 +1,16 @@
+# Convert AIG into circuit
+
+echo "Reading GenLib ..."
+read_genlib minimal.genlib
+
+echo "Reading AIGER ..."
+read_aiger ../../step1-verilog-to-aig/1bit-full-adder/result.aig
+
+echo "Mapping ..."
+map
+
+echo "Writing Blif ..."
+write_blif result.blif
+
+quit
+
