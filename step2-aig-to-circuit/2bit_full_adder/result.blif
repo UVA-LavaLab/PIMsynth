@@ -1,0 +1,35 @@
+# Benchmark "../../step1-verilog-to-aig/2bit-full-adder/result" written by ABC on Sun Sep  1 20:22:29 2024
+.model ../../step1-verilog-to-aig/2bit-full-adder/result
+.inputs pi0 pi1 pi2 pi3 pi4
+.outputs po0 po1 po2
+.gate inv1  a=pi2 O=new_n9
+.gate nor2  a=new_n9 b=pi0 O=new_n10
+.gate inv1  a=pi0 O=new_n11
+.gate nor2  a=pi2 b=new_n11 O=new_n12
+.gate nor2  a=new_n12 b=new_n10 O=new_n13
+.gate nand2 a=new_n13 b=pi4 O=new_n14
+.gate inv1  a=pi4 O=new_n15
+.gate nand2 a=pi2 b=new_n11 O=new_n16
+.gate nand2 a=new_n9 b=pi0 O=new_n17
+.gate nand2 a=new_n17 b=new_n16 O=new_n18
+.gate nand2 a=new_n18 b=new_n15 O=new_n19
+.gate nand2 a=new_n19 b=new_n14 O=po0
+.gate nor2  a=new_n9 b=new_n11 O=new_n21
+.gate inv1  a=new_n21 O=new_n22
+.gate nand2 a=new_n18 b=pi4 O=new_n23
+.gate nand2 a=new_n23 b=new_n22 O=new_n24
+.gate inv1  a=pi3 O=new_n25
+.gate nor2  a=new_n25 b=pi1 O=new_n26
+.gate nand2 a=new_n25 b=pi1 O=new_n27
+.gate inv1  a=new_n27 O=new_n28
+.gate nor2  a=new_n28 b=new_n26 O=new_n29
+.gate nand2 a=new_n29 b=new_n24 O=new_n30
+.gate nor2  a=new_n13 b=new_n15 O=new_n31
+.gate nor2  a=new_n31 b=new_n21 O=new_n32
+.gate inv1  a=new_n29 O=new_n33
+.gate nand2 a=new_n33 b=new_n32 O=new_n34
+.gate nand2 a=new_n34 b=new_n30 O=po1
+.gate nand2 a=pi3 b=pi1 O=new_n36
+.gate nand2 a=new_n33 b=new_n24 O=new_n37
+.gate nand2 a=new_n37 b=new_n36 O=po2
+.end
