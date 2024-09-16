@@ -1,0 +1,6 @@
+GATE zero   0   O=CONST0;
+GATE one    0   O=CONST1;
+GATE inv1   1   O=!a;                   PIN * NONINV 1 999 0.0 0.0 0.0 0.0
+GATE and2   1   O=(a*b);                PIN * NONINV 1 999 0.0 0.0 0.0 0.0
+GATE maj3   1   O=((a*b)+(b*c)+(a*c));  PIN * NONINV 1 999 0.0 0.0 0.0 0.0
+
