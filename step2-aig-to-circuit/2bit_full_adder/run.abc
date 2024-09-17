@@ -1,7 +1,7 @@
 # Convert AIG into circuit
 
 echo "Reading GenLib ..."
-read_genlib minimal.genlib
+read_genlib ../../src/genlibs/inv_and_xnor_mux.genlib
 
 echo "Reading AIGER ..."
 read_aiger ../../step1-verilog-to-aig/2bit-full-adder/result.aig
