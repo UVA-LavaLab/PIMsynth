@@ -37,14 +37,38 @@ apptainer exec ../myapptainer.sif make -j10
   * Input: AIG, customized genlib library with bit-serial ISA
   * Output: Circuit in blif format
   * Tool: abc
+
+Plan A:
 * Step 3: Convert circuit into LLVM IR
   * Input: Circuit
   * Output: LLVM IR
-  * Tool:
+  * Tool: Blif parser utility, clang++
 * Step 4: Instruction scheduling and register allocation
   * Input: LLVM IR
   * Output:
   * Tool: llvm
 * Step 5: Convert to bit-serial micro-program
 
+Plan B:
+* Step 3: Convert circuit into C with RISC-V inline assembly and register clobber
+  * Input: Circuit
+  * Output: C with inline assembly
+  * Tool: Blif parser utilty
+* Step 4: Perform instruction scheduling, register allocation and spilling
+  * Input: C
+  * Output: RISC-V .s assembly
+  * Tool: clang
+* Step 5: Convert to bit-serial micro-program
+
+# Source Code Organization
+* `abc`: ABC logic synthesizer submodule
+* `llvm-project`: LLVM compiler submodule
+* `src/`
+  * `genlibs/`: GenLib definitions for bit-serial variants
+  * `blif-parser/`: BLIF parser and C/C++ code generator written in Python
+* To be restructured
+  * `step1-verilog-to-aig/`: Workflow examples from Verilog to AIG
+  * `step2-aig-to-circuit/`: Workflow examples from AIG to BLIF
+  * `step3-circuit-to-llvm-ir/`: Workflow examples from BLIF to C++ to LLVM IR
+  * `step3-circuit-to-asm/`: Workflow examples from BLIF to C to RISC-V assembly
 
