@@ -3,6 +3,7 @@ import argparse
 from util import *
 from parser import *
 from generator import *
+from generatorAsm import *
 
 if __name__ == "__main__":
     # Set up argument parser with optional arguments
@@ -10,6 +11,7 @@ if __name__ == "__main__":
     parser.add_argument('--input-file', '-i', type=str, required=True, help='The input circuit representation file to parse.')
     parser.add_argument('--output-file', '-o', type=str, required=True, help='The output C++ file.')
     parser.add_argument('--module-name', '-m', type=str, required=True, help='The name of the module to parse.')
+    parser.add_argument('--output-format', '-f', type=str, required=True, help='Output format: asm or cpp.')
 
     # Parse the arguments
     args = parser.parse_args()
@@ -34,8 +36,13 @@ if __name__ == "__main__":
     # print()
 
     # Generate the code
-    generator = Generator(parser)
-    code = generator.generateCode()
+    code = ''
+    if args.output_format == 'cpp':
+        generator = Generator(parser)
+        code = generator.generateCode()
+    elif args.output_format == 'asm':
+        generator = GeneratorAsm(parser)
+        code = generator.generateCode()
 
     # Write the generated C++ code into a file
     writeToFile(args.output_file, code)
