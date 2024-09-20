@@ -65,6 +65,7 @@ Plan B:
 * `llvm-project`: LLVM compiler submodule
 * `src/`
   * `genlibs/`: GenLib definitions for bit-serial variants
+  * `verilog/`: Verilog source code
   * `blif-parser/`: BLIF parser and C/C++ code generator written in Python
 * To be restructured
   * `step1-verilog-to-aig/`: Workflow examples from Verilog to AIG
