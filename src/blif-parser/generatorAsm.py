@@ -2,10 +2,11 @@ from parser import *
 
 
 class GeneratorAsm():
-    def __init__(self, parser):
+    def __init__(self, parser, num_regs):
         self.parser = parser
         #self.dataType = "uint64_t"
         self.dataType = "int"
+        self.num_regs = num_regs
 
     def generateCode(self):
         str = ""
@@ -116,13 +117,12 @@ class GeneratorAsm():
     def generateStamentSequenceAsm(self):
         code = ''
         # reserve risc-v registers
-        num_regs = 4
         regs = ['"ra"']
         for i in range(8):
             regs.append('"a' + str(i) + '"')
         for i in range(12):
             regs.append('"s' + str(i) + '"')
-        for i in range(num_regs,7):
+        for i in range(self.num_regs, 7):
             regs.append('"t' + str(i) + '"')
         clobber = ','.join(regs)
 

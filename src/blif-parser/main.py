@@ -12,6 +12,7 @@ if __name__ == "__main__":
     parser.add_argument('--output-file', '-o', type=str, required=True, help='The output C++ file.')
     parser.add_argument('--module-name', '-m', type=str, required=True, help='The name of the module to parse.')
     parser.add_argument('--output-format', '-f', type=str, required=True, help='Output format: asm or cpp.')
+    parser.add_argument('--num-regs', '-r', type=int, default=4, help='Number of registers.')
 
     # Parse the arguments
     args = parser.parse_args()
@@ -41,7 +42,10 @@ if __name__ == "__main__":
         generator = Generator(parser)
         code = generator.generateCode()
     elif args.output_format == 'asm':
-        generator = GeneratorAsm(parser)
+        if args.num_regs < 2 or args.num_regs > 7:
+            print("Error: Unsupported number of registers:", args.num_regs)
+            exit()
+        generator = GeneratorAsm(parser, args.num_regs)
         code = generator.generateCode()
 
     # Write the generated C++ code into a file
