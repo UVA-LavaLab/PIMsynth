@@ -61,15 +61,52 @@ Plan B:
 * Step 5: Convert to bit-serial micro-program
 
 # Source Code Organization
+
+* `bit_serial_compiler.py`: Main entry to call bit-serial compiler
 * `abc`: ABC logic synthesizer submodule
 * `llvm-project`: LLVM compiler submodule
 * `src/`
   * `genlibs/`: GenLib definitions for bit-serial variants
   * `verilog/`: Verilog source code
   * `blif-parser/`: BLIF parser and C/C++ code generator written in Python
-* To be restructured
+* `tests/`: Testcases
+* To be deleted / restructured
   * `step1-verilog-to-aig/`: Workflow examples from Verilog to AIG
   * `step2-aig-to-circuit/`: Workflow examples from AIG to BLIF
   * `step3-circuit-to-llvm-ir/`: Workflow examples from BLIF to C++ to LLVM IR
   * `step3-circuit-to-asm/`: Workflow examples from BLIF to C to RISC-V assembly
+
+# Bit-Serial Compiler UI
+
+```
+ ---------------------
+| Bit-Serial Compiler |
+ ---------------------
+usage: bit_serial_compiler.py [-h] [--verilog [file]] [--genlib [file]] [--aig [file]]
+                              [--blif [file]] [--c [file]] [--asm [file]] [--num-regs N]
+                              [--output [filename]] [--outdir [path]] [--from-stage [stage]]
+                              [--to-stage [stage]]
+
+options:
+  -h, --help            show this help message and exit
+  --verilog [file]      Input Verilog file
+  --genlib [file]       Input GenLib file
+  --aig [file]          Input AIG file
+  --blif [file]         Input BLIF file
+  --c [file]            Input C file
+  --asm [file]          Input ASM file
+  --num-regs N          Number of registers 2~7
+  --output [filename]   Output filename without suffix
+  --outdir [path]       Output location, default current dir
+  --from-stage [stage]  From stage: verilog (default), aig, blif, c, asm, pim
+  --to-stage [stage]    To stage: verilog, aig, blif, c, asm, pim (default)
+
+how to use:
+  Input requirements:
+    --from-stage verilog    require --verilog, require --genlib if --to blif or later stages
+    --from-stage aig        require --aig and --genlib
+    --from-stage blif       require --blif
+    --from-stage c          require --c
+    --from-stage asm        require --asm
+```
 
