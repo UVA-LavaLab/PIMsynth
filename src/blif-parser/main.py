@@ -1,9 +1,18 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+File: main.py
+Description: BLIF parser and C generator
+Author: Mohammadhosein Gholamrezaei <uab9qt@virginia.edu> - BLIF-to-C parser generator code framework
+Date: 2024-09-03
+"""
+
 import sys
 import argparse
 from util import *
 from parser import *
 from generator import *
-from generatorAsm import *
+from generator_asm import *
 
 if __name__ == "__main__":
     # Set up argument parser with optional arguments
@@ -45,7 +54,7 @@ if __name__ == "__main__":
         if args.num_regs < 2 or args.num_regs > 7:
             print("Error: Unsupported number of registers:", args.num_regs)
             exit()
-        generator = GeneratorAsm(parser, args.num_regs)
+        generator = GeneratorAsm(parser, args.num_regs, args.module_name)
         code = generator.generateCode()
 
     # Write the generated C++ code into a file

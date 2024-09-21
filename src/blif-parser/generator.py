@@ -1,5 +1,11 @@
-from parser import *
-
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+File: generator.py
+Description: C++ code generator using bit-wise operations
+Author: Mohammadhosein Gholamrezaei <uab9qt@virginia.edu> - BLIF-to-C parser generator code framework
+Date: 2024-09-03
+"""
 
 class Generator():
     def __init__(self, parser):

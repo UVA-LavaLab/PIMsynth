@@ -1,3 +1,12 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+File: parser.py
+Description: BLIF parser
+Author: Mohammadhosein Gholamrezaei <uab9qt@virginia.edu> - BLIF-to-C parser generator code framework
+Date: 2024-09-03
+"""
+
 from lark import Lark, Transformer, v_args
 import itertools
 import pprint
