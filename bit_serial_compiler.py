@@ -1,0 +1,336 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+File: bit_serial_compiler.py
+Description: Bit-Serial Compiler Main Flow
+Author: Deyuan Guo <guodeyuan@gmail.com>
+Date: 2024-09-20
+"""
+
+import argparse
+import os
+import sys
+import subprocess
+import textwrap
+
+
+class bitSerialCompiler:
+    """
+    Bit-Serial Compiler
+    """
+
+    def __init__(self, args=[]):
+        """ Init """
+        self.args = args.copy()
+        self.verilog = ''
+        self.genlib = ''
+        self.aig = ''
+        self.blif = ''
+        self.c = ''
+        self.asm = ''
+        self.output = ''
+        self.outdir = ''
+        self.num_regs = 0
+        self.from_stage = ''
+        self.to_stage = ''
+        self.stages = {'verilog':1, 'aig':2, 'blif':3, 'c':4, 'asm':5, 'pim':6}
+        self.abc_path = ''
+        self.clang_path = ''
+        self.parser = self.create_argparse()
+        self.hbar = "============================================================"
+
+    def run(self):
+        """ Run bit-serial compiler """
+        print(" ---------------------")
+        print("| Bit-Serial Compiler |")
+        print(" ---------------------")
+        if not self.args:
+            print("No input. Run with -h or --help to see more options.")
+            return
+
+        success = self.parse_args()
+        if not success:
+            return
+
+        if not self.locate_abc_path():
+            return
+
+        if not self.locate_clang_path():
+            return
+
+        self.report_params()
+
+        if self.stages[self.from_stage] <= self.stages['verilog'] and self.stages[self.to_stage] >= self.stages['aig']:
+            success = self.run_verilog_to_aig()
+            if not success:
+                return False
+
+        if self.stages[self.from_stage] <= self.stages['aig'] and self.stages[self.to_stage] >= self.stages['blif']:
+            success = self.run_aig_to_blif()
+            if not success:
+                return False
+
+        if self.stages[self.from_stage] <= self.stages['blif'] and self.stages[self.to_stage] >= self.stages['c']:
+            success = self.run_blif_to_c()
+            if not success:
+                return False
+
+        if self.stages[self.from_stage] <= self.stages['c'] and self.stages[self.to_stage] >= self.stages['asm']:
+            success = self.run_c_to_asm()
+            if not success:
+                return False
+
+        if self.stages[self.from_stage] <= self.stages['asm'] and self.stages[self.to_stage] >= self.stages['pim']:
+            success = self.run_asm_to_pim()
+            if not success:
+                return False
+
+        print("Bit-serial compilation completed.")
+        return True
+
+    def create_argparse(self):
+        """ Create argparse """
+        extra_help_msg = textwrap.dedent("""
+        how to use:
+          Input requirements:
+            --from-stage verilog    require --verilog, require --genlib if --to blif or later stages
+            --from-stage aig        require --aig and --genlib
+            --from-stage blif       require --blif
+            --from-stage c          require --c
+            --from-stage asm        require --asm
+        """)
+        parser = argparse.ArgumentParser(epilog=extra_help_msg, formatter_class=argparse.RawTextHelpFormatter)
+        parser.add_argument('--verilog', metavar='[file]', type=str, default='', help='Input Verilog file')
+        parser.add_argument('--genlib', metavar='[file]', type=str, default='', help='Input GenLib file')
+        parser.add_argument('--aig', metavar='[file]', type=str, default='', help='Input AIG file')
+        parser.add_argument('--blif', metavar='[file]', type=str, default='', help='Input BLIF file')
+        parser.add_argument('--c', metavar='[file]', type=str, default='', help='Input C file')
+        parser.add_argument('--asm', metavar='[file]', type=str, default='', help='Input ASM file')
+        parser.add_argument('--num-regs', metavar='N', type=int, default=4, help='Number of registers 2~7')
+        parser.add_argument('--output', metavar='[filename]', type=str, default='tmp', help='Output filename without suffix')
+        parser.add_argument('--outdir', metavar='[path]', type=str, default='.', help='Output location, default current dir')
+        parser.add_argument('--from-stage', metavar='[stage]', type=str,
+                help='From stage: verilog (default), aig, blif, c, asm, pim',
+                choices=self.stages, default='verilog')
+        parser.add_argument('--to-stage', metavar='[stage]', type=str,
+                help='To stage: verilog, aig, blif, c, asm, pim (default)',
+                choices=self.stages, default='pim')
+        return parser
+
+    def parse_args(self):
+        """ Parse command line arguments """
+        args = self.parser.parse_args(self.args)
+        self.verilog = args.verilog
+        self.genlib = args.genlib
+        self.aig = args.aig
+        self.blif = args.blif
+        self.c = args.c
+        self.asm = args.asm
+        if (not self.sanity_check_input_file(self.verilog, 'Verilog')
+                or not self.sanity_check_input_file(self.genlib, 'GenLib')
+                or not self.sanity_check_input_file(self.aig, 'AIG')
+                or not self.sanity_check_input_file(self.blif, 'BLIF')
+                or not self.sanity_check_input_file(self.c, 'C')
+                or not self.sanity_check_input_file(self.asm, 'ASM')):
+            return False
+        self.output = args.output
+        if not self.output or ' ' in self.output:
+            print("Error: Invalid output filename '%s'" % (self.output))
+            return False
+        self.outdir = args.outdir
+        if not os.path.isdir(self.outdir):
+            print("Error: Invalid output dir '%s'" % (self.outdir))
+            return False
+        self.from_stage = args.from_stage
+        self.to_stage = args.to_stage
+        # from/to rule checks
+        if self.stages[self.from_stage] >= self.stages[self.to_stage]:
+            print("Error: Invalid from-to range: %s -> %s" % (self.from_stage, self.to_stage))
+            return False
+        if (not self.sanity_check_from_to(self.verilog, 'verilog')
+                or not self.sanity_check_from_to(self.aig, 'aig')
+                or not self.sanity_check_from_to(self.blif, 'blif')
+                or not self.sanity_check_from_to(self.c, 'c')
+                or not self.sanity_check_from_to(self.asm, 'asm')
+                or not self.sanity_check_from_to(self.genlib, 'genlib', ['aig', 'blif'])):
+            return False
+        self.num_regs = args.num_regs
+        if self.num_regs < 2 or self.num_regs > 7:
+            print("Error: Unsupported number of registers:", self.num_regs)
+            return False
+        return True
+
+    def sanity_check_input_file(self, input_file, tag):
+        """ Sanity check for an input file """
+        if input_file and not os.path.isfile(input_file):
+            print("Error: Cannot find %s file '%s'" % (tag, input_file))
+            return False
+        return True
+
+    def sanity_check_from_to(self, input_file, arg_name, req_stage=''):
+        """ Sanity check for an input file given from-to range """
+        is_required = False
+        if not req_stage:
+            req_stage = arg_name # stage name same as arg name
+        if isinstance(req_stage, str):
+            is_required = (self.from_stage == req_stage)
+        else:
+            is_required = (self.stages[self.from_stage] <= self.stages[req_stage[0]] and self.stages[self.to_stage] >= self.stages[req_stage[1]])
+        if not input_file and is_required:
+            print("Error: Missing required input parameter --%s" % (arg_name))
+            return False
+        elif input_file and not is_required:
+            print("Warning: Ignored input parameter --%s %s" % (arg_name, input_file))
+        return True
+
+    def locate_abc_path(self):
+        """ Locate abc location """
+        script_location = os.path.dirname(os.path.abspath(__file__))
+        # TODO: executable path
+        self.abc_path = os.path.join(script_location, 'abc/abc')
+        if not os.path.isfile(self.abc_path):
+            print("Error: Cannot find abc executable at", self.abc_path)
+            return False
+        return True
+
+    def locate_clang_path(self):
+        """ Locate clang location """
+        script_location = os.path.dirname(os.path.abspath(__file__))
+        # TODO: executable path
+        self.clang_path = os.path.join(script_location, 'llvm-build/bin/clang')
+        if not os.path.isfile(self.clang_path):
+            print("Error: Cannot find clang executable at", self.clang_path)
+            return False
+        return True
+
+    def report_params(self):
+        """ Report input parameters """
+        print(self.hbar)
+        print("From-to Stage: %s -> %s" % (self.from_stage, self.to_stage))
+        if self.verilog:
+            print("Input Verilog File:", self.verilog)
+        if self.aig:
+            print("Input AIG File:", self.aig)
+        if self.genlib:
+            print("Input GenLib File:", self.genlib)
+        if self.blif:
+            print("Input BLIF File:", self.blif)
+        if self.c:
+            print("Input C File:", self.c)
+        if self.asm:
+            print("Input ASM File:", self.asm)
+        if self.output:
+            print("Output Filename (without suffix):", self.output)
+        if self.outdir:
+            print("Output Directory:", self.outdir)
+        print("ABC Path:", self.abc_path)
+        print("CLANG Path:", self.clang_path)
+        print("Number of Registers:", self.num_regs)
+        print(self.hbar)
+
+    def run_verilog_to_aig(self):
+        """ Compile Verilog to AIG """
+        print("INFO: Compiling Verilog to AIG ...")
+
+        print("INFO: Creating ABC script (Verilog->AIG)")
+        abc1_tmpl = textwrap.dedent("""
+            # Auto Generated by Bit-Serial Compiler: Verilog to AIG
+            echo "Reading Verilog"
+            read_verilog %s
+            echo "Structural Hashing"
+            strash
+            echo "Writing AIG"
+            write_aiger %s
+        """ % (self.verilog, self.output + ".aig"))
+        abc1_file = os.path.join(self.outdir, self.output + '.abc1')
+        with open(abc1_file, 'w') as file:
+            file.write(abc1_tmpl)
+        print("INFO: Created ABC script:", abc1_file)
+
+        print("INFO: Running ABC to synthesize Verilog to AIG")
+        result = subprocess.run([self.abc_path, '-f', abc1_file])
+        if result.returncode != 0:
+            print('Error: ABC synthesizer failed.')
+            return False
+        print("INFO: Generated AIG file:", self.output + '.aig')
+
+        print(self.hbar)
+        return True
+
+    def run_aig_to_blif(self):
+        """ Compile AIG to BLIF """
+        print("INFO: Compiling AIG to BLIF ...")
+
+        print("INFO: Creating ABC script (AIG->BLIF)")
+        abc2_tmpl = textwrap.dedent("""
+            # Auto Generated by Bit-Serial Compiler: AIG to BLIF
+            echo "Reading GenLib"
+            read_genlib %s
+            echo "Reading AIG"
+            read_aiger %s
+            echo "Tech Mapping"
+            map
+            echo "Writing BLIF"
+            write_blif %s
+        """ % (self.genlib, self.output + ".aig", self.output + ".blif"))
+        abc2_file = os.path.join(self.outdir, self.output + '.abc2')
+        with open(abc2_file, 'w') as file:
+            file.write(abc2_tmpl)
+        print("INFO: Created ABC script:", abc2_file)
+
+        print("INFO: Running ABC to synthesize AIG to BLIF")
+        result = subprocess.run([self.abc_path, '-f', abc2_file])
+        if result.returncode != 0:
+            print('Error: ABC synthesizer failed.')
+            return False
+        print("INFO: Generated BLIF file:", self.output + '.blif')
+
+        print(self.hbar)
+        return True
+
+    def run_blif_to_c(self):
+        """ Compile BLIF to C """
+        print("INFO: Compiling BLIF to C ...")
+
+        script_location = os.path.dirname(os.path.abspath(__file__))
+        blif_parser = os.path.join(script_location, 'src/blif-parser/main.py')
+        blif_file = self.output + '.blif'
+        c_file = self.output + '.c'
+        result = subprocess.run(['python3', blif_parser, '-f', 'asm', '-i', blif_file, '-m', 'func', '-o', c_file, '-r', str(self.num_regs)])
+        if result.returncode != 0:
+            print('Error: BLIF to C parser failed.')
+            return False
+        print("INFO: Generated C file:", self.output + '.c')
+        print("INFO: Allowed number of registers:", self.num_regs)
+
+        print(self.hbar)
+        return True
+
+    def run_c_to_asm(self):
+        """ Compile C to ASM """
+        print("INFO: Compiling C to ASM ...")
+
+        c_file = self.output + '.c'
+        asm_file = self.output + '.s'
+        result = subprocess.run([self.clang_path, '-O3', '-target', 'riscv32-unknown-elf', '-S', c_file, '-o', asm_file])
+        if result.returncode != 0:
+            print('Error: CLANG/LLVM failed.')
+            return False
+        print("INFO: Generated ASM file:", self.output + '.s')
+
+        print(self.hbar)
+        return True
+
+    def run_asm_to_pim(self):
+        """ Compile ASM to PIM """
+        print("INFO: Compiling ASM to PIM ...")
+        print("Warning: ASM to PIM not implemented yet.")
+        print(self.hbar)
+        return True
+
+
+if __name__ == '__main__':
+    args = sys.argv[1:]
+    compiler = bitSerialCompiler(args)
+    compiler.run()
+
