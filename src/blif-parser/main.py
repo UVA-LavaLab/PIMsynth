@@ -9,10 +9,13 @@ Date: 2024-09-03
 
 import sys
 import argparse
-from util import *
+import os
 from parser import *
 from generator import *
 from generator_asm import *
+
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+from util import *
 
 if __name__ == "__main__":
     # Set up argument parser with optional arguments
