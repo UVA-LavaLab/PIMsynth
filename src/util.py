@@ -8,6 +8,18 @@ def getContent(fileName):
     except Exception as e:
         return f"An error occurred: {e}"
 
+def getFileLines(filename):
+    try:
+        with open(filename, 'r') as file:
+            lines = file.readlines()
+        return [line.strip() for line in lines]
+    except FileNotFoundError:
+        print(f"Error: The file '{filename}' was not found.")
+        return []
+    except Exception as e:
+        print(f"Error: {e}")
+        return []
+
 def writeToFile(filename, content):
     try:
         with open(filename, 'w') as file:
