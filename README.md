@@ -1,31 +1,61 @@
 # bit-serial-compiler
 
 # How to build
+Check out current repo:
 ```
-# clone
 git clone --recurse-submodules https://github.com/deyuan/bit-serial-compiler.git
+```
 
-# make sure submodules use originial fetch url but local push url
+Optional: Setup fetch/push remote if need to modify submodule:
+```
+# for each submodule, use originial url to fetch, and use local url to push
 cd llvm-project
 git remote set-url --push origin https://github.com/deyuan/bit-serial-compiler.git
 git remote -v
 cd abc
 git remote set-url --push origin https://github.com/deyuan/bit-serial-compiler.git
 git remote -v
+cd yosys
+git remote set-url --push origin https://github.com/deyuan/bit-serial-compiler.git
+git remote -v
+```
 
-# build apptainer
+Build apptainer:
+```
+# command to build apptainer
 apptainer build myapptainer.sif myapptainer.def
 
-# build abc
-cd abc
-apptainer exec ../myapptainer.sif make
+# command to run apptainer
+apptainer exec myapptainer.sif <command>
 
-# build llvm
+# helper utility to build apptainer
+./apptainer-build.sh
+
+# helper utility to run apptainer
+./apptainer-run.sh <command>
+```
+
+Build LLVM:
+```
 mkdir llvm-build
 cd llvm-build
-apptainer exec ../myapptainer.sif cmake ../llvm-project/llvm -DCMAKE_BUILD_TYPE=Release -DLLVM_ENABLE_PROJECTS="clang;clang-tools-extra" -G "Unix Makefiles"
-apptainer exec ../myapptainer.sif make -j10
+../apptainer-run.sh cmake ../llvm-project/llvm -DCMAKE_BUILD_TYPE=Release -DLLVM_ENABLE_PROJECTS="clang;clang-tools-extra" -G "Unix Makefiles"
+../apptainer-run.sh make -j10
+```
 
+Build abc:
+```
+cd abc
+../apptainer-run.sh make -j10
+```
+
+Build yosys:
+```
+cd yosys
+# in case yosys/abc submodule has not been checked out
+git submodule update --init
+# build
+../apptainer-run.sh make -j10
 ```
 
 # Methodology
@@ -64,6 +94,7 @@ Plan B:
 
 * `bit_serial_compiler.py`: Main entry to call bit-serial compiler
 * `abc`: ABC logic synthesizer submodule
+* `yosys`: yosys logic synthesizer submodule
 * `llvm-project`: LLVM compiler submodule
 * `src/`
   * `genlibs/`: GenLib definitions for bit-serial variants
