@@ -1,7 +1,7 @@
 # Convert verilog to AIG
 
 echo "Reading Verilog ..."
-read_verilog ../../src/verilog/1bit_full_adder.v
+read_verilog ../../src/verilog/full_adder_1bit.v
 
 echo "Structural Hashing ..."
 strash
