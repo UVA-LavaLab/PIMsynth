@@ -1,6 +1,6 @@
 // 1-bit full adder
 
-module 1bit_full_adder (a, b, cin, sum, cout);
+module full_adder_1bit (a, b, cin, sum, cout);
 
 input a;
 input b;
