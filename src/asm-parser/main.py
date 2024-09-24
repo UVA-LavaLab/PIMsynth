@@ -3,6 +3,7 @@ import sys
 import argparse
 import os
 from parser import *
+from asm_transformer import *
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from util import *
@@ -26,8 +27,13 @@ if __name__ == "__main__":
 
     # Parse the circuit representation
     parser.parse(lines)
+    riscvStatementList = parser.statementList
 
-    # Print Statement List
-    parser.printStatementList()
+    # Transrom the riscv assembly to bit-serial assembly
+    asmTransformer = AsmTransformer(riscvStatementList)
+    bitSerialAsm = asmTransformer.getBitSerialAsm()
+
+    for statement in bitSerialAsm:
+        print(statement)
 
 
