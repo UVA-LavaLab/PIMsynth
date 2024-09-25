@@ -127,20 +127,23 @@ class GeneratorAsm():
                 code += ('\tasm("and %%0, %%1, %%2" : "=r" (%s) : "r" (%s), "r" (%s) : %s );\n'
                         % (output, inputs[0], inputs[1], clobber))
             elif item.name.startswith("nand2"):
-                code += ('\tasm("and %%0, %%1, %%2\\nnot %%0, %%0" : "=r" (%s) : "r" (%s), "r" (%s) : %s );\n'
+                code += ('\tasm("and %%0, %%1, %%2 \\n not %%0, %%0" : "=r" (%s) : "r" (%s), "r" (%s) : %s );\n'
                         % (output, inputs[0], inputs[1], clobber))
             elif item.name.startswith("or2"):
                 code += ('\tasm("or %%0, %%1, %%2" : "=r" (%s) : "r" (%s), "r" (%s) : %s );\n'
                         % (output, inputs[0], inputs[1], clobber))
             elif item.name.startswith("nor2"):
-                code += ('\tasm("or %%0, %%1, %%2\\nnot %%0, %%0" : "=r" (%s) : "r" (%s), "r" (%s) : %s );\n'
+                code += ('\tasm("or %%0, %%1, %%2 \\n not %%0, %%0" : "=r" (%s) : "r" (%s), "r" (%s) : %s );\n'
                         % (output, inputs[0], inputs[1], clobber))
             elif item.name.startswith("xor2"):
                 code += ('\tasm("xor %%0, %%1, %%2" : "=r" (%s) : "r" (%s), "r" (%s) : %s );\n'
                         % (output, inputs[0], inputs[1], clobber))
             elif item.name.startswith("xnor2"):
-                code += ('\tasm("xor %%0, %%1, %%2\\nnot %%0, %%0" : "=r" (%s) : "r" (%s), "r" (%s) : %s );\n'
+                code += ('\tasm("xor %%0, %%1, %%2 \\n not %%0, %%0" : "=r" (%s) : "r" (%s), "r" (%s) : %s );\n'
                         % (output, inputs[0], inputs[1], clobber))
+            elif item.name.startswith("mux2"): # inputs: s,a,b; O = s?b:a
+                code += ('\tasm("not s1, %%1 \\n and s2, s1, %%2 \\n and s3, %%1, %%3 \\n or %%0, s2, s3" : "=r" (%s) : "r" (%s), "r" (%s), "r" (%s) : %s );\n'
+                        % (output, inputs[0], inputs[1], inputs[2], clobber))
             else:
                 print('Error: Unhandled item name', item.name)
                 return ''
