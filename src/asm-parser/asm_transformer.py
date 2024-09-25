@@ -58,101 +58,123 @@ class AsmTransformer:
         self.transform()
 
     def transform(self):
-        statementIndex = 0
-        while (statementIndex < len(self.riscvStatementList)):
-            statement = self.riscvStatementList[statementIndex]
-            if type(statement) == Instruction:
+        for statementIndex, statement in enumerate(self.riscvStatementList):
+            if isinstance(statement, Instruction):
                 if statement.isLoadInstruction():
                     self.transformLoadInstruction(statementIndex)
-                elif statement.isStoreInstruction():
+                    continue
+                if statement.isStoreInstruction():
                     self.transformStoreInstruction(statementIndex)
-            if type(statement) == Directive:
-                if statement.val == "#APP":
-                    self.transformInlineAssembly(statementIndex)
-            statementIndex += 1
+                    continue
+            elif isinstance(statement, Directive) and statement.val == "#APP":
+                self.transformInlineAssembly(statementIndex)
+
+    def appendBitSerialInstruction(self, opcode, operands, line):
+        bitSerialInstruction = Instruction(opcode, operands, line)
+        self.bitSerialStatementList.append(bitSerialInstruction)
+
+    def isInputPort(self, portInfo):
+        """Check if the PortInfo is an input port."""
+        return isinstance(portInfo, PortInfo) and portInfo.isInputPort()
+
+    def isPointerOrOutput(self, portInfo, line):
+        """Ignore lw instruction if the port is a pointer or output port."""
+        if isinstance(portInfo, PortInfo) and (portInfo.isPointer() or portInfo.isOutputPort()):
+            print(f"Info: lw instruction at line {line} was ignored.")
+            return True
+        return False
+
+    def handleInputPort(self, riscvInstruction, portInfo):
+        """Handle load instruction for input port."""
+        sourceOperand = portInfo.getPortName()  # Substitute the source operand with the input port name
+        destinationOperand = riscvInstruction.operandsList[0]
+
+        # Add destinationOperand:sourceOperand to the symbol table
+        self.symbolTable.addSymbol(sourceOperand, destinationOperand)
+
+        # Append the bit-serial instruction
+        self.appendBitSerialInstruction("read", [destinationOperand, sourceOperand], riscvInstruction.line)
+
+    def handleTempVariableReload(self, riscvInstruction):
+        """Handle temp variable re-load if it's already in the symbol table."""
+        oldSourceOperand = riscvInstruction.operandsList[1]
+        sourceOperand = self.symbolTable.getSymbol(oldSourceOperand)
+
+        if sourceOperand is None:
+            return
+
+        print(f"Info: temp variable re-load at line {riscvInstruction.line}.")
+        destinationOperand = riscvInstruction.operandsList[0]
+
+        # Append the bit-serial instruction
+        self.appendBitSerialInstruction("read", [destinationOperand, sourceOperand], riscvInstruction.line)
 
     def transformLoadInstruction(self, statementIndex):
         riscvInstruction = self.riscvStatementList[statementIndex]
         portInfo = self.riscvStatementList[statementIndex + 1]
-        line = riscvInstruction.line
-        # Input Load
-        if type(portInfo) == PortInfo and portInfo.isInputPort():
-            sourceOperand = portInfo.getPortName() # Subsitute the source operand with the input port name
-            destinationOperand = riscvInstruction.operandsList[0]
-            operandsList = [destinationOperand, sourceOperand]
 
-            # Add destinationOperand:sourceOperand to the symbol table
-            self.symbolTable.addSymbol(sourceOperand, destinationOperand)
-
-        elif type(portInfo) == PortInfo and portInfo.isPointer():
-            print(f"Info: lw instruction at line {line} was ignored.") # Ignore the instruction
+        # Handle Input Port
+        if self.isInputPort(portInfo):
+            self.handleInputPort(riscvInstruction, portInfo)
             return
 
-        else:
-            if type(portInfo) == PortInfo and portInfo.isOutputPort():
-                print(f"Info: lw instruction at line {line} was ignored.") # Ignore the instruction
-                return
+        # Ignore Pointer and Output Port
+        if self.isPointerOrOutput(portInfo, riscvInstruction.line):
+            return
 
-            # Temp variable Re-load
-            else:
-                # Replace the source operand from the temp from the symbol table
-                oldSourceOperand = riscvInstruction.operandsList[1]
-                sourceOperand = self.symbolTable.getSymbol(oldSourceOperand)
-                if sourceOperand == None:
-                    return
+        # Handle Temp Variable Re-load
+        self.handleTempVariableReload(riscvInstruction)
 
-                print(f"Info: temp varialbe re-load at line {line}.")
-                # Free the temp varialbe
-                # self.tempManager.freeTemp(sourceOperand)
-                # TODO: The re-load may happen later! The temp can not be freed always. Check the cases when can be freed.
+    def isTempVariable(self, portInfo):
+        """Check if the PortInfo refers to a temp variable."""
+        return isinstance(portInfo, PortInfo) and portInfo.isTempVariable()
 
-                destinationOperand = riscvInstruction.operandsList[0]
-                operandsList = [destinationOperand, sourceOperand]
+    def handleTempVariableSpill(self, riscvInstruction, portInfo):
+        """Handle store instruction for spilling temp variables."""
+        line = riscvInstruction.line
+        newTempIndex = self.tempManager.newTemp()
+        newTempStr = f"temp{newTempIndex}"
 
-        bitSerialOpcode = "read"
-        bitSerialInstruction = Instruction(bitSerialOpcode, operandsList, line)
-        self.bitSerialStatementList.append(bitSerialInstruction)
+        print(f"Info: sw instruction is spilling the temp {newTempStr} at line {line}.")
+
+        # Add the new temp to the symbol table
+        oldDestinationOperand = riscvInstruction.operandsList[1]
+        self.symbolTable.addSymbol(oldDestinationOperand, newTempStr)
+
+        # Replace the destination operand with the temp variable
+        destinationOperand = newTempStr
+        sourceOperand = riscvInstruction.operandsList[0]
+
+        # Append the bit-serial instruction
+        self.appendBitSerialInstruction("write", [sourceOperand, destinationOperand], line)
+
+    def shouldIgnoreStoreInstruction(self, riscvInstruction, portInfo):
+        """Ignore store instruction if source operand has no corresponding symbol."""
+        line = riscvInstruction.line
+        sourceOperand = riscvInstruction.operandsList[0]
+        symbolTableVal = self.symbolTable.getSymbol(sourceOperand)
+
+        if symbolTableVal is not None:
+            # Spill input and clean up symbol table
+            self.tempManager.freeTemp(sourceOperand)
+            self.symbolTable.removeSymbol(sourceOperand)
+            return False
+
+        print(f"Info: sw instruction at line {line} was ignored.")
+        return True
 
     def transformStoreInstruction(self, statementIndex):
         riscvInstruction = self.riscvStatementList[statementIndex]
         portInfo = self.riscvStatementList[statementIndex + 1]
-        line = riscvInstruction.line
-        bitSerialOpcode = "write"
-        # Spill Temp
-        if type(portInfo) == PortInfo and portInfo.isTempVariable():
-            # Allocate new temp
-            newTempIndex = self.tempManager.newTemp()
-            newTempStr = "temp" + str(newTempIndex)
 
-            print(f"Info: sw instruction is spilling the temp {newTempStr} at line {line}.")
-
-            # Add temp to the symbol table
-            oldDestinationOperand = riscvInstruction.operandsList[1]
-            self.symbolTable.addSymbol(oldDestinationOperand, newTempStr)
-
-            # Replace the destination operand with the temp variable
-            destinationOperand = newTempStr
-
-            sourceOperand = riscvInstruction.operandsList[0]
-            operandsList = [sourceOperand, destinationOperand]
-
-        else:
-            # Check if the source temp has a row in the symbol table
-            sourceOperand = riscvInstruction.operandsList[0]
-            symbolTableVal = self.symbolTable.getSymbol(sourceOperand)
-            if symbolTableVal != None:
-                # Spill Input
-                self.tempManager.freeTemp(sourceOperand)
-
-                # Remove the row in the symbol table
-                self.symbolTable.removeSymbol(sourceOperand)
-
-            print(f"Info: sw instruction at line {line} was ignored.") # Ignore the instruction
+        # Handle Temp Variable Spill
+        if self.isTempVariable(portInfo):
+            self.handleTempVariableSpill(riscvInstruction, portInfo)
             return
 
-        bitSerialOpcode = "write"
-        bitSerialInstruction = Instruction(bitSerialOpcode, operandsList, line)
-        self.bitSerialStatementList.append(bitSerialInstruction)
+        # Ignore instruction if no temp variable is involved
+        if self.shouldIgnoreStoreInstruction(riscvInstruction, portInfo):
+            return
 
     def getInlineInstructionSequence(self, statementIndex):
         i = statementIndex + 1
@@ -166,40 +188,68 @@ class AsmTransformer:
             i += 1
         return instructionSequence
 
-    def transformInlineAssembly(self, statementIndex):
-        firstRiscvInstruction = self.riscvStatementList[statementIndex + 1]
-        line = firstRiscvInstruction.line
-
-        # Get inline assembly instruction list
-        instructionSequence = self.getInlineInstructionSequence(statementIndex)
-
-        # Map riscv sequence instruction to bit-serial instruction
+    def getMappedOpCode(self, instructionSequence, line):
+        """Get the opcode mapped to the inline assembly instruction sequence."""
         newOpCode = self.getOpCode(instructionSequence)
-        if newOpCode == None:
-            return
-        print(f"Info: Mapped opcode for the line {line} is {newOpCode}.")
+        if newOpCode is None:
+            print(f"Info: No mapped opcode found for inline assembly at line {line}.")
+        else:
+            print(f"Info: Mapped opcode for the line {line} is {newOpCode}.")
+        return newOpCode
 
-        # Get the input operands list
+    def handleBitSerialInstruction(self, instructionSequence, newOpCode, firstRiscvInstruction):
+        """Handle the transformation of the bit-serial instruction from inline assembly."""
         sourceOperandList = firstRiscvInstruction.operandsList[1:]
-        lastRiscvInstruction = instructionSequence[len(instructionSequence) - 1]
+        lastRiscvInstruction = instructionSequence[-1]
         destinationOperand = lastRiscvInstruction.operandsList[0]
+
         operandsList = [destinationOperand] + sourceOperandList
+        line = firstRiscvInstruction.line
         bitSerialInstruction = Instruction(newOpCode, operandsList, line)
+
+        # Append the mapped bit-serial instruction
         self.bitSerialStatementList.append(bitSerialInstruction)
 
-
-        # Check if the destination operand is the output port
+    def handleWriteToOutputPort(self, statementIndex, instructionSequence, line):
+        """Handle writing to an output port after inline assembly."""
         portInfoIndex = statementIndex + len(instructionSequence) + 2
         portInfo = self.riscvStatementList[portInfoIndex]
-        if type(portInfo) == PortInfo and portInfo.isOutputPort():
-            # Add a write instruction from the destination operand to the output port
-            writeOpCode = "write"
+
+        if isinstance(portInfo, PortInfo) and portInfo.isOutputPort():
+            destinationOperand = instructionSequence[-1].operandsList[0]
             writeSourceOperand = destinationOperand
             writeDestinationOperand = portInfo.getPortName()
+
+            writeOpCode = "write"
             writeOperandsList = [writeSourceOperand, writeDestinationOperand]
             writeInstruction = Instruction(writeOpCode, writeOperandsList, line)
+
+            # Append the write instruction for the output port
             self.bitSerialStatementList.append(writeInstruction)
 
+    def transformInlineAssembly(self, statementIndex):
+        instructionSequence = self.getInlineInstructionSequence(statementIndex)
+        firstRiscvInstruction = self.riscvStatementList[statementIndex + 1]
+        newOpCode = self.getMappedOpCode(instructionSequence, firstRiscvInstruction.line)
+
+        if newOpCode is None:
+            return
+
+        # Handle the mapped bit-serial instruction
+        self.handleBitSerialInstruction(instructionSequence, newOpCode, firstRiscvInstruction)
+
+        # Handle write to output port if necessary
+        self.handleWriteToOutputPort(statementIndex, instructionSequence, firstRiscvInstruction.line)
+
+    def matchesSequence(self, instructionSequence, sequence):
+        """Check if a given sequence of opcodes matches the transformation rule."""
+        if len(instructionSequence) < len(sequence):
+            return False
+
+        return all(
+            instructionSequence[i].opCode == sequence[i]
+            for i in range(len(sequence))
+        )
 
     def getOpCode(self, instructionSequence):
         transformationRules = {
@@ -237,5 +287,4 @@ class AsmTransformer:
 
     def getBitSerialAsm(self):
         return self.bitSerialStatementList
-
 
