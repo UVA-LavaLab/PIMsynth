@@ -1,4 +1,5 @@
 // 2-bit full adder
+// hosein, 09/03/2024
 
 module full_adder_2bit (
     a, b, cin, sum, cout

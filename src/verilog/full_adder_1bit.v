@@ -1,4 +1,5 @@
 // 1-bit full adder
+// deyuan, 08/20/2024
 
 module full_adder_1bit (a, b, cin, sum, cout);
 
