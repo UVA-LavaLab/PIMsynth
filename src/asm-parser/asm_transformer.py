@@ -55,6 +55,7 @@ class AsmTransformer:
         self.bitSerialStatementList = []
         self.symbolTable = SymbolTable()
         self.tempManager = TempManager()
+        self.ports = set()
         self.transform()
 
     def transform(self):
@@ -75,12 +76,21 @@ class AsmTransformer:
 
     def isInputPort(self, portInfo):
         """Check if the PortInfo is an input port."""
-        return isinstance(portInfo, PortInfo) and portInfo.isInputPort()
+        if isinstance(portInfo, PortInfo) and portInfo.isInputPort():
+            self.ports.add(portInfo.getPortName())
+            return True
+        return False
 
-    def isPointerOrOutput(self, portInfo, line):
-        """Ignore lw instruction if the port is a pointer or output port."""
-        if isinstance(portInfo, PortInfo) and (portInfo.isPointer() or portInfo.isOutputPort()):
-            print(f"Info: lw instruction at line {line} was ignored.")
+    def isPointer(self, portInfo):
+        """Ignore lw instruction if the port is a pointer."""
+        if isinstance(portInfo, PortInfo) and portInfo.isPointer():
+            return True
+        return False
+
+    def isOutputPort(self, portInfo):
+        """Check if the PortInfo is an output port."""
+        if isinstance(portInfo, PortInfo) and portInfo.isOutputPort():
+            self.ports.add(portInfo.getPortName())
             return True
         return False
 
@@ -119,7 +129,8 @@ class AsmTransformer:
             return
 
         # Ignore Pointer and Output Port
-        if self.isPointerOrOutput(portInfo, riscvInstruction.line):
+        if self.isPointer(portInfo) or self.isOutputPort(portInfo):
+            print(f"Info: lw instruction at line {riscvInstruction.line} was ignored.")
             return
 
         # Handle Temp Variable Re-load
@@ -215,7 +226,7 @@ class AsmTransformer:
         portInfoIndex = statementIndex + len(instructionSequence) + 2
         portInfo = self.riscvStatementList[portInfoIndex]
 
-        if isinstance(portInfo, PortInfo) and portInfo.isOutputPort():
+        if self.isOutputPort(portInfo):
             destinationOperand = instructionSequence[-1].operandsList[0]
             writeSourceOperand = destinationOperand
             writeDestinationOperand = portInfo.getPortName()

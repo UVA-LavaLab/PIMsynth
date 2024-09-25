@@ -4,6 +4,7 @@ import argparse
 import os
 from parser import *
 from asm_transformer import *
+from generator import *
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from util import *
@@ -33,7 +34,18 @@ if __name__ == "__main__":
     asmTransformer = AsmTransformer(riscvStatementList)
     bitSerialAsm = asmTransformer.getBitSerialAsm()
 
+    # Print the bit-serial assembly
     for statement in bitSerialAsm:
         print(statement)
+
+    # Generate bit-serial code following PIMeval API
+    generator = PimEvalAPICodeGenerator(bitSerialAsm, asmTransformer.tempManager, args.module_name, asmTransformer.ports)
+    code = generator.generateCode()
+
+    # Print the bit-serial code for debugging
+    print(code)
+
+    # Write the generated C++ code into a file
+    writeToFile(args.output_file, code)
 
 
