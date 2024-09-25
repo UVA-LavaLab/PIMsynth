@@ -75,7 +75,7 @@ circuitGrammar = r"""
 
     COMMENT: /#[^\n]*/
     PATH: /[a-zA-Z0-9\/_.-]+/
-    IDENTIFIER: /[a-zA-Z0-9_]+/
+    IDENTIFIER: /[a-zA-Z0-9_\[\]]+/
     GATE_NAME: /[a-zA-Z0-9]+/
 
     %import common.WS

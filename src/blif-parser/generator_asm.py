@@ -5,6 +5,7 @@ File: generator_asm.py
 Description: Generator for C with RISC-V inline assembly
 Author: Mohammadhosein Gholamrezaei <uab9qt@virginia.edu> - BLIF-to-C parser generator code framework
 Author: Deyuan Guo <guodeyuan@gmail.com> - Designed and implemented RISC-V inline assembly format
+                                         - Support bus inputs and outputs
 Date: 2024-09-17
 """
 
@@ -15,6 +16,18 @@ class GeneratorAsm():
         self.dataType = "int"
         self.num_regs = num_regs
         self.func_name = func_name
+
+    def sanitize_token(self, token):
+        """ Sanitize token name to be used as a C variable name
+            Bus name: a[0] -> a_0_
+        """
+        return token.replace("[", "_").replace("]", "_")
+
+    def sanitize_token_list(self, token_list):
+        """ Sanitize token names to be used as a C variable names
+            Bus name: a[0] -> a_0_
+        """
+        return [token.replace("[", "_").replace("]", "_") for token in token_list]
 
     def generateCode(self):
         """ Generate C code """
@@ -40,9 +53,11 @@ class GeneratorAsm():
     def generateFunctionArgs(self):
         """ Generate function args passed by pointers """
         items = []
-        for item in self.parser.inputsList:
+        inputs = self.sanitize_token_list(self.parser.inputsList)
+        for item in inputs:
             items.append(self.dataType + " *" + item + "_p")
-        for item in self.parser.outputsList:
+        outputs = self.sanitize_token_list(self.parser.outputsList)
+        for item in outputs:
             items.append(self.dataType + " *" + item + "_p")
         code = "\t" + ",\n\t".join(items) + '\n'
         return code
@@ -71,7 +86,8 @@ class GeneratorAsm():
     def generateTemporaryVariablesIn(self):
         """ Generate temp variables that dereference input pointers """
         items = []
-        for item in self.parser.inputsList:
+        inputs = self.sanitize_token_list(self.parser.inputsList)
+        for item in inputs:
             items.append(item + "=*" + item + "_p")
         code = "\t" + self.dataType + " " + ", ".join(items) + ";\n"
         return code
@@ -79,7 +95,8 @@ class GeneratorAsm():
     def generateTemporaryVariablesOut(self):
         """ Generate temp variables for storing outputs """
         items = []
-        for item in self.parser.outputsList:
+        outputs = self.sanitize_token_list(self.parser.outputsList)
+        for item in outputs:
             items.append(item)
         code = "\t" + self.dataType + " " + ", ".join(items) + ";\n"
         return code
@@ -101,27 +118,29 @@ class GeneratorAsm():
         # Define inputs, outputs, and register clobbering
         code = '\tasm("########## BEGIN ##########");\n'
         for item in self.parser.statementList:
+            inputs = self.sanitize_token_list(item.inputList)
+            output = self.sanitize_token(item.output)
             if item.name.startswith("inv1"):
                 code += ('\tasm("not %%0, %%1" : "=r" (%s) : "r" (%s) : %s );\n'
-                        % (item.output, item.inputList[0], clobber))
+                        % (output, inputs[0], clobber))
             elif item.name.startswith("and2"):
                 code += ('\tasm("and %%0, %%1, %%2" : "=r" (%s) : "r" (%s), "r" (%s) : %s );\n'
-                        % (item.output, item.inputList[0], item.inputList[1], clobber))
+                        % (output, inputs[0], inputs[1], clobber))
             elif item.name.startswith("nand2"):
                 code += ('\tasm("and %%0, %%1, %%2\\nnot %%0, %%0" : "=r" (%s) : "r" (%s), "r" (%s) : %s );\n'
-                        % (item.output, item.inputList[0], item.inputList[1], clobber))
+                        % (output, inputs[0], inputs[1], clobber))
             elif item.name.startswith("or2"):
                 code += ('\tasm("or %%0, %%1, %%2" : "=r" (%s) : "r" (%s), "r" (%s) : %s );\n'
-                        % (item.output, item.inputList[0], item.inputList[1], clobber))
+                        % (output, inputs[0], inputs[1], clobber))
             elif item.name.startswith("nor2"):
                 code += ('\tasm("or %%0, %%1, %%2\\nnot %%0, %%0" : "=r" (%s) : "r" (%s), "r" (%s) : %s );\n'
-                        % (item.output, item.inputList[0], item.inputList[1], clobber))
+                        % (output, inputs[0], inputs[1], clobber))
             elif item.name.startswith("xor2"):
                 code += ('\tasm("xor %%0, %%1, %%2" : "=r" (%s) : "r" (%s), "r" (%s) : %s );\n'
-                        % (item.output, item.inputList[0], item.inputList[1], clobber))
+                        % (output, inputs[0], inputs[1], clobber))
             elif item.name.startswith("xnor2"):
                 code += ('\tasm("xor %%0, %%1, %%2\\nnot %%0, %%0" : "=r" (%s) : "r" (%s), "r" (%s) : %s );\n'
-                        % (item.output, item.inputList[0], item.inputList[1], clobber))
+                        % (output, inputs[0], inputs[1], clobber))
             else:
                 print('Error: Unhandled item name', item.name)
                 return ''
@@ -132,7 +151,8 @@ class GeneratorAsm():
     def generateStatementsOutput(self):
         """ Generate statements to store output temp vars to pointers """
         code = ""
-        for item in self.parser.outputsList:
+        outputs = [item.replace("[", "_").replace("]", "_") for item in self.parser.outputsList]
+        for item in outputs:
             code += "\t*" + item + '_p = ' + item + ";\n"
         return code
 
