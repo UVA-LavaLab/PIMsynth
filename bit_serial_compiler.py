@@ -33,9 +33,11 @@ class bitSerialCompiler:
         self.num_regs = 0
         self.from_stage = ''
         self.to_stage = ''
-        self.stages = {'verilog':1, 'aig':2, 'blif':3, 'c':4, 'asm':5, 'pim':6}
+        self.stages = {'verilog':1, 'blif':2, 'c':3, 'asm':4, 'pim':5}
         self.abc_path = ''
+        self.yosys_path = ''
         self.clang_path = ''
+        self.yosys_fe = True
         self.parser = self.create_argparse()
         self.hbar = "============================================================"
 
@@ -54,7 +56,8 @@ class bitSerialCompiler:
 
         if not self.locate_abc_path():
             return
-
+        if not self.locate_yosys_path():
+            return
         if not self.locate_clang_path():
             return
 
@@ -63,13 +66,8 @@ class bitSerialCompiler:
         if not self.create_outdir_if_needed():
             return
 
-        if self.stages[self.from_stage] <= self.stages['verilog'] and self.stages[self.to_stage] >= self.stages['aig']:
-            success = self.run_verilog_to_aig()
-            if not success:
-                return False
-
-        if self.stages[self.from_stage] <= self.stages['aig'] and self.stages[self.to_stage] >= self.stages['blif']:
-            success = self.run_aig_to_blif()
+        if self.stages[self.from_stage] <= self.stages['verilog'] and self.stages[self.to_stage] >= self.stages['blif']:
+            success = self.run_verilog_to_blif()
             if not success:
                 return False
 
@@ -96,8 +94,7 @@ class bitSerialCompiler:
         extra_help_msg = textwrap.dedent("""
         how to use:
           Input requirements:
-            --from-stage verilog    require --verilog, require --genlib if --to blif or later stages
-            --from-stage aig        require --aig and --genlib
+            --from-stage verilog    require --verilog and --genlib
             --from-stage blif       require --blif
             --from-stage c          require --c
             --from-stage asm        require --asm
@@ -105,7 +102,6 @@ class bitSerialCompiler:
         parser = argparse.ArgumentParser(epilog=extra_help_msg, formatter_class=argparse.RawTextHelpFormatter)
         parser.add_argument('--verilog', metavar='[file]', type=str, default='', help='Input Verilog file')
         parser.add_argument('--genlib', metavar='[file]', type=str, default='', help='Input GenLib file')
-        parser.add_argument('--aig', metavar='[file]', type=str, default='', help='Input AIG file')
         parser.add_argument('--blif', metavar='[file]', type=str, default='', help='Input BLIF file')
         parser.add_argument('--c', metavar='[file]', type=str, default='', help='Input C file')
         parser.add_argument('--asm', metavar='[file]', type=str, default='', help='Input ASM file')
@@ -113,10 +109,10 @@ class bitSerialCompiler:
         parser.add_argument('--output', metavar='[filename]', type=str, default='tmp', help='Output filename without suffix')
         parser.add_argument('--outdir', metavar='[path]', type=str, default='.', help='Output location, default current dir')
         parser.add_argument('--from-stage', metavar='[stage]', type=str,
-                help='From stage: verilog (default), aig, blif, c, asm, pim',
+                help='From stage: verilog (default), blif, c, asm, pim',
                 choices=self.stages, default='verilog')
         parser.add_argument('--to-stage', metavar='[stage]', type=str,
-                help='To stage: verilog, aig, blif, c, asm, pim (default)',
+                help='To stage: verilog, blif, c, asm, pim (default)',
                 choices=self.stages, default='pim')
         return parser
 
@@ -125,13 +121,11 @@ class bitSerialCompiler:
         args = self.parser.parse_args(self.args)
         self.verilog = args.verilog
         self.genlib = args.genlib
-        self.aig = args.aig
         self.blif = args.blif
         self.c = args.c
         self.asm = args.asm
         if (not self.sanity_check_input_file(self.verilog, 'Verilog')
                 or not self.sanity_check_input_file(self.genlib, 'GenLib')
-                or not self.sanity_check_input_file(self.aig, 'AIG')
                 or not self.sanity_check_input_file(self.blif, 'BLIF')
                 or not self.sanity_check_input_file(self.c, 'C')
                 or not self.sanity_check_input_file(self.asm, 'ASM')):
@@ -148,11 +142,10 @@ class bitSerialCompiler:
             print("Error: Invalid from-to range: %s -> %s" % (self.from_stage, self.to_stage))
             return False
         if (not self.sanity_check_from_to(self.verilog, 'verilog')
-                or not self.sanity_check_from_to(self.aig, 'aig')
+                or not self.sanity_check_from_to(self.genlib, 'genlib', 'verilog')
                 or not self.sanity_check_from_to(self.blif, 'blif')
                 or not self.sanity_check_from_to(self.c, 'c')
-                or not self.sanity_check_from_to(self.asm, 'asm')
-                or not self.sanity_check_from_to(self.genlib, 'genlib', ['aig', 'blif'])):
+                or not self.sanity_check_from_to(self.asm, 'asm')):
             return False
         self.num_regs = args.num_regs
         if self.num_regs < 2 or self.num_regs > 7:
@@ -193,6 +186,16 @@ class bitSerialCompiler:
             return False
         return True
 
+    def locate_yosys_path(self):
+        """ Locate yosys location """
+        script_location = os.path.dirname(os.path.abspath(__file__))
+        # TODO: executable path
+        self.yosys_path = os.path.join(script_location, 'yosys/yosys')
+        if not os.path.isfile(self.yosys_path):
+            print("Error: Cannot find yosys executable at", self.yosys_path)
+            return False
+        return True
+
     def locate_clang_path(self):
         """ Locate clang location """
         script_location = os.path.dirname(os.path.abspath(__file__))
@@ -209,8 +212,6 @@ class bitSerialCompiler:
         print("From-to Stage: %s -> %s" % (self.from_stage, self.to_stage))
         if self.verilog:
             print("Input Verilog File:", self.verilog)
-        if self.aig:
-            print("Input AIG File:", self.aig)
         if self.genlib:
             print("Input GenLib File:", self.genlib)
         if self.blif:
@@ -244,65 +245,115 @@ class bitSerialCompiler:
             return False
         return True
 
-    def run_verilog_to_aig(self):
-        """ Compile Verilog to AIG """
-        print("INFO: Compiling Verilog to AIG ...")
+    def run_verilog_to_blif(self):
+        """ Compile Verilog to BLIF """
+        print("INFO: Compiling Verilog to BLIF ...")
+        if self.yosys_fe:
+            return self.run_verilog_to_blif_yosys()
+        else:
+            return self.run_verilog_to_blif_abc()
 
-        print("INFO: Creating ABC script (Verilog->AIG)")
-        aig_file = os.path.join(self.outdir, self.output + '.aig')
-        abc1_tmpl = textwrap.dedent("""
-            # Auto Generated by Bit-Serial Compiler: Verilog to AIG
-            echo "Reading Verilog"
-            read_verilog %s
-            echo "Structural Hashing"
+    def run_verilog_to_blif_yosys(self):
+        """ Compile Verilog to BLIF using yosys verilog frontend and abc tech mapper """
+        print("INFO: Creating yosys script (Verilog->Tech-Independent-BLIF)")
+        yosys_blif_file = os.path.join(self.outdir, self.output + '_yosys.blif')
+        yosys_tmpl = textwrap.dedent("""
+            # Auto Generated by Bit-Serial Compiler: Verilog to Tech-Independent-BLIF
+            log "INFO: Read Verilog"
+            read -sv %s
+            hierarchy -auto-top
+            stat
+            log "INFO: Optmization"
+            proc
+            flatten
+            opt_expr
+            opt_clean
+            check
+            opt
+            stat
+            log "INFO: Map Arithmetic Operations"
+            # booth
+            alumacc
+            opt
+            opt_clean
+            stat
+            log "INFO: Tech Independent Mapping"
+            techmap
+            stat
+            write_blif %s
+        """ % (self.verilog, yosys_blif_file))
+        yosys_file = os.path.join(self.outdir, self.output + '.yosys')
+        with open(yosys_file, 'w') as file:
+            file.write(yosys_tmpl)
+        print("INFO: Created yosys script:", yosys_file)
+
+        print("INFO: Running yosys to synthesize Verilog to Tech-Independent-BLIF")
+        yosys_log_file = os.path.join(self.outdir, self.output + '_yosys.log')
+        result = subprocess.run([self.yosys_path, '-s', yosys_file, '-l', yosys_log_file])
+        if result.returncode != 0:
+            print('Error: yosys synthesizer failed.')
+            return False
+        print("INFO: Generated Tech-Independent-BLIF file:", yosys_blif_file)
+
+        print(self.hbar)
+        print("INFO: Creating ABC script (Tech-Independent-BLIF->BLIF)")
+        blif_file = os.path.join(self.outdir, self.output + '.blif')
+        abc_tmpl = textwrap.dedent("""
+            # Auto Generated by Bit-Serial Compiler: Tech-Independent-BLIF to BLIF
+            echo "INFO: Reading Tech-Independent-BLIF"
+            read_blif %s
+            echo "INFO: Structural Hashing"
             strash
-            echo "Writing AIG"
-            write_aiger %s
-        """ % (self.verilog, aig_file))
-        abc1_file = os.path.join(self.outdir, self.output + '.abc1')
-        with open(abc1_file, 'w') as file:
-            file.write(abc1_tmpl)
-        print("INFO: Created ABC script:", abc1_file)
+            echo "INFO: Reading GenLib"
+            read_genlib %s
+            echo "INFO: Tech Mapping"
+            map
+            echo "INFO: Writing BLIF"
+            write_blif %s
+        """ % (yosys_blif_file, self.genlib, blif_file))
+        abc_file = os.path.join(self.outdir, self.output + '.abc')
+        with open(abc_file, 'w') as file:
+            file.write(abc_tmpl)
+        print("INFO: Created ABC script:", abc_file)
 
-        print("INFO: Running ABC to synthesize Verilog to AIG")
-        result = subprocess.run([self.abc_path, '-f', abc1_file])
+        print("INFO: Running ABC to synthesize Tech-Independent-BLIF to BLIF")
+        result = subprocess.run([self.abc_path, '-f', abc_file])
         if result.returncode != 0:
             print('Error: ABC synthesizer failed.')
             return False
-        print("INFO: Generated AIG file:", self.output + '.aig')
+        print("INFO: Generated BLIF file:", blif_file)
 
         print(self.hbar)
         return True
 
-    def run_aig_to_blif(self):
-        """ Compile AIG to BLIF """
-        print("INFO: Compiling AIG to BLIF ...")
-
-        print("INFO: Creating ABC script (AIG->BLIF)")
-        aig_file = self.aig if self.aig else os.path.join(self.outdir, self.output + '.aig')
+    def run_verilog_to_blif_abc(self):
+        """ Compile Verilog to BLIF using abc verilog frontend """
+        print("INFO: Creating ABC script (Verilog->BLIF)")
         blif_file = os.path.join(self.outdir, self.output + '.blif')
-        abc2_tmpl = textwrap.dedent("""
-            # Auto Generated by Bit-Serial Compiler: AIG to BLIF
-            echo "Reading GenLib"
+        abc_tmpl = textwrap.dedent("""
+            # Auto Generated by Bit-Serial Compiler: Verilog to BLIF
+            echo "INFO: Reading Verilog"
+            read_verilog %s
+            echo "INFO: Structural Hashing"
+            strash
+            echo "INFO: Reading GenLib"
             read_genlib %s
-            echo "Reading AIG"
-            read_aiger %s
-            echo "Tech Mapping"
+            echo "INFO: Tech Mapping"
             map
-            echo "Writing BLIF"
+            echo "INFO: Writing BLIF"
             write_blif %s
-        """ % (self.genlib, aig_file, blif_file))
-        abc2_file = os.path.join(self.outdir, self.output + '.abc2')
-        with open(abc2_file, 'w') as file:
-            file.write(abc2_tmpl)
-        print("INFO: Created ABC script:", abc2_file)
+        """ % (self.verilog, self.genlib, blif_file))
+        abc_file = os.path.join(self.outdir, self.output + '.abc')
+        with open(abc_file, 'w') as file:
+            file.write(abc_tmpl)
+        print("INFO: Created ABC script:", abc_file)
 
-        print("INFO: Running ABC to synthesize AIG to BLIF")
-        result = subprocess.run([self.abc_path, '-f', abc2_file])
+        print("INFO: Running ABC to synthesize Verilog to BLIF")
+        result = subprocess.run([self.abc_path, '-f', abc_file])
         if result.returncode != 0:
             print('Error: ABC synthesizer failed.')
             return False
-        print("INFO: Generated BLIF file:", self.output + '.blif')
+        print("INFO: Generated BLIF file:", blif_file)
 
         print(self.hbar)
         return True
