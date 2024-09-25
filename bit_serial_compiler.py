@@ -38,6 +38,7 @@ class bitSerialCompiler:
         self.yosys_path = ''
         self.clang_path = ''
         self.yosys_fe = True
+        self.clang_g = False
         self.parser = self.create_argparse()
         self.hbar = "============================================================"
 
@@ -114,6 +115,7 @@ class bitSerialCompiler:
         parser.add_argument('--to-stage', metavar='[stage]', type=str,
                 help='To stage: verilog, blif, c, asm, pim (default)',
                 choices=self.stages, default='pim')
+        parser.add_argument('--clang-g', action='store_true', help='Enable clang -g to generate verbose assembly')
         return parser
 
     def parse_args(self):
@@ -151,6 +153,7 @@ class bitSerialCompiler:
         if self.num_regs < 2 or self.num_regs > 7:
             print("Error: Unsupported number of registers:", self.num_regs)
             return False
+        self.clang_g = args.clang_g
         return True
 
     def sanity_check_input_file(self, input_file, tag):
@@ -226,6 +229,7 @@ class bitSerialCompiler:
             print("Output Directory:", self.outdir)
         print("ABC Path:", self.abc_path)
         print("CLANG Path:", self.clang_path)
+        print("CLANG -g:", self.clang_g)
         print("Number of Registers:", self.num_regs)
         print(self.hbar)
 
@@ -382,7 +386,10 @@ class bitSerialCompiler:
 
         c_file = self.c if self.c else os.path.join(self.outdir, self.output + '.c')
         asm_file = os.path.join(self.outdir, self.output + '.s')
-        result = subprocess.run([self.clang_path, '-O3', '-target', 'riscv32-unknown-elf', '-S', c_file, '-o', asm_file])
+        cmd = [self.clang_path, '-O3', '-target', 'riscv32-unknown-elf', '-S', c_file, '-o', asm_file]
+        if self.clang_g:
+            cmd.append('-g')
+        result = subprocess.run(cmd)
         if result.returncode != 0:
             print('Error: CLANG/LLVM failed.')
             return False
