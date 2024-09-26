@@ -265,7 +265,7 @@ class AsmTransformer:
     def getOpCode(self, instructionSequence):
         transformationRules = {
             ('xor', 'not'): 'xnor',
-            ('and', 'not'): 'not',
+            ('and', 'not'): 'nand',
         }
         mappedOpcodes = []  # To store the mapped opcodes
         i = 0
