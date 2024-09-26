@@ -39,7 +39,7 @@ if __name__ == "__main__":
         print(statement)
 
     # Generate bit-serial code following PIMeval API
-    generator = PimEvalAPICodeGenerator(bitSerialAsm, asmTransformer.tempManager, args.module_name, asmTransformer.ports)
+    generator = PimEvalAPICodeGenerator(bitSerialAsm, args.module_name, asmTransformer.ports)
     code = generator.generateCode()
 
     # Print the bit-serial code for debugging

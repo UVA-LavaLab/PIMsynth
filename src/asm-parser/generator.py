@@ -1,11 +1,21 @@
+import re
+import math
 
+# Util function
+def findTempVarIndex(inputString):
+    pattern = r'temp\d+'
+    match = re.search(pattern, inputString)
+    if match:
+        return match.start()
+    else:
+        return -1
 
 class PimEvalAPICodeGenerator:
-    def __init__(self, instructionSequence, tempManager, functionName, ports):
+    def __init__(self, instructionSequence, functionName, ports):
         self.instructionSequence = instructionSequence
-        self.tempTable = tempManager
         self.functionName = functionName
-        self.ports = ports
+        self.ports = sorted(list(ports))
+        self.tempVarMapList = self.getTempVarMapList()
 
     def generateCode(self):
         code = ""
@@ -24,8 +34,8 @@ class PimEvalAPICodeGenerator:
 
     def generateFunctionArgs(self):
         code = ""
-        for port in sorted(list(self.ports)):
-            code += "PimObjId " + port + ",\n"
+        for port in self.ports:
+            code += "\t" + "PimObjId " + port + ",\n"
         return code
 
     def generateFunctionBody(self):
@@ -36,9 +46,42 @@ class PimEvalAPICodeGenerator:
         code += "}\n"
         return code
 
+    def getTempVarList(self):
+        tempVarSet = set()
+        for instruction in self.instructionSequence:
+            for operand in instruction.operandsList:
+                if "temp" in operand:
+                    tempVarSet.add(operand)
+        return list(tempVarSet)
+
+    def getDataTypeBitWidth(self):
+        dataTypeBitWidthList = [8, 16, 32, 64]
+        selectedDataTypeWidth = dataTypeBitWidthList[-1]
+        numberOfTempVars = len(self.getTempVarList())
+        for dataTypeBitWidth in dataTypeBitWidthList:
+            if numberOfTempVars <= dataTypeBitWidth:
+                selectedDataTypeWidth = dataTypeBitWidth
+        return selectedDataTypeWidth
+
+    def mapVarIndex(self, tmpVarIndex):
+        dataTypeBitWidth = self.getDataTypeBitWidth()
+        return (tmpVarIndex // dataTypeBitWidth, tmpVarIndex % dataTypeBitWidth)
+
+    def getTempVarMapList(self):
+        tempVarMapList = list()
+        for tempVar in self.getTempVarList():
+            tmpVarIndex = findTempVarIndex(tempVar)
+            pimObjIndex = self.mapVarIndex(tmpVarIndex)
+
     def generateTemporaryVariables(self):
         code = ""
-        # TODO
+        dataTypeBitWidth = self.getDataTypeBitWidth()
+        numberOfTempVars = len(self.getTempVarList())
+        numberOfTempVar = math.ceil(numberOfTempVars / dataTypeBitWidth)
+        firstIoPort = self.ports[0]
+        for i in range(numberOfTempVar):
+            code += "\t" + "PimObjId tmpObj" + str(i) + " = "
+            code += "pimAllocAssociated(" + str(dataTypeBitWidth) + ", " + firstIoPort + ", PIM_INT" + str(dataTypeBitWidth) + ");"
         return code
 
     def generateStatementsAsm(self):
