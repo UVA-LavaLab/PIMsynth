@@ -73,10 +73,13 @@ class PimEvalAPICodeGenerator:
 
     def generateCode(self):
         code = ""
-        # code += self.generateHeaderFiles()
+        code += self.generateHeaderFiles()
         code += self.generateFunctionSignature()
         code += self.generateFunctionBody()
         return code
+
+    def generateHeaderFiles(self):
+        return "#include \"libpimeval.h\"\n"
 
     def generateFunctionSignature(self):
         code = "void "
