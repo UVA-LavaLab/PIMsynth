@@ -90,14 +90,14 @@ class GeneratorAsm():
     def getAsmInstructions(self, clobber):
         """ Return a dictionary that maps logic gate names to assembly code generation functions """
         return {
-            "inv1": lambda output, inputs: f'not %%0, %%1" : "=r" ({output}) : "r" ({inputs[0]}) : {clobber}',
-            "and2": lambda output, inputs: f'and %%0, %%1, %%2" : "=r" ({output}) : "r" ({inputs[0]}), "r" ({inputs[1]}) : {clobber}',
-            "nand2": lambda output, inputs: f'and %%0, %%1, %%2 \\n not %%0, %%0" : "=r" ({output}) : "r" ({inputs[0]}), "r" ({inputs[1]}) : {clobber}',
-            "or2": lambda output, inputs: f'or %%0, %%1, %%2" : "=r" ({output}) : "r" ({inputs[0]}), "r" ({inputs[1]}) : {clobber}',
-            "nor2": lambda output, inputs: f'or %%0, %%1, %%2 \\n not %%0, %%0" : "=r" ({output}) : "r" ({inputs[0]}), "r" ({inputs[1]}) : {clobber}',
-            "xor2": lambda output, inputs: f'xor %%0, %%1, %%2" : "=r" ({output}) : "r" ({inputs[0]}), "r" ({inputs[1]}) : {clobber}',
-            "xnor2": lambda output, inputs: f'xor %%0, %%1, %%2 \\n not %%0, %%0" : "=r" ({output}) : "r" ({inputs[0]}), "r" ({inputs[1]}) : {clobber}',
-            "mux2": lambda output, inputs: f'not s1, %%1 \\n and s2, s1, %%2 \\n and s3, %%1, %%3 \\n or %%0, s2, s3" : "=r" ({output}) : "r" ({inputs[0]}), "r" ({inputs[1]}), "r" ({inputs[2]}) : {clobber}'
+            "inv1": lambda output, inputs: f'not %0, %1" : "=r" ({output}) : "r" ({inputs[0]}) : {clobber}',
+            "and2": lambda output, inputs: f'and %0, %1, %2" : "=r" ({output}) : "r" ({inputs[0]}), "r" ({inputs[1]}) : {clobber}',
+            "nand2": lambda output, inputs: f'and %0, %1, %2 \\n not %0, %0" : "=r" ({output}) : "r" ({inputs[0]}), "r" ({inputs[1]}) : {clobber}',
+            "or2": lambda output, inputs: f'or %0, %1, %2" : "=r" ({output}) : "r" ({inputs[0]}), "r" ({inputs[1]}) : {clobber}',
+            "nor2": lambda output, inputs: f'or %0, %1, %2 \\n not %0, %0" : "=r" ({output}) : "r" ({inputs[0]}), "r" ({inputs[1]}) : {clobber}',
+            "xor2": lambda output, inputs: f'xor %0, %1, %2" : "=r" ({output}) : "r" ({inputs[0]}), "r" ({inputs[1]}) : {clobber}',
+            "xnor2": lambda output, inputs: f'xor %0, %1, %2 \\n not %0, %0" : "=r" ({output}) : "r" ({inputs[0]}), "r" ({inputs[1]}) : {clobber}',
+            "mux2": lambda output, inputs: f'not s1, %1 \\n and s2, s1, %2 \\n and s3, %1, %3 \\n or %0, s2, s3" : "=r" ({output}) : "r" ({inputs[0]}), "r" ({inputs[1]}), "r" ({inputs[2]}) : {clobber}'
         }
 
     def generateAsmStatement(self, item, asm_instructions):
