@@ -1,3 +1,12 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+File: generator.py
+Description: bit-serial code generator in either assembly or PIMeval API
+Author: Mohammadhosein Gholamrezaei <uab9qt@virginia.edu> - RISCV-to-BITSERIAL code generator framework
+Date: 2024-09-27
+"""
+
 import re
 import math
 

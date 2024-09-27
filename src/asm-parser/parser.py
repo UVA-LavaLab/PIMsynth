@@ -1,4 +1,13 @@
 
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+File: parser.py
+Description: Parse RISCV assembly code.
+Author: Mohammadhosein Gholamrezaei <uab9qt@virginia.edu>
+Date: 2024-09-27
+"""
+
 import re
 
 class Statement:
@@ -110,3 +119,4 @@ class Parser():
 
     def processStatementList(self):
         pass
+

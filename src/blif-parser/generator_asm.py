@@ -17,13 +17,13 @@ class GeneratorAsm():
         self.num_regs = num_regs
         self.func_name = func_name
 
-    def sanitize_token(self, token):
+    def sanitizeToken(self, token):
         """ Sanitize token name to be used as a C variable name
             Bus name: a[0] -> a_0_
         """
         return token.replace("[", "_").replace("]", "_")
 
-    def sanitize_token_list(self, token_list):
+    def sanitizeTokenList(self, token_list):
         """ Sanitize token names to be used as a C variable names
             Bus name: a[0] -> a_0_
         """
@@ -52,15 +52,9 @@ class GeneratorAsm():
 
     def generateFunctionArgs(self):
         """ Generate function args passed by pointers """
-        items = []
-        inputs = self.sanitize_token_list(self.parser.inputsList)
-        for item in inputs:
-            items.append(self.dataType + " *" + item + "_p")
-        outputs = self.sanitize_token_list(self.parser.outputsList)
-        for item in outputs:
-            items.append(self.dataType + " *" + item + "_p")
-        code = "\t" + ",\n\t".join(items) + '\n'
-        return code
+        inputsOutputs = self.sanitizeTokenList(self.parser.inputsList + self.parser.outputsList)
+        items = [f"{self.dataType} *{item}_p" for item in inputsOutputs]
+        return f"\t{',\n\t'.join(items)}\n"
 
     def generateFunctionBody(self):
         """ Generate function body """
@@ -76,79 +70,62 @@ class GeneratorAsm():
         return code
 
     def generateTemporaryVariables(self):
-        """ Generate temp variables representing wires """
-        items = []
-        for item in self.parser.wireList:
-            items.append(item)
-        code = "\t" + self.dataType + " " + ", ".join(items) + ";\n"
-        return code
+        variables = ', '.join(self.parser.wireList)
+        return f"\t{self.dataType} {variables};\n"
 
     def generateTemporaryVariablesIn(self):
         """ Generate temp variables that dereference input pointers """
-        items = []
-        inputs = self.sanitize_token_list(self.parser.inputsList)
-        for item in inputs:
-            items.append(item + "=*" + item + "_p")
-        code = "\t" + self.dataType + " " + ", ".join(items) + ";\n"
-        return code
+        return f"\t{self.dataType} {', '.join([f'{item} = *{item}_p' for item in self.sanitizeTokenList(self.parser.inputsList)])};\n"
 
     def generateTemporaryVariablesOut(self):
         """ Generate temp variables for storing outputs """
-        items = []
-        outputs = self.sanitize_token_list(self.parser.outputsList)
-        for item in outputs:
-            items.append(item)
-        code = "\t" + self.dataType + " " + ", ".join(items) + ";\n"
-        return code
+        outputs = self.sanitizeTokenList(self.parser.outputsList)
+        return f"\t{self.dataType} {', '.join(outputs)};\n"
+
+    def generateClobberList(self):
+        """ Generate the RISC-V register clobbering list """
+        regs = ['"ra"'] + [f'"a{i}"' for i in range(8)] + [f'"s{i}"' for i in range(12)] + [f'"t{i}"' for i in range(self.num_regs, 7)]
+        return ','.join(regs)
+
+    def getAsmInstructions(self, clobber):
+        """ Return a dictionary that maps logic gate names to assembly code generation functions """
+        return {
+            "inv1": lambda output, inputs: f'not %%0, %%1" : "=r" ({output}) : "r" ({inputs[0]}) : {clobber}',
+            "and2": lambda output, inputs: f'and %%0, %%1, %%2" : "=r" ({output}) : "r" ({inputs[0]}), "r" ({inputs[1]}) : {clobber}',
+            "nand2": lambda output, inputs: f'and %%0, %%1, %%2 \\n not %%0, %%0" : "=r" ({output}) : "r" ({inputs[0]}), "r" ({inputs[1]}) : {clobber}',
+            "or2": lambda output, inputs: f'or %%0, %%1, %%2" : "=r" ({output}) : "r" ({inputs[0]}), "r" ({inputs[1]}) : {clobber}',
+            "nor2": lambda output, inputs: f'or %%0, %%1, %%2 \\n not %%0, %%0" : "=r" ({output}) : "r" ({inputs[0]}), "r" ({inputs[1]}) : {clobber}',
+            "xor2": lambda output, inputs: f'xor %%0, %%1, %%2" : "=r" ({output}) : "r" ({inputs[0]}), "r" ({inputs[1]}) : {clobber}',
+            "xnor2": lambda output, inputs: f'xor %%0, %%1, %%2 \\n not %%0, %%0" : "=r" ({output}) : "r" ({inputs[0]}), "r" ({inputs[1]}) : {clobber}',
+            "mux2": lambda output, inputs: f'not s1, %%1 \\n and s2, s1, %%2 \\n and s3, %%1, %%3 \\n or %%0, s2, s3" : "=r" ({output}) : "r" ({inputs[0]}), "r" ({inputs[1]}), "r" ({inputs[2]}) : {clobber}'
+        }
+
+    def generateAsmStatement(self, item, asm_instructions):
+        """ Generate a single assembly statement based on the logic gate type """
+        inputs = self.sanitizeTokenList(item.inputList)
+        output = self.sanitizeToken(item.output)
+
+        for key, asm_func in asm_instructions.items():
+            if item.name.startswith(key):
+                return f'\tasm("{asm_func(output, inputs)});\n'
+
+        print(f"Error: Unhandled item name {item.name}")
+        return ''
 
     def generateStatementsAsm(self):
         """ Generate C asm statement sequence """
-        # Deterime RISC-V register clobbering list
-        regs = ['"ra"']
-        for i in range(8):
-            regs.append('"a' + str(i) + '"')
-        for i in range(12):
-            regs.append('"s' + str(i) + '"')
-        for i in range(self.num_regs, 7):
-            regs.append('"t' + str(i) + '"')
-        clobber = ','.join(regs)
+        # Generate the clobber list and assembly instruction mappings
+        clobber = self.generateClobberList()
+        asm_instructions = self.getAsmInstructions(clobber)
 
         # RISC-V inline assembly
-        # Map each logic gate to an asm statement, which may include multiple instructions
-        # Define inputs, outputs, and register clobbering
         code = '\tasm("########## BEGIN ##########");\n'
-        for item in self.parser.statementList:
-            inputs = self.sanitize_token_list(item.inputList)
-            output = self.sanitize_token(item.output)
-            if item.name.startswith("inv1"):
-                code += ('\tasm("not %%0, %%1" : "=r" (%s) : "r" (%s) : %s );\n'
-                        % (output, inputs[0], clobber))
-            elif item.name.startswith("and2"):
-                code += ('\tasm("and %%0, %%1, %%2" : "=r" (%s) : "r" (%s), "r" (%s) : %s );\n'
-                        % (output, inputs[0], inputs[1], clobber))
-            elif item.name.startswith("nand2"):
-                code += ('\tasm("and %%0, %%1, %%2 \\n not %%0, %%0" : "=r" (%s) : "r" (%s), "r" (%s) : %s );\n'
-                        % (output, inputs[0], inputs[1], clobber))
-            elif item.name.startswith("or2"):
-                code += ('\tasm("or %%0, %%1, %%2" : "=r" (%s) : "r" (%s), "r" (%s) : %s );\n'
-                        % (output, inputs[0], inputs[1], clobber))
-            elif item.name.startswith("nor2"):
-                code += ('\tasm("or %%0, %%1, %%2 \\n not %%0, %%0" : "=r" (%s) : "r" (%s), "r" (%s) : %s );\n'
-                        % (output, inputs[0], inputs[1], clobber))
-            elif item.name.startswith("xor2"):
-                code += ('\tasm("xor %%0, %%1, %%2" : "=r" (%s) : "r" (%s), "r" (%s) : %s );\n'
-                        % (output, inputs[0], inputs[1], clobber))
-            elif item.name.startswith("xnor2"):
-                code += ('\tasm("xor %%0, %%1, %%2 \\n not %%0, %%0" : "=r" (%s) : "r" (%s), "r" (%s) : %s );\n'
-                        % (output, inputs[0], inputs[1], clobber))
-            elif item.name.startswith("mux2"): # inputs: s,a,b; O = s?b:a
-                code += ('\tasm("not s1, %%1 \\n and s2, s1, %%2 \\n and s3, %%1, %%3 \\n or %%0, s2, s3" : "=r" (%s) : "r" (%s), "r" (%s), "r" (%s) : %s );\n'
-                        % (output, inputs[0], inputs[1], inputs[2], clobber))
-            else:
-                print('Error: Unhandled item name', item.name)
-                return ''
-        code += '\tasm("########## END ##########");\n'
 
+        # Generate assembly statements for each item in the statement list
+        for item in self.parser.statementList:
+            code += self.generateAsmStatement(item, asm_instructions)
+
+        code += '\tasm("########## END ##########");\n'
         return code
 
     def generateStatementsOutput(self):
