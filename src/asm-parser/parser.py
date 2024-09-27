@@ -44,6 +44,18 @@ class Instruction(Statement):
         else:
             return False
 
+    def isReadInstruction(self):
+        if "read" in self.opCode:
+            return True
+        else:
+            return False
+
+    def isWriteInstruction(self):
+        if "write" in self.opCode:
+            return True
+        else:
+            return False
+
 class PortInfo(Statement):
     def __init__(self, varName, line):
         super().__init__(line)

@@ -22,6 +22,34 @@ def findTempVarIndex(inputString):
 def concatenateListElements(lst):
     return ', '.join(map(str, lst))
 
+class StatsGenerator:
+    def __init__(self, instructionSequence):
+        self.instructionSequence = instructionSequence
+
+    def getReadInstructionCount(self):
+        readInstructionCount = 0
+        for instruction in self.instructionSequence:
+            if instruction.isReadInstruction():
+                readInstructionCount += 1
+        return readInstructionCount
+
+    def getWriteInstructionCount(self):
+        writeInstructionCount = 0
+        for instruction in self.instructionSequence:
+            if instruction.isWriteInstruction():
+                writeInstructionCount += 1
+        return writeInstructionCount
+
+    def getLogicInstructionCount(self):
+        logicInstructionCount = 0
+        for instruction in self.instructionSequence:
+            if not (instruction.isReadInstruction() or instruction.isWriteInstruction()):
+                logicInstructionCount += 1
+        return logicInstructionCount
+
+    def generateStats(self):
+        return f"#R/#W/#L: {self.getReadInstructionCount()}, {self.getWriteInstructionCount()}, {self.getLogicInstructionCount()}"
+
 class bitSerialAsmCodeGenerator:
     def __init__(self, instructionSequence):
         self.instructionSequence = instructionSequence
@@ -34,6 +62,7 @@ class bitSerialAsmCodeGenerator:
         for instruction in self.instructionSequence:
             code += self.generateAsmInstruction(instruction)
         return code
+
 
 class PimEvalAPICodeGenerator:
     def __init__(self, instructionSequence, functionName, ports):

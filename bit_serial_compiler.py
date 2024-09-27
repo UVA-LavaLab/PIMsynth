@@ -406,7 +406,7 @@ class bitSerialCompiler:
         asm_parser = os.path.join(script_location, 'src/asm-parser/main.py')
         asm_file = os.path.join(self.outdir, self.output + '.s')
         cpp_file = os.path.join(self.outdir, self.output + '.cpp')
-        result = subprocess.run(['python3', asm_parser, '-f', 'asm', '-i', asm_file, '-m', 'func', '-o', cpp_file])
+        result = subprocess.run(['python3', asm_parser, '-f', 'cpp', '-i', asm_file, '-m', 'func', '-o', cpp_file])
         if result.returncode != 0:
             print('Error: CLANG/LLVM failed.')
             return False
