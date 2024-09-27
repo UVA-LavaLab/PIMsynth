@@ -115,7 +115,7 @@ class bitSerialCompiler:
         parser.add_argument('--to-stage', metavar='[stage]', type=str,
                 help='To stage: verilog, blif, c, asm, pim (default)',
                 choices=self.stages, default='pim')
-        parser.add_argument('--clang-g', action='store_true', help='Enable clang -g to generate verbose assembly')
+        parser.add_argument('--clang-g', action='store_false', help='Toggle clang -g, default true')
         return parser
 
     def parse_args(self):
