@@ -107,7 +107,7 @@ class bitSerialCompiler:
         parser.add_argument('--c', metavar='[file]', type=str, default='', help='Input C file')
         parser.add_argument('--asm', metavar='[file]', type=str, default='', help='Input ASM file')
         parser.add_argument('--num-regs', metavar='N', type=int, default=4, help='Number of registers 2~7')
-        parser.add_argument('--output', metavar='[filename]', type=str, default='tmp', help='Output filename without suffix')
+        parser.add_argument('--output', metavar='[filename]', type=str, default='tmp', help='Oiutput filename without suffix')
         parser.add_argument('--outdir', metavar='[path]', type=str, default='.', help='Output location, default current dir')
         parser.add_argument('--from-stage', metavar='[stage]', type=str,
                 help='From stage: verilog (default), blif, c, asm, pim',
@@ -400,8 +400,18 @@ class bitSerialCompiler:
 
     def run_asm_to_pim(self):
         """ Compile ASM to PIM """
-        print("INFO: Compiling ASM to PIM ...")
-        print("Warning: ASM to PIM not implemented yet.")
+        print("INFO: Compiling RISCV ASM to PIM API ...")
+
+        script_location = os.path.dirname(os.path.abspath(__file__))
+        asm_parser = os.path.join(script_location, 'src/asm-parser/main.py')
+        asm_file = os.path.join(self.outdir, self.output + '.s')
+        cpp_file = os.path.join(self.outdir, self.output + '.cpp')
+        result = subprocess.run(['python3', asm_parser, '-f', 'asm', '-i', asm_file, '-m', 'func', '-o', cpp_file])
+        if result.returncode != 0:
+            print('Error: CLANG/LLVM failed.')
+            return False
+        print("INFO: Generated C++ file:", self.output + '.cpp')
+
         print(self.hbar)
         return True
 
