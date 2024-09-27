@@ -12,10 +12,11 @@ from util import *
 
 if __name__ == "__main__":
     # Set up argument parser with optional arguments
-    parser = argparse.ArgumentParser(description='Parse circuit representation and generate C++ code.')
-    parser.add_argument('--input-file', '-i', type=str, required=True, help='The input circuit representation file to parse.')
+    parser = argparse.ArgumentParser(description='Parse RISV assembly and generate either bit-serial assembly or PIMeval API function.')
+    parser.add_argument('--input-file', '-i', type=str, required=True, help='The input assembly file.')
     parser.add_argument('--output-file', '-o', type=str, required=True, help='The output C++ file.')
     parser.add_argument('--module-name', '-m', type=str, required=True, help='The name of the module to parse.')
+    parser.add_argument('--asm', action='store_true', help='Generates bit-serial assembly code if set')
 
     # Parse the arguments
     args = parser.parse_args()
@@ -34,16 +35,14 @@ if __name__ == "__main__":
     asmTransformer = AsmTransformer(riscvStatementList)
     bitSerialAsm = asmTransformer.getBitSerialAsm()
 
-    # Print the bit-serial assembly
-    for statement in bitSerialAsm:
-        print(statement)
-
-    # Generate bit-serial code following PIMeval API
-    generator = PimEvalAPICodeGenerator(bitSerialAsm, args.module_name, asmTransformer.ports)
-    code = generator.generateCode()
-
-    # Print the bit-serial code for debugging
-    print(code)
+    if args.asm:
+        # Generate bit-serial assembly code
+        generator = bitSerialAsmCodeGenerator(bitSerialAsm)
+        code = generator.generateCode()
+    else:
+        # Generate bit-serial code following PIMeval API
+        generator = PimEvalAPICodeGenerator(bitSerialAsm, args.module_name, asmTransformer.ports)
+        code = generator.generateCode()
 
     # Write the generated C++ code into a file
     writeToFile(args.output_file, code)

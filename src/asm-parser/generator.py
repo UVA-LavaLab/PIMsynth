@@ -13,6 +13,19 @@ def findTempVarIndex(inputString):
 def concatenateListElements(lst):
     return ', '.join(map(str, lst))
 
+class bitSerialAsmCodeGenerator:
+    def __init__(self, instructionSequence):
+        self.instructionSequence = instructionSequence
+
+    def generateAsmInstruction(self, instruction):
+        return f"{instruction.opCode} {concatenateListElements(instruction.operandsList)} # (Line: {instruction.line})\n"
+
+    def generateCode(self):
+        code = ""
+        for instruction in self.instructionSequence:
+            code += self.generateAsmInstruction(instruction)
+        return code
+
 class PimEvalAPICodeGenerator:
     def __init__(self, instructionSequence, functionName, ports):
         self.instructionSequence = instructionSequence
