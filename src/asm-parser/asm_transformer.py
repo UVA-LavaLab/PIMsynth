@@ -125,6 +125,11 @@ class AsmTransformer:
 
         # Handle Input Port
         if self.isInputPort(portInfo):
+            # Ignore the none-t* registers
+            destinationOperand = riscvInstruction.operandsList[0]
+            if not "t" in destinationOperand:
+                print(f"Info: lw instruction at line {riscvInstruction.line} was ignored.")
+                return
             self.handleInputPort(riscvInstruction, portInfo)
             return
 
