@@ -4,7 +4,7 @@
 File: parser.py
 Description: BLIF parser
 Author: Mohammadhosein Gholamrezaei <uab9qt@virginia.edu> - BLIF-to-C parser generator code framework
-Author: Deyuan Guo <guodeyuan@gmail.com> - Support bus inputs and outputs; Support backslash; Support mux
+Author: Deyuan Guo <guodeyuan@gmail.com> - Support bus inputs and outputs; Support backslash; Support mux/maj
 Date: 2024-09-03
 """
 
@@ -72,6 +72,7 @@ circuitGrammar = r"""
     arguments: argument (argument)*
     argument: "a=" IDENTIFIER
             | "b=" IDENTIFIER
+            | "c=" IDENTIFIER
             | "s=" IDENTIFIER
             | "O=" IDENTIFIER
 

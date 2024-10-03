@@ -144,6 +144,9 @@ class GeneratorAsm():
             elif item.name.startswith("mux2"): # inputs: s,a,b; O = s?b:a
                 code += ('\tasm("not s1, %%1 \\n and s2, s1, %%2 \\n and s3, %%1, %%3 \\n or %%0, s2, s3" : "=r" (%s) : "r" (%s), "r" (%s), "r" (%s) : %s );\n'
                         % (output, inputs[0], inputs[1], inputs[2], clobber))
+            elif item.name.startswith("maj3"):
+                code += ('\tasm("and s1, %%1, %%2 \\n and s2, %%2, %%3 \\n and s3, %%1, %%3 \\n or s1, s1, s2 \\n or %%0, s1, s3" : "=r" (%s) : "r" (%s), "r" (%s), "r" (%s) : %s );\n'
+                        % (output, inputs[0], inputs[1], inputs[2], clobber))
             else:
                 print('Error: Unhandled item name', item.name)
                 return ''
