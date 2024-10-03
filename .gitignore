@@ -39,6 +39,8 @@ llvm-build/
 
 # Ignore abc related files
 abc.history
+*.log
+outputs/
 
 # Python
 __pycache__
