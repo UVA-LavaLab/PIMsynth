@@ -52,9 +52,11 @@ class GeneratorAsm():
 
     def generateFunctionArgs(self):
         """ Generate function args passed by pointers """
-        inputsOutputs = self.sanitizeTokenList(self.parser.inputsList + self.parser.outputsList)
-        items = [f"{self.dataType} *{item}_p" for item in inputsOutputs]
-        return f"\t{',\n\t'.join(items)}\n"
+        inputs = self.sanitizeTokenList(self.parser.inputsList)
+        in_items = [f"{self.dataType} *{item}_pi" for item in inputs]
+        outputs = self.sanitizeTokenList(self.parser.outputsList)
+        out_items = [f"{self.dataType} *{item}_po" for item in outputs]
+        return f"\t{',\n\t'.join(in_items + out_items)}\n"
 
     def generateFunctionBody(self):
         """ Generate function body """
@@ -75,7 +77,7 @@ class GeneratorAsm():
 
     def generateTemporaryVariablesIn(self):
         """ Generate temp variables that dereference input pointers """
-        return f"\t{self.dataType} {', '.join([f'{item} = *{item}_p' for item in self.sanitizeTokenList(self.parser.inputsList)])};\n"
+        return f"\t{self.dataType} {', '.join([f'{item} = *{item}_pi' for item in self.sanitizeTokenList(self.parser.inputsList)])};\n"
 
     def generateTemporaryVariablesOut(self):
         """ Generate temp variables for storing outputs """
@@ -134,6 +136,6 @@ class GeneratorAsm():
         code = ""
         outputs = [item.replace("[", "_").replace("]", "_") for item in self.parser.outputsList]
         for item in outputs:
-            code += "\t*" + item + '_p = ' + item + ";\n"
+            code += "\t*" + item + '_po = ' + item + ";\n"
         return code
 

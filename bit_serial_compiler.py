@@ -382,7 +382,7 @@ class bitSerialCompiler:
 
     def run_c_to_asm(self):
         """ Compile C to ASM """
-        print("INFO: Compiling C to ASM ...")
+        print("INFO: Compiling C to RISC-V ASM ...")
 
         c_file = self.c if self.c else os.path.join(self.outdir, self.output + '.c')
         asm_file = os.path.join(self.outdir, self.output + '.s')
@@ -400,7 +400,7 @@ class bitSerialCompiler:
 
     def run_asm_to_pim(self):
         """ Compile ASM to PIM """
-        print("INFO: Compiling RISCV ASM to PIM API ...")
+        print("INFO: Compiling RISC-V ASM to PIM API ...")
 
         script_location = os.path.dirname(os.path.abspath(__file__))
         asm_parser = os.path.join(script_location, 'src/asm-parser/main.py')
