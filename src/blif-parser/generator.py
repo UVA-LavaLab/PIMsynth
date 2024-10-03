@@ -36,63 +36,46 @@ class Generator():
         return str
 
     def generateInputArgs(self):
-        str = ""
-        for item in self.parser.inputsList:
-            str += "\t" + self.dataType + " " + item + ",\n"
-        return str
+        return ''.join(f"\t{self.dataType} {item},\n" for item in self.parser.inputsList)
 
     def generateOutputArgs(self):
-        str = ""
         numOutputs = len(self.parser.outputsList)
-        i = 0
-        for item in self.parser.outputsList:
-            str += "\t" + self.dataType + " &" + item
-            if (i != numOutputs - 1):
-                str += ",\n"
-            else:
-                str += "\n"
-            i += 1
-        return str
+        return ''.join(
+            f"\t{self.dataType} &{item}{',' if i != numOutputs - 1 else ''}\n"
+            for i, item in enumerate(self.parser.outputsList)
+        )
 
     def generateBody(self):
         str = "{\n"
         str += self.generateTemporaryVariables()
-        str += self.generateStamentSequence()
+        str += self.generateStatementSequence()
         str += "\n}\n"
         return str
 
     def generateTemporaryVariables(self):
-        str = "\t" + self.dataType + " "
-        numOutputs = len(self.parser.wireList)
-        i = 0
-        for item in self.parser.wireList:
-            str += item
-            if (i != numOutputs - 1):
-                str += ", "
-            else:
-                str += ";\n"
-            i += 1
-        return str
+        variables = ', '.join(self.parser.wireList)
+        return f"\t{self.dataType} {variables};\n"
 
-    def generateStamentSequence(self):
-        str = ""
+    def generateStatementSequence(self):
+        operations = {
+            'inv1': lambda inputs: f"~{inputs[0]}",
+            'and2': lambda inputs: f"({inputs[0]} & {inputs[1]})",
+            'or2': lambda inputs: f"({inputs[0]} | {inputs[1]})",
+            'nand2': lambda inputs: f"~({inputs[0]} & {inputs[1]})",
+            'nor2': lambda inputs: f"~({inputs[0]} | {inputs[1]})",
+            'xor2': lambda inputs: f"({inputs[0]} ^ {inputs[1]})",
+            'xnor2': lambda inputs: f"~({inputs[0]} ^ {inputs[1]})",
+        }
+
+        result = ""
         for item in self.parser.statementList:
-            str += "\t" + item.output + " = "
-            if item.name.startswith('inv1'):
-                str += "~" + item.inputList[0] + ";\n"
-            elif item.name.startswith('and2'):
-                str += "(" + item.inputList[0] + " & " + item.inputList[1] + ");\n"
-            elif item.name.startswith('or2'):
-                str += "(" + item.inputList[0] + " | " + item.inputList[1] + ");\n"
-            elif item.name.startswith('nand2'):
-                str += "~(" + item.inputList[0] + " & " + item.inputList[1] + ");\n"
-            elif item.name.startswith('nor2'):
-                str += "~(" + item.inputList[0] + " | " + item.inputList[1] + ");\n"
-            elif item.name.startswith('xor2'):
-                str += "(" + item.inputList[0] + " ^ " + item.inputList[1] + ");\n"
-            elif item.name.startswith('xnor2'):
-                str += "~(" + item.inputList[0] + " ^ " + item.inputList[1] + ");\n"
+            result += f"\t{item.output} = "
+            for key, func in operations.items():
+                if item.name.startswith(key):
+                    result += f"{func(item.inputList)};\n"
+                    break
             else:
-                print('Error: Unhandled item name', item.name)
+                print(f"Error: Unhandled item name {item.name}")
 
-        return str
+        return result
+

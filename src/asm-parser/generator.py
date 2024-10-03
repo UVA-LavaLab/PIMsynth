@@ -1,3 +1,12 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+File: generator.py
+Description: bit-serial code generator in either assembly or PIMeval API
+Author: Mohammadhosein Gholamrezaei <uab9qt@virginia.edu> - RISCV-to-BITSERIAL code generator framework
+Date: 2024-09-27
+"""
+
 import re
 import math
 
@@ -13,6 +22,48 @@ def findTempVarIndex(inputString):
 def concatenateListElements(lst):
     return ', '.join(map(str, lst))
 
+class StatsGenerator:
+    def __init__(self, instructionSequence):
+        self.instructionSequence = instructionSequence
+
+    def getReadInstructionCount(self):
+        readInstructionCount = 0
+        for instruction in self.instructionSequence:
+            if instruction.isReadInstruction():
+                readInstructionCount += 1
+        return readInstructionCount
+
+    def getWriteInstructionCount(self):
+        writeInstructionCount = 0
+        for instruction in self.instructionSequence:
+            if instruction.isWriteInstruction():
+                writeInstructionCount += 1
+        return writeInstructionCount
+
+    def getLogicInstructionCount(self):
+        logicInstructionCount = 0
+        for instruction in self.instructionSequence:
+            if not (instruction.isReadInstruction() or instruction.isWriteInstruction()):
+                logicInstructionCount += 1
+        return logicInstructionCount
+
+    def generateStats(self):
+        return f"#R/#W/#L: {self.getReadInstructionCount()}, {self.getWriteInstructionCount()}, {self.getLogicInstructionCount()}"
+
+class bitSerialAsmCodeGenerator:
+    def __init__(self, instructionSequence):
+        self.instructionSequence = instructionSequence
+
+    def generateAsmInstruction(self, instruction):
+        return f"{instruction.opCode} {concatenateListElements(instruction.operandsList)} # (Line: {instruction.line})\n"
+
+    def generateCode(self):
+        code = ""
+        for instruction in self.instructionSequence:
+            code += self.generateAsmInstruction(instruction)
+        return code
+
+
 class PimEvalAPICodeGenerator:
     def __init__(self, instructionSequence, functionName, ports):
         self.instructionSequence = instructionSequence
@@ -22,10 +73,13 @@ class PimEvalAPICodeGenerator:
 
     def generateCode(self):
         code = ""
-        # code += self.generateHeaderFiles()
+        code += self.generateHeaderFiles()
         code += self.generateFunctionSignature()
         code += self.generateFunctionBody()
         return code
+
+    def generateHeaderFiles(self):
+        return "#include \"libpimeval.h\"\n"
 
     def generateFunctionSignature(self):
         code = "void "

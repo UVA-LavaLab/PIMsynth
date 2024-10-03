@@ -1,4 +1,13 @@
 
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+File: parser.py
+Description: Parse RISCV assembly code.
+Author: Mohammadhosein Gholamrezaei <uab9qt@virginia.edu>
+Date: 2024-09-27
+"""
+
 import re
 
 class Statement:
@@ -31,6 +40,18 @@ class Instruction(Statement):
 
     def isStoreInstruction(self):
         if "sw" in self.opCode:
+            return True
+        else:
+            return False
+
+    def isReadInstruction(self):
+        if "read" in self.opCode:
+            return True
+        else:
+            return False
+
+    def isWriteInstruction(self):
+        if "write" in self.opCode:
             return True
         else:
             return False
@@ -110,3 +131,4 @@ class Parser():
 
     def processStatementList(self):
         pass
+

@@ -1,3 +1,11 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+File: asm_transformer.py
+Description: Translates RISCV assembly code to bit-serial assembly code
+Author: Mohammadhosein Gholamrezaei <uab9qt@virginia.edu>
+Date: 2024-09-27
+"""
 
 from parser import *
 
