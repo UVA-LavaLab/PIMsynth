@@ -1,3 +1,6 @@
+// AES sbox
+// hosein, 09/17/2024
+
 module sbox(input [7:0] pi0, output reg[7:0] po0);
 
 always @(*) begin

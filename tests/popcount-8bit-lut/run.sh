@@ -7,7 +7,7 @@ else
     genlib=../../src/genlibs/inv_and_xnor_mux.genlib
 fi
 
-verilog=../../src/verilog/sbox.v
+verilog=../../src/verilog/popcount_8bit_lut.v
 
 ../../apptainer-run.sh ../../bit_serial_compiler.py \
     --verilog $verilog --genlib $genlib --outdir outputs
