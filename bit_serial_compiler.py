@@ -107,7 +107,7 @@ class bitSerialCompiler:
         parser.add_argument('--c', metavar='[file]', type=str, default='', help='Input C file')
         parser.add_argument('--asm', metavar='[file]', type=str, default='', help='Input ASM file')
         parser.add_argument('--num-regs', metavar='N', type=int, default=4, help='Number of registers 2~7')
-        parser.add_argument('--output', metavar='[filename]', type=str, default='tmp', help='Oiutput filename without suffix')
+        parser.add_argument('--output', metavar='[filename]', type=str, default='tmp', help='Output filename without suffix')
         parser.add_argument('--outdir', metavar='[path]', type=str, default='.', help='Output location, default current dir')
         parser.add_argument('--from-stage', metavar='[stage]', type=str,
                 help='From stage: verilog (default), blif, c, asm, pim',
