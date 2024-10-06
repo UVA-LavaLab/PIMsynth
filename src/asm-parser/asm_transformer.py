@@ -9,6 +9,30 @@ Date: 2024-09-27
 
 from parser import *
 
+class LinkedInstruction(Instruction):
+    def __init__(self, opCode, operandsList, line, sourceInstructionList = None, suspended = False):
+        super().__init__(opCode, operandsList, line)
+        self.sourceInstructionList = sourceInstructionList
+        self.suspended = suspended
+
+    def __str__(self):
+        operandsListStr = ', '.join(self.operandsList)
+        if self.sourceInstructionList == None:
+            sourceInstructionLinesStr = "X"
+        else:
+            sourceInstructionLines = [(str(instrunction.line) if instrunction != None else "-") for instrunction in self.sourceInstructionList]
+            sourceInstructionLinesStr = ', '.join(sourceInstructionLines)
+        return f"LinkedInstruction(Opcode: {self.opCode}, Operands List: [{operandsListStr}], Source Instrunctions Line: {sourceInstructionLinesStr}, Line: {self.line}, suspended: {self.suspended})"
+
+    def unsuspend(self):
+        self.suspended = False
+
+    def getOpCode(self):
+        return self.opCode
+
+    def getOperandsList(self):
+        return self.operandsList
+
 class SymbolTable:
     def __init__(self):
         self.dictionary = {}
@@ -26,7 +50,10 @@ class SymbolTable:
             print("Symbol table is empty.")
         else:
             for key, val in self.dictionary.items():
-                print(f"{key}: {val}")
+                if isinstance(val, LinkedInstruction):
+                    print(f"{key}: L{val.line}")
+                else:
+                    print(f"{key}: {val}")
 
     def removeSymbol(self, key):
         # Remove the key from the dictionary if it exists, else raise KeyError
@@ -78,20 +105,33 @@ class AsmTransformer:
             elif isinstance(statement, Directive) and statement.val == "#APP":
                 self.transformInlineAssembly(statementIndex)
 
-    def appendBitSerialInstruction(self, opcode, operands, line):
-        bitSerialInstruction = Instruction(opcode, operands, line)
+    def getDestinationOperandFromInstruction(self, instruction):
+        if instruction.opCode == "write":
+            return instruction.operandsList[1]
+        else:
+            return instruction.operandsList[0]
+
+    def getDestinationOperand(self, opCode, operandsList):
+        if opCode == "write":
+            return operandsList[1]
+        else:
+            return operandsList[0]
+
+    def appendBitSerialInstruction(self, opCode, operands, line, suspended=False):
+        if opCode == "write":
+            sourceInstructionList = [self.symbolTable.getSymbol(sourceOperand) for sourceOperand in [operands[0]]]
+        elif opCode == "read":
+            sourceInstructionList = [self.symbolTable.getSymbol(sourceOperand) for sourceOperand in operands[1:]]
+        else:
+            sourceInstructionList = [self.symbolTable.getSymbol(sourceOperand) for sourceOperand in operands[1:]]
+        bitSerialInstruction = LinkedInstruction(opCode, operands, line, sourceInstructionList=sourceInstructionList, suspended=suspended)
         self.bitSerialStatementList.append(bitSerialInstruction)
+        self.symbolTable.addSymbol(self.getDestinationOperand(opCode, operands), bitSerialInstruction)
 
     def isInputPort(self, portInfo):
         """Check if the PortInfo is an input port."""
         if isinstance(portInfo, PortInfo) and portInfo.isInputPort():
             self.ports.add(portInfo.getPortName())
-            return True
-        return False
-
-    def isPointer(self, portInfo):
-        """Ignore lw instruction if the port is a pointer."""
-        if isinstance(portInfo, PortInfo) and portInfo.isPointer():
             return True
         return False
 
@@ -102,52 +142,81 @@ class AsmTransformer:
             return True
         return False
 
-    def handleInputPort(self, riscvInstruction, portInfo):
-        """Handle load instruction for input port."""
-        sourceOperand = portInfo.getPortName()  # Substitute the source operand with the input port name
-        destinationOperand = riscvInstruction.operandsList[0]
+    def isOutput(symbol):
+        if "po" in symbol:
+            return True
+        else:
+            return False
 
-        # Add destinationOperand:sourceOperand to the symbol table
-        self.symbolTable.addSymbol(sourceOperand, destinationOperand)
+    def isInput(symbol):
+        if "pi" in symbol:
+            return True
+        else:
+            return False
 
-        # Append the bit-serial instruction
-        self.appendBitSerialInstruction("read", [destinationOperand, sourceOperand], riscvInstruction.line)
+    def isBitSerialRegister(symbol):
+        pattern = r"^t[0-9]"
+        return bool(re.match(pattern, symbol))
 
-    def handleTempVariableReload(self, riscvInstruction):
-        """Handle temp variable re-load if it's already in the symbol table."""
-        oldSourceOperand = riscvInstruction.operandsList[1]
-        sourceOperand = self.symbolTable.getSymbol(oldSourceOperand)
+    def resolveOperand(self, symbol):
+        # Lookup the symbol table
+        val = self.symbolTable.getSymbol(symbol)
+        if isinstance(val, LinkedInstruction):
+            returnVal = None
+           #  sourceInstruction = val.sourceInstructionList[0]
+            # if sourceInstruction == None:
+                # return None
+            # sourceOperand = self.getDestinationOperandFromInstruction(sourceInstruction)
 
-        if sourceOperand is None:
-            return
-
-        print(f"Info: temp variable re-load at line {riscvInstruction.line}.")
-        destinationOperand = riscvInstruction.operandsList[0]
-
-        # Append the bit-serial instruction
-        self.appendBitSerialInstruction("read", [destinationOperand, sourceOperand], riscvInstruction.line)
+            # returnVal = self.resolveOperand(sourceOperand)
+            # print(f"DEUBG: Return Symbol {returnVal}")
+            # # Update the instruction.suspended based on the value of the resolved symbol
+            # if isInput(returnVal) or isBitSerialRegister(returnVal):
+                # print(f"DEUBG: Is input or bit-serial register\n")
+                # val.unsuspend()
+            # else:
+                # # TODO
+                # print(f"DEUBG: Is output or temp variable\n")
+           #      returnVal = val
+        else:
+            returnVal = val
+        return returnVal
 
     def transformLoadInstruction(self, statementIndex):
         riscvInstruction = self.riscvStatementList[statementIndex]
         portInfo = self.riscvStatementList[statementIndex + 1]
+        destinationOperand = riscvInstruction.operandsList[0]
+        sourceOperand = riscvInstruction.operandsList[1]
+        suspended = False
 
-        # Handle Input Port
+        # Resolve register operand
+        registerOperand = destinationOperand
+        if "t" in registerOperand:
+            suspended = False
+        else:
+            # Try to resolve the register, if not able mark this instruction as suspended
+            resolvedOperand = self.resolveOperand(registerOperand)
+            if resolvedOperand == None:
+                suspended = True
+            else:
+                sourceOperand = resolvedOperand
+
+        # Resolve reference operand
+        referenceOperand = sourceOperand
+        # Handle Input Load
         if self.isInputPort(portInfo):
-            # Ignore the none-t* registers
-            destinationOperand = riscvInstruction.operandsList[0]
-            if not "t" in destinationOperand:
-                print(f"Info: lw instruction at line {riscvInstruction.line} was ignored.")
-                return
-            self.handleInputPort(riscvInstruction, portInfo)
-            return
+            sourceOperand = portInfo.getPortName()  # Substitute the source operand with the input port name
+            # Add referenceOperand:inputPort to the symbol table
+            self.symbolTable.addSymbol(referenceOperand, sourceOperand)
+        else:
+            # Try to resolve the reference, if not able mark this instruction as unresolved
+            resolvedOperand = self.resolveOperand(referenceOperand)
+            if resolvedOperand == None:
+                suspended = True
+            else:
+                sourceOperand = resolvedOperand
 
-        # Ignore Pointer and Output Port
-        if self.isPointer(portInfo) or self.isOutputPort(portInfo):
-            print(f"Info: lw instruction at line {riscvInstruction.line} was ignored.")
-            return
-
-        # Handle Temp Variable Re-load
-        self.handleTempVariableReload(riscvInstruction)
+        self.appendBitSerialInstruction("read", [destinationOperand, sourceOperand], riscvInstruction.line, suspended)
 
     def isTempVariable(self, portInfo):
         """Check if the PortInfo refers to a temp variable."""
@@ -200,6 +269,34 @@ class AsmTransformer:
         if self.shouldIgnoreStoreInstruction(riscvInstruction, portInfo):
             return
 
+    def transformStoreInstruction(self, statementIndex):
+        riscvInstruction = self.riscvStatementList[statementIndex]
+        portInfo = self.riscvStatementList[statementIndex + 1]
+        destinationOperand = riscvInstruction.operandsList[1]
+        sourceOperand = riscvInstruction.operandsList[0]
+
+        suspended = False
+        # Resolve register operand
+        registerOperand = sourceOperand
+        if not "t" in registerOperand:
+            suspended = True
+        else:
+            # Try to resolve the register, if not able mark this instruction as unresolved
+            # sourceOperand = self.resolveOperand(registerOperand)
+            if sourceOperand == None:
+                suspended = True
+
+
+        # Resolve Reference operand
+        referenceOperand = destinationOperand
+        resolvedOperand = self.resolveOperand(destinationOperand)
+        if resolvedOperand == None:
+            suspended = True
+        else:
+            destinationOperand = resolvedOperand
+
+        self.appendBitSerialInstruction("write", [sourceOperand, destinationOperand], riscvInstruction.line, suspended)
+
     def getInlineInstructionSequence(self, statementIndex):
         i = statementIndex + 1
         instructionSequence = []
@@ -214,7 +311,7 @@ class AsmTransformer:
 
     def getMappedOpCode(self, instructionSequence, line):
         """Get the opcode mapped to the inline assembly instruction sequence."""
-        newOpCode = self.getOpCode(instructionSequence)
+        newOpCode = self.getInstrunctionSequenceOpCode(instructionSequence)
         if newOpCode is None:
             print(f"Info: No mapped opcode found for inline assembly at line {line}.")
         else:
@@ -229,10 +326,7 @@ class AsmTransformer:
 
         operandsList = [destinationOperand] + sourceOperandList
         line = firstRiscvInstruction.line
-        bitSerialInstruction = Instruction(newOpCode, operandsList, line)
-
-        # Append the mapped bit-serial instruction
-        self.bitSerialStatementList.append(bitSerialInstruction)
+        self.appendBitSerialInstruction(newOpCode, operandsList, line)
 
     def handleWriteToOutputPort(self, statementIndex, instructionSequence, line):
         """Handle writing to an output port after inline assembly."""
@@ -243,13 +337,9 @@ class AsmTransformer:
             destinationOperand = instructionSequence[-1].operandsList[0]
             writeSourceOperand = destinationOperand
             writeDestinationOperand = portInfo.getPortName()
-
             writeOpCode = "write"
             writeOperandsList = [writeSourceOperand, writeDestinationOperand]
-            writeInstruction = Instruction(writeOpCode, writeOperandsList, line)
-
-            # Append the write instruction for the output port
-            self.bitSerialStatementList.append(writeInstruction)
+            self.appendBitSerialInstruction("write", writeOperandsList, line)
 
     def transformInlineAssembly(self, statementIndex):
         instructionSequence = self.getInlineInstructionSequence(statementIndex)
@@ -275,7 +365,7 @@ class AsmTransformer:
             for i in range(len(sequence))
         )
 
-    def getOpCode(self, instructionSequence):
+    def getInstrunctionSequenceOpCode(self, instructionSequence):
         transformationRules = {
             ('xor', 'not'): 'xnor',
             ('and', 'not'): 'nand',

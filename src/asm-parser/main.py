@@ -42,25 +42,30 @@ if __name__ == "__main__":
     asmTransformer = AsmTransformer(riscvStatementList)
     bitSerialAsm = asmTransformer.getBitSerialAsm()
 
-    statsGenerator = StatsGenerator(bitSerialAsm)
-    stats = statsGenerator.generateStats()
+    for instruction in bitSerialAsm:
+        print(instruction)
 
-    print("Info: ", stats)
+    asmTransformer.symbolTable.printSymbols()
 
-    if args.output_format == "asm":
-        # Generate bit-serial assembly code
-        generator = bitSerialAsmCodeGenerator(bitSerialAsm)
-        code = "#" + stats + "\n"
-        code += generator.generateCode()
-    elif args.output_format == "cpp":
-        # Generate bit-serial code following PIMeval API
-        generator = PimEvalAPICodeGenerator(bitSerialAsm, args.module_name, asmTransformer.ports)
-        code = "//" + stats + "\n"
-        code += generator.generateCode()
-    else:
-        print("Error: Unknown output format.")
-        exit()
+    # statsGenerator = StatsGenerator(bitSerialAsm)
+    # stats = statsGenerator.generateStats()
 
-    # Write the generated ASM/C++ code into a file
-    writeToFile(args.output_file, code)
+    # print("Info: ", stats)
+
+    # if args.output_format == "asm":
+        # # Generate bit-serial assembly code
+        # generator = bitSerialAsmCodeGenerator(bitSerialAsm)
+        # code = "#" + stats + "\n"
+        # code += generator.generateCode()
+    # elif args.output_format == "cpp":
+        # # Generate bit-serial code following PIMeval API
+        # generator = PimEvalAPICodeGenerator(bitSerialAsm, args.module_name, asmTransformer.ports)
+        # code = "//" + stats + "\n"
+        # code += generator.generateCode()
+    # else:
+        # print("Error: Unknown output format.")
+        # exit()
+
+    # # Write the generated ASM/C++ code into a file
+    # writeToFile(args.output_file, code)
 

@@ -56,6 +56,12 @@ class Instruction(Statement):
         else:
             return False
 
+    def getOpCode(self):
+        return self.opCode
+
+    def getOperandsList(self):
+        return self.operandsList
+
 class PortInfo(Statement):
     def __init__(self, varName, line):
         super().__init__(line)
@@ -71,9 +77,6 @@ class PortInfo(Statement):
     def isOutputPort(self):
         pattern = r"po[0-9]+"
         return bool(re.search(pattern, self.varName))
-
-    def isPointer(self):
-        return "_p" in self.varName
 
     def isTempVariable(self):
         return "new_" in self.varName
