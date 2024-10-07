@@ -161,16 +161,17 @@ class AsmTransformer:
     def resolveOperand(self, symbol):
         # Lookup the symbol table
         val = self.symbolTable.getSymbol(symbol)
+        print(f"DEBUG: symbol = {symbol}, val = {val}")
+        # breakpoint()
         if isinstance(val, LinkedInstruction):
             returnVal = None
-           #  sourceInstruction = val.sourceInstructionList[0]
+#             sourceInstruction = val.sourceInstructionList[0]
             # if sourceInstruction == None:
                 # return None
             # sourceOperand = self.getDestinationOperandFromInstruction(sourceInstruction)
-
             # returnVal = self.resolveOperand(sourceOperand)
             # print(f"DEUBG: Return Symbol {returnVal}")
-            # # Update the instruction.suspended based on the value of the resolved symbol
+#             # # Update the instruction.suspended based on the value of the resolved symbol
             # if isInput(returnVal) or isBitSerialRegister(returnVal):
                 # print(f"DEUBG: Is input or bit-serial register\n")
                 # val.unsuspend()
@@ -206,8 +207,6 @@ class AsmTransformer:
         # Handle Input Load
         if self.isInputPort(portInfo):
             sourceOperand = portInfo.getPortName()  # Substitute the source operand with the input port name
-            # Add referenceOperand:inputPort to the symbol table
-            self.symbolTable.addSymbol(referenceOperand, sourceOperand)
         else:
             # Try to resolve the reference, if not able mark this instruction as unresolved
             resolvedOperand = self.resolveOperand(referenceOperand)
@@ -218,82 +217,38 @@ class AsmTransformer:
 
         self.appendBitSerialInstruction("read", [destinationOperand, sourceOperand], riscvInstruction.line, suspended)
 
-    def isTempVariable(self, portInfo):
-        """Check if the PortInfo refers to a temp variable."""
-        return isinstance(portInfo, PortInfo) and portInfo.isTempVariable()
-
-    def handleTempVariableSpill(self, riscvInstruction, portInfo):
-        """Handle store instruction for spilling temp variables."""
-        line = riscvInstruction.line
-        newTempIndex = self.tempManager.newTemp()
-        newTempStr = f"temp{newTempIndex}"
-
-        print(f"Info: sw instruction is spilling the temp {newTempStr} at line {line}.")
-
-        # Add the new temp to the symbol table
-        oldDestinationOperand = riscvInstruction.operandsList[1]
-        self.symbolTable.addSymbol(oldDestinationOperand, newTempStr)
-
-        # Replace the destination operand with the temp variable
-        destinationOperand = newTempStr
-        sourceOperand = riscvInstruction.operandsList[0]
-
-        # Append the bit-serial instruction
-        self.appendBitSerialInstruction("write", [sourceOperand, destinationOperand], line)
-
-    def shouldIgnoreStoreInstruction(self, riscvInstruction, portInfo):
-        """Ignore store instruction if source operand has no corresponding symbol."""
-        line = riscvInstruction.line
-        sourceOperand = riscvInstruction.operandsList[0]
-        symbolTableVal = self.symbolTable.getSymbol(sourceOperand)
-
-        if symbolTableVal is not None:
-            # Spill input and clean up symbol table
-            self.tempManager.freeTemp(sourceOperand)
-            self.symbolTable.removeSymbol(sourceOperand)
-            return False
-
-        print(f"Info: sw instruction at line {line} was ignored.")
-        return True
-
-    def transformStoreInstruction(self, statementIndex):
-        riscvInstruction = self.riscvStatementList[statementIndex]
-        portInfo = self.riscvStatementList[statementIndex + 1]
-
-        # Handle Temp Variable Spill
-        if self.isTempVariable(portInfo):
-            self.handleTempVariableSpill(riscvInstruction, portInfo)
-            return
-
-        # Ignore instruction if no temp variable is involved
-        if self.shouldIgnoreStoreInstruction(riscvInstruction, portInfo):
-            return
-
     def transformStoreInstruction(self, statementIndex):
         riscvInstruction = self.riscvStatementList[statementIndex]
         portInfo = self.riscvStatementList[statementIndex + 1]
         destinationOperand = riscvInstruction.operandsList[1]
         sourceOperand = riscvInstruction.operandsList[0]
 
+        # if riscvInstruction.line > 65:
+            # for instruction in self.bitSerialStatementList:
+                # print(instruction)
+            # self.symbolTable.printSymbols()
+            # breakpoint()
+
         suspended = False
         # Resolve register operand
         registerOperand = sourceOperand
         if not "t" in registerOperand:
-            suspended = True
-        else:
             # Try to resolve the register, if not able mark this instruction as unresolved
-            # sourceOperand = self.resolveOperand(registerOperand)
-            if sourceOperand == None:
+            resolvedOperand = self.resolveOperand(registerOperand)
+            if resolvedOperand == None:
                 suspended = True
+            else:
+                sourceOperand = resolveOperand
 
 
-        # Resolve Reference operand
+
+        # Map Reference operand to temporary variable
         referenceOperand = destinationOperand
-        resolvedOperand = self.resolveOperand(destinationOperand)
-        if resolvedOperand == None:
-            suspended = True
-        else:
-            destinationOperand = resolvedOperand
+        if not suspended:
+            tempVarialbe = f"temp{self.tempManager.newTemp()}"
+            self.symbolTable.addSymbol(referenceOperand, tempVarialbe)
+            destinationOperand = tempVarialbe
+
 
         self.appendBitSerialInstruction("write", [sourceOperand, destinationOperand], riscvInstruction.line, suspended)
 
