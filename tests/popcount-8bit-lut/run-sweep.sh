@@ -9,6 +9,9 @@ fi
 
 verilog=../../src/verilog/popcount_8bit_lut.v
 
+echo "GenLib = $genlib"
+echo "Verilog = $verilog"
+
 ../../apptainer-run.sh ../../bit_serial_compiler.py \
     --verilog $verilog --genlib $genlib --outdir outputs \
     --output 2reg --num-regs 2

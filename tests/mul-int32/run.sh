@@ -1,7 +1,7 @@
 #!/bin/bash
 # deyuan, 09/25/2024
 
-if [-n "$1"]; then
+if [ -n "$1" ]; then
     genlib="$1"
 else
     genlib=../../src/genlibs/inv_and_xnor_mux.genlib
