@@ -85,12 +85,14 @@ class TempManager:
             raise IndexError("Index out of bounds")
 
 class AsmTransformer:
-    def __init__(self, riscvStatementList):
+    def __init__(self, riscvStatementList, inputList, outputList):
         self.riscvStatementList = riscvStatementList
+        self.inputList = inputList
+        self.outputList = outputList
         self.bitSerialStatementList = []
         self.symbolTable = SymbolTable()
         self.tempManager = TempManager()
-        self.ports = set()
+        self.ports = set(inputList + outputList)
         self.transform()
 
     def transform(self):
@@ -136,29 +138,21 @@ class AsmTransformer:
 
     def isInputPort(self, portInfo):
         """Check if the PortInfo is an input port."""
-        if isinstance(portInfo, PortInfo) and portInfo.isInputPort():
-            self.ports.add(portInfo.getPortName())
+        if isinstance(portInfo, PortInfo) and portInfo.isInputPort(self.inputList):
             return True
         return False
 
     def isOutputPort(self, portInfo):
         """Check if the PortInfo is an output port."""
-        if isinstance(portInfo, PortInfo) and portInfo.isOutputPort():
-            self.ports.add(portInfo.getPortName())
+        if isinstance(portInfo, PortInfo) and portInfo.isOutputPort(self.outputList):
             return True
         return False
 
     def isOutput(self, symbol):
-        if "po" in symbol:
-            return True
-        else:
-            return False
+        return symbol in self.outputList
 
     def isInput(self, symbol):
-        if "pi" in symbol:
-            return True
-        else:
-            return False
+        return symbol in self.inputList
 
     def isBitSerialRegister(self, symbol):
         pattern = r"^t[0-9]"
@@ -167,7 +161,7 @@ class AsmTransformer:
     def resolveOperand(self, symbol, line=-1):
         # Lookup the symbol table
         val = self.symbolTable.getSymbol(symbol)
-        print(f"DEBUG: symbol = {symbol}, val = {val}")
+        # print(f"DEBUG: symbol = {symbol}, val = {val}")
         returnVal = "XXX"
         doUnsudpendThePath = False
         if isinstance(val, str):
@@ -196,7 +190,7 @@ class AsmTransformer:
                         doUnsudpendThePath = True
         else:
             returnVal = val
-        print(f"DEBUG: returnVal = {returnVal}, doUnsudpendThePath = {doUnsudpendThePath}")
+        # print(f"DEBUG: returnVal = {returnVal}, doUnsudpendThePath = {doUnsudpendThePath}")
 #         if line == 561:
 #             breakpoint()
 
@@ -209,7 +203,7 @@ class AsmTransformer:
         sourceOperand = riscvInstruction.operandsList[1]
         suspended = False
 
-        print(f"DEBUG: Line = {riscvInstruction.line}")
+        # print(f"DEBUG: Line = {riscvInstruction.line}")
 
         # Resolve register operand
         registerOperand = destinationOperand
@@ -231,6 +225,7 @@ class AsmTransformer:
         # Resolve reference operand
         referenceOperand = sourceOperand
         # Handle Input Load
+        # print(f"DEBUG: portInfo = {portInfo}")
         if self.isInputPort(portInfo):
             sourceOperand = portInfo.getPortName()  # Substitute the source operand with the input port name
             if "t" in registerOperand:
@@ -296,9 +291,11 @@ class AsmTransformer:
         """Get the opcode mapped to the inline assembly instruction sequence."""
         newOpCode = self.getInstrunctionSequenceOpCode(instructionSequence)
         if newOpCode is None:
-            print(f"Info: No mapped opcode found for inline assembly at line {line}.")
+            # print(f"Info: No mapped opcode found for inline assembly at line {line}.")
+            pass
         else:
-            print(f"Info: Mapped opcode for the line {line} is {newOpCode}.")
+            # print(f"Info: Mapped opcode for the line {line} is {newOpCode}.")
+            pass
         return newOpCode
 
     def handleBitSerialInstruction(self, instructionSequence, newOpCode, firstRiscvInstruction):

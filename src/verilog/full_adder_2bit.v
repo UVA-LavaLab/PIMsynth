@@ -2,29 +2,29 @@
 // hosein, 09/03/2024
 
 module full_adder_2bit (
-    pi0, pi1, pi2, po0, po1
+    a, b, cin, sum, cout
 );
 
     // Declare inputs and outputs inside the module
-    input [1:0] pi0;
-    input [1:0] pi1;
-    input pi2;
-    output [1:0] po0;
-    output po1;
+    input [1:0] a;
+    input [1:0] b;
+    input cin;
+    output [1:0] sum;
+    output cout;
 
     // Internal wires
     wire carry1, carry2;
 
     // First bit computation
-    assign po0[0] = pi0[0] ^ pi1[0] ^ pi2;
-    assign carry1 = (pi0[0] & pi1[0]) | (pi2 & (pi0[0] ^ pi1[0]));
+    assign sum[0] = a[0] ^ b[0] ^ cin;
+    assign carry1 = (a[0] & b[0]) | (cin & (a[0] ^ b[0]));
 
     // Second bit computation
-    assign po0[1] = pi0[1] ^ pi1[1] ^ carry1;
-    assign carry2 = (pi0[1] & pi1[1]) | (carry1 & (pi0[1] ^ pi1[1]));
+    assign sum[1] = a[1] ^ b[1] ^ carry1;
+    assign carry2 = (a[1] & b[1]) | (carry1 & (a[1] ^ b[1]));
 
     // Final carry out
-    assign po1 = carry2;
+    assign cout = carry2;
 
 endmodule
 

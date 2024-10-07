@@ -37,15 +37,17 @@ if __name__ == "__main__":
     # Parse the circuit representation
     parser.parse(lines)
     riscvStatementList = parser.statementList
+    inputList = parser.inputList
+    outputList = parser.outputList
 
     # Transrom the riscv assembly to bit-serial assembly
-    asmTransformer = AsmTransformer(riscvStatementList)
+    asmTransformer = AsmTransformer(riscvStatementList, inputList, outputList)
     bitSerialAsm = asmTransformer.getBitSerialAsm()
 
-    for instruction in bitSerialAsm:
-        print(instruction)
+    # for instruction in bitSerialAsm:
+        # print(instruction)
 
-    asmTransformer.symbolTable.printSymbols()
+    # asmTransformer.symbolTable.printSymbols()
 
     statsGenerator = StatsGenerator(bitSerialAsm)
     stats = statsGenerator.generateStats()

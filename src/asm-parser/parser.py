@@ -70,38 +70,50 @@ class PortInfo(Statement):
     def __str__(self):
         return f"PortInfo(VarName: {self.varName}, Line: {self.line})"
 
-    def isInputPort(self):
-        pattern = r"pi[0-9]+"
-        return bool(re.search(pattern, self.varName))
+    def isInputPort(self, inputList):
+        return (self.varName in inputList)
 
-    def isOutputPort(self):
-        pattern = r"po[0-9]+"
-        return bool(re.search(pattern, self.varName))
+    def isOutputPort(self, outputList):
+        return (self.varName in outputList)
 
     def isTempVariable(self):
         return "new_" in self.varName
 
     def getPortName(self):
-        parts = self.varName.split(":")
-        if len(parts) == 2:
-            return parts[1]
-        else:
-            return None
+        return self.varName
 
 class Parser():
     def __init__(self, moduleName):
         self.moduleName = moduleName
         self.statementList = []
+        self.inputList = []
+        self.outputList = []
 
     def parse(self, inLines):
         # Regular expression to capture the port name only
-        port_regex = re.compile(r"#DEBUG_VALUE:\s*([a-zA-Z0-9_]+:[a-zA-Z0-9_]+)")
+        port_regex = re.compile(r"#DEBUG_VALUE:\s*[a-zA-Z0-9_]+:([a-zA-Z0-9_]+)")
 
         # Regular expression to match assembly instructions
         instruction_regex = re.compile(r"^\s*([a-zA-Z]+)\s+([a-zA-Z0-9]+)\s*,?\s*([a-zA-Z0-9()]+)?\s*(?:,\s*([a-zA-Z0-9()]+))?\s*(?:,\s*([a-zA-Z0-9()]+))?", re.MULTILINE)
 
+        # IO variable info and name
+        matchVarName_regex = r'#DEBUG_VALUE:\sfunc:([a-zA-Z_]+)_\w+\s<-\s\$\w+'
+        matchVarDirection_regex = r'#DEBUG_VALUE:\sfunc:([a-zA-Z_][a-zA-Z_0-9]*)\s<-\s\$\w+'
+
         lineNumber = 1
         for line in inLines:
+            # Create the port name list
+
+            matchVarName = re.match(matchVarName_regex, line)
+            matchVarDirection = re.match(matchVarDirection_regex, line)
+            if matchVarName:
+                varName = matchVarName.group(1)
+                varDirection = matchVarDirection.group(1)
+                if "_pi" in varDirection:
+                    self.inputList.append(varName)
+                elif "_po" in varDirection:
+                    self.outputList.append(varName)
+
             # Find port information match
             match = port_regex.search(line)
 
