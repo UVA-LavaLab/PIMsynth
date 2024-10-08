@@ -94,6 +94,9 @@ class AsmTransformer:
         self.tempManager = TempManager()
         self.ports = set(inputList + outputList)
         self.transform()
+        tempVariablesShrinker = TempVariablesShrinker(self.bitSerialStatementList)
+        tempVariablesShrinker.shrinkTempVariables()
+        self.bitSerialStatementList = tempVariablesShrinker.newInstructionSequence
 
     def transform(self):
         for statementIndex, statement in enumerate(self.riscvStatementList):
@@ -191,8 +194,8 @@ class AsmTransformer:
         else:
             returnVal = val
         # print(f"DEBUG: returnVal = {returnVal}, doUnsudpendThePath = {doUnsudpendThePath}")
-#         if line == 561:
-#             breakpoint()
+#         if line >= 65:
+            # breakpoint()
 
         return returnVal, doUnsudpendThePath
 
@@ -225,7 +228,6 @@ class AsmTransformer:
         # Resolve reference operand
         referenceOperand = sourceOperand
         # Handle Input Load
-        # print(f"DEBUG: portInfo = {portInfo}")
         if self.isInputPort(portInfo):
             sourceOperand = portInfo.getPortName()  # Substitute the source operand with the input port name
             if "t" in registerOperand:
@@ -382,4 +384,32 @@ class AsmTransformer:
 
     def getBitSerialAsm(self):
         return self.bitSerialStatementList
+
+class TempVariablesShrinker:
+    def __init__(self, instructionSequence):
+        self.instructionSequence = instructionSequence
+        self.newInstructionSequence = []
+        self.symbolTable = SymbolTable()
+        self.tempManager = TempManager()
+
+    def shrinkTempVariables(self):
+        for instruction in self.instructionSequence:
+            operandIdx = 0
+            for operand in instruction.operandsList:
+                if not instruction.suspended:
+                    if "temp" in operand:
+                        newOperand = self.updateTempVariable(operand)
+                        instruction.operandsList[operandIdx] = newOperand
+                operandIdx += 1
+            if not instruction.suspended:
+                self.newInstructionSequence.append(instruction)
+
+    def updateTempVariable(self, tempVariable):
+        avaialableTempVariable = self.symbolTable.getSymbol(tempVariable)
+        if avaialableTempVariable == None:
+            newTempVariable = f"temp{self.tempManager.newTemp()}"
+            self.symbolTable.addSymbol(tempVariable, newTempVariable)
+            return newTempVariable
+        else:
+            return avaialableTempVariable
 

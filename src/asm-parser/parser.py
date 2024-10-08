@@ -97,22 +97,20 @@ class Parser():
         instruction_regex = re.compile(r"^\s*([a-zA-Z]+)\s+([a-zA-Z0-9]+)\s*,?\s*([a-zA-Z0-9()]+)?\s*(?:,\s*([a-zA-Z0-9()]+))?\s*(?:,\s*([a-zA-Z0-9()]+))?", re.MULTILINE)
 
         # IO variable info and name
-        matchVarName_regex = r'#DEBUG_VALUE:\sfunc:([a-zA-Z_]+)_\w+\s<-\s\$\w+'
-        matchVarDirection_regex = r'#DEBUG_VALUE:\sfunc:([a-zA-Z_][a-zA-Z_0-9]*)\s<-\s\$\w+'
+        matchVarName_regex = r'#DEBUG_VALUE:\s*func:(\w+_\d+__\w+|\w+_\w+)\s*<- \$x\d+'
 
         lineNumber = 1
         for line in inLines:
             # Create the port name list
 
             matchVarName = re.match(matchVarName_regex, line)
-            matchVarDirection = re.match(matchVarDirection_regex, line)
             if matchVarName:
                 varName = matchVarName.group(1)
-                varDirection = matchVarDirection.group(1)
-                if "_pi" in varDirection:
-                    self.inputList.append(varName)
-                elif "_po" in varDirection:
-                    self.outputList.append(varName)
+                if varName.endswith("_pi"):
+                    self.inputList.append(varName.replace("_pi", ""))
+                elif varName.endswith("_po"):
+                    self.outputList.append(varName.replace("_po", ""))
+
 
             # Find port information match
             match = port_regex.search(line)

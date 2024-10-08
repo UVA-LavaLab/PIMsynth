@@ -29,21 +29,21 @@ class StatsGenerator:
     def getReadInstructionCount(self):
         readInstructionCount = 0
         for instruction in self.instructionSequence:
-            if instruction.isReadInstruction() and not instruction.suspended:
+            if instruction.isReadInstruction():
                 readInstructionCount += 1
         return readInstructionCount
 
     def getWriteInstructionCount(self):
         writeInstructionCount = 0
         for instruction in self.instructionSequence:
-            if instruction.isWriteInstruction() and not instruction.suspended:
+            if instruction.isWriteInstruction():
                 writeInstructionCount += 1
         return writeInstructionCount
 
     def getLogicInstructionCount(self):
         logicInstructionCount = 0
         for instruction in self.instructionSequence:
-            if (not (instruction.isReadInstruction() or instruction.isWriteInstruction())) and not instruction.suspended:
+            if not (instruction.isReadInstruction() or instruction.isWriteInstruction()):
                 logicInstructionCount += 1
         return logicInstructionCount
 
@@ -224,12 +224,11 @@ class PimEvalAPICodeGenerator:
     def generateStatementsAsm(self):
         code = ""
         for instruction in self.instructionSequence:
-            if not instruction.suspended:
-                if instruction.opCode == "read":
-                    code += self.generateReadInstruction(instruction)
-                elif instruction.opCode == "write":
-                    code += self.generateWriteInstruction(instruction)
-                else:
-                    code += self.generateLogicInstruction(instruction)
+            if instruction.opCode == "read":
+                code += self.generateReadInstruction(instruction)
+            elif instruction.opCode == "write":
+                code += self.generateWriteInstruction(instruction)
+            else:
+                code += self.generateLogicInstruction(instruction)
         return code
 
