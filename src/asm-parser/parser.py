@@ -97,7 +97,7 @@ class Parser():
         instruction_regex = re.compile(r"^\s*([a-zA-Z]+)\s+([a-zA-Z0-9]+)\s*,?\s*([a-zA-Z0-9()]+)?\s*(?:,\s*([a-zA-Z0-9()]+))?\s*(?:,\s*([a-zA-Z0-9()]+))?", re.MULTILINE)
 
         # IO variable info and name
-        matchVarName_regex = r'#DEBUG_VALUE:\s*func:(\w+_\d+__\w+|\w+_\w+)\s*<- \$x\d+'
+        matchVarName_regex = r'#DEBUG_VALUE:\s*func:([a-zA-Z0-9_]+)\s*.*'
 
         lineNumber = 1
         for line in inLines:
@@ -110,7 +110,6 @@ class Parser():
                     self.inputList.append(varName.replace("_pi", ""))
                 elif varName.endswith("_po"):
                     self.outputList.append(varName.replace("_po", ""))
-
 
             # Find port information match
             match = port_regex.search(line)

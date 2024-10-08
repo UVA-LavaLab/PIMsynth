@@ -65,6 +65,7 @@ class bitSerialAsmCodeGenerator:
 class PimEvalAPICodeGenerator:
     def __init__(self, instructionSequence, functionName, ports):
         self.instructionSequence = instructionSequence
+        self.numberOfTempVarObjs = -1
         self.functionName = functionName
         self.ports = sorted(list(ports))
         self.tempVarMapList = self.getTempVarMapList()
@@ -98,7 +99,9 @@ class PimEvalAPICodeGenerator:
         code += self.generateTemporaryVariables()
         code += "\n\n"
         code += self.generateStatementsAsm()
-        code += "}\n"
+        code += "\n"
+        code += self.generateTemporaryVariablesFreeFunctions()
+        code += "\n}\n"
         return code
 
     def getTempVarList(self):
@@ -131,7 +134,7 @@ class PimEvalAPICodeGenerator:
     def generateTemporaryVariables(self):
         dataTypeBitWidth = self.getDataTypeBitWidth()
         numberOfTempVars = len(self.getTempVarList())
-        numberOfTempVarObjs = math.ceil(numberOfTempVars / dataTypeBitWidth)
+        self.numberOfTempVarObjs = math.ceil(numberOfTempVars / dataTypeBitWidth)
         firstIoPort = self.ports[0]
 
         # Helper function to generate a single temp variable allocation code
@@ -139,9 +142,30 @@ class PimEvalAPICodeGenerator:
             return f"\tPimObjId tempObj{index} = pimAllocAssociated({dataTypeBitWidth}, {firstIoPort}, PIM_INT{dataTypeBitWidth});"
 
         # Generate code for each temp variable
-        code = "\n".join(allocateTempVariable(i) for i in range(numberOfTempVarObjs))
-
+        code = "\n".join(allocateTempVariable(i) for i in range(self.numberOfTempVarObjs))
         return code
+
+    def generateTemporaryVariablesFreeFunctions(self):
+        # Helper function to generate a single temp variable free code
+        def freeTempVariable(index):
+            return f"\tpimFree(tempObj{index});"
+
+        # Generate code for each temp variable
+        code = "\n".join(freeTempVariable(i) for i in range(self.numberOfTempVarObjs))
+        return code
+
+    def mapPimAsmRegToPimEvalAPI(self, pimAsmReg):
+        regMap = {
+            "t0": "PIM_RREG_R1",
+            "t1": "PIM_RREG_R2",
+            "t2": "PIM_RREG_R3",
+            "t3": "PIM_RREG_R4",
+            "t4": "PIM_RREG_R5",
+            "t5": "PIM_RREG_R6",
+            "t6": "PIM_RREG_R7"
+        }
+        if pimAsmReg in regMap:
+            return regMap[pimAsmReg]
 
     def mapPimAsmRegToPimEvalAPI(self, pimAsmReg):
         regMap = {

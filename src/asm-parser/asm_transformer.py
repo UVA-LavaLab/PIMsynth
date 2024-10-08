@@ -210,7 +210,6 @@ class AsmTransformer:
 
         # Resolve register operand
         registerOperand = destinationOperand
-
         if "t" in registerOperand:
             suspended = False
         else:
