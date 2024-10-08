@@ -12,10 +12,8 @@ import math
 
 # Util function
 def findTempVarIndex(inputString):
-    pattern = r'temp\d+'
-    match = re.search(pattern, inputString)
-    if match:
-        return match.start()
+    if inputString.startswith("temp"):
+        return int(inputString[4:])
     else:
         return -1
 
@@ -133,7 +131,7 @@ class PimEvalAPICodeGenerator:
     def generateTemporaryVariables(self):
         dataTypeBitWidth = self.getDataTypeBitWidth()
         numberOfTempVars = len(self.getTempVarList())
-        numberOfTempVar = math.ceil(numberOfTempVars / dataTypeBitWidth)
+        numberOfTempVarObjs = math.ceil(numberOfTempVars / dataTypeBitWidth)
         firstIoPort = self.ports[0]
 
         # Helper function to generate a single temp variable allocation code
@@ -141,7 +139,7 @@ class PimEvalAPICodeGenerator:
             return f"\tPimObjId tempObj{index} = pimAllocAssociated({dataTypeBitWidth}, {firstIoPort}, PIM_INT{dataTypeBitWidth});"
 
         # Generate code for each temp variable
-        code = "\n".join(allocateTempVariable(i) for i in range(numberOfTempVar))
+        code = "\n".join(allocateTempVariable(i) for i in range(numberOfTempVarObjs))
 
         return code
 

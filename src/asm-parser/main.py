@@ -44,8 +44,8 @@ if __name__ == "__main__":
     asmTransformer = AsmTransformer(riscvStatementList, inputList, outputList)
     bitSerialAsm = asmTransformer.getBitSerialAsm()
 
-    # for instruction in bitSerialAsm:
-        # print(instruction)
+#     for instruction in bitSerialAsm:
+#         print(instruction)
 
     # asmTransformer.symbolTable.printSymbols()
 
