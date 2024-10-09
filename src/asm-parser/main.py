@@ -11,7 +11,7 @@ import sys
 import argparse
 import os
 from parser import *
-from asm_transformer import *
+from asm_translator import *
 from generator import *
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
@@ -41,13 +41,13 @@ if __name__ == "__main__":
     outputList = parser.outputList
 
     # Transrom the riscv assembly to bit-serial assembly
-    asmTransformer = AsmTransformer(riscvStatementList, inputList, outputList)
-    bitSerialAsm = asmTransformer.getBitSerialAsm()
+    asmTranslator = AsmTranslator(riscvStatementList, inputList, outputList)
+    bitSerialAsm = asmTranslator.getBitSerialAsm()
 
 #     for instruction in bitSerialAsm:
 #         print(instruction)
 
-    # asmTransformer.symbolTable.printSymbols()
+    # asmTranslator.symbolTable.printSymbols()
 
     statsGenerator = StatsGenerator(bitSerialAsm)
     stats = statsGenerator.generateStats()
@@ -61,7 +61,7 @@ if __name__ == "__main__":
         code += generator.generateCode()
     elif args.output_format == "cpp":
         # Generate bit-serial code following PIMeval API
-        generator = PimEvalAPICodeGenerator(bitSerialAsm, args.module_name, asmTransformer.ports)
+        generator = PimEvalAPICodeGenerator(bitSerialAsm, args.module_name, asmTranslator.ports)
         code = "//" + stats + "\n"
         code += generator.generateCode()
     else:

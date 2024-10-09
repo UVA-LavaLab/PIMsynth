@@ -166,17 +166,6 @@ class PimEvalAPICodeGenerator:
         }
         if pimAsmReg in regMap:
             return regMap[pimAsmReg]
-
-    def mapPimAsmRegToPimEvalAPI(self, pimAsmReg):
-        regMap = {
-            "t0": "PIM_RREG_R1",
-            "t1": "PIM_RREG_R2",
-            "t2": "PIM_RREG_R3",
-            "t3": "PIM_RREG_R4",
-            "t4": "PIM_RREG_R5"
-        }
-        if pimAsmReg in regMap:
-            return regMap[pimAsmReg]
         else:
             raise ValueError(f"Invalid register: {pimAsmReg}")
 
