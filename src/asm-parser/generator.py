@@ -90,8 +90,16 @@ class PimEvalAPICodeGenerator:
 
     def generateFunctionArgs(self):
         code = ""
+        numberOfPorts = len(self.ports)
+        i = 0
         for port in self.ports:
-            code += "\t" + "PimObjId " + port + ",\n"
+            isLastElement = (i == numberOfPorts - 1)
+            code += "\t" + "PimObjId " + port
+            if isLastElement:
+                code += "\n"
+            else:
+                code += ",\n"
+            i += 1
         return code
 
     def generateFunctionBody(self):
@@ -214,7 +222,7 @@ class PimEvalAPICodeGenerator:
         code += f"\tpimOpMove({firstIoPort}, {self.mapPimAsmRegToPimEvalAPI(sourceOperand)}, PIM_RREG_SA);\n"
 
         destinationOperand = self.formatOperand(instruction.operandsList[1], isSource=False)
-        code += f"\tpimOpWriteSaToRow({destinationOperand});\n\n"
+        code += f"\tpimOpWriteSaToRow({destinationOperand}, 0);\n\n"
 
         return code
 
