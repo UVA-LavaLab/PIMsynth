@@ -71,10 +71,12 @@ class PimEvalAPICodeGenerator:
         self.tempVarMapList = self.getTempVarMapList()
 
     def generateCode(self):
-        code = ""
+        code = f"#ifndef {self.functionName.upper()}_H\n"
+        code += f"#define {self.functionName.upper()}_H\n"
         code += self.generateHeaderFiles()
         code += self.generateFunctionSignature()
         code += self.generateFunctionBody()
+        code += "#endif\n\n"
         return code
 
     def generateHeaderFiles(self):
