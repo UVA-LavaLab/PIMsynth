@@ -149,7 +149,7 @@ class PimEvalAPICodeGenerator:
 
         # Helper function to generate a single temp variable allocation code
         def allocateTempVariable(index):
-            return f"\tPimObjId tempObj{index} = pimAllocAssociated({dataTypeBitWidth}, {firstIoPort}, PIM_INT{dataTypeBitWidth});"
+            return f"\tPimObjId tempObj{index} = pimAllocAssociated({firstIoPort}, PIM_INT{dataTypeBitWidth});"
 
         # Generate code for each temp variable
         code = "\n".join(allocateTempVariable(i) for i in range(self.numberOfTempVarObjs))
@@ -201,7 +201,7 @@ class PimEvalAPICodeGenerator:
         if "temp" in operand:
             tmpVarIndex = findTempVarIndex(operand)
             tempObjIndex, offset = self.mapVarIndex(tmpVarIndex)
-            return f"tempObj{tempObjIndex}, {offset}"
+            return f"tempObj{tempObjIndex}, {offset}" if isSource else f"tempObj{tempObjIndex}"
         return f"{operand}, 0" if isSource else operand
 
     def generateReadInstruction(self, instruction):

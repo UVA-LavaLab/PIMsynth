@@ -162,6 +162,7 @@ class AsmTranslator:
         return bool(re.match(pattern, symbol))
 
     def resolveOperand(self, symbol, line=-1):
+
         # Lookup the symbol table
         val = self.symbolTable.getSymbol(symbol)
         returnVal = "XXX"
@@ -172,7 +173,6 @@ class AsmTranslator:
 
         elif isinstance(val, LinkedInstruction):
             returnVal, doUnsudpendThePath = self.resolveLinkedInstruction(val)
-
         else:
             returnVal = val
 
@@ -195,7 +195,15 @@ class AsmTranslator:
         destinationOperand = self.getDestinationOperandFromInstruction(sourceInstruction)
 
         if self.isBitSerialRegister(destinationOperand):
-            return destinationOperand, False
+            if "temp" in self.getDestinationOperandFromInstruction(instruction):
+                if "temp" not in self.getSourceOperandFromInstruction(instruction):
+                    instruction.unsuspend()
+                    doUnsudpendThePath = True
+                    returnVal = self.getDestinationOperandFromInstruction(instruction)
+            else:
+                doUnsudpendThePath = False
+                returnVal = destinationOperand
+            return returnVal, doUnsudpendThePath
 
         returnVal, doUnsudpendThePath = self.resolveOperand(destinationOperand)
 
@@ -240,39 +248,6 @@ class AsmTranslator:
             return None  # Mark as unresolved
 
         return resolvedOperand
-
-    def translateStoreInstruction(self, statementIndex):
-        riscvInstruction = self.riscvStatementList[statementIndex]
-        portInfo = self.riscvStatementList[statementIndex + 1]
-        destinationOperand = riscvInstruction.operandsList[1]
-        sourceOperand = riscvInstruction.operandsList[0]
-
-        # Resolve register operand
-        registerOperand = sourceOperand
-        if not "t" in registerOperand:
-            resolvedOperand = self.symbolTable.getSymbol(registerOperand)
-            if resolvedOperand == None:
-                tempVarialbe = f"temp{self.tempManager.newTemp()}"
-                self.symbolTable.addSymbol(registerOperand, tempVarialbe)
-                resolvedOperand = tempVarialbe
-            sourceOperand = resolvedOperand
-
-        # Map Reference operand to temporary variable
-        referenceOperand = destinationOperand
-        tempVarialbe = f"temp{self.tempManager.newTemp()}"
-        self.symbolTable.addSymbol(referenceOperand, tempVarialbe)
-        destinationOperand = tempVarialbe
-
-        # Handle the case where a pointer operation happens after an output writing operation
-        if "t" in registerOperand and "temp" in destinationOperand:
-            value = self.symbolTable.getSymbol(registerOperand)
-            if isinstance(value, str):
-                if self.isOutput(value):
-                    self.symbolTable.removeSymbol(registerOperand)
-                    self.symbolTable.addSymbol(destinationOperand, value)
-
-        suspended = True
-        self.appendBitSerialInstruction("write", [sourceOperand, destinationOperand], riscvInstruction.line, suspended)
 
     def translateStoreInstruction(self, statementIndex):
         riscvInstruction = self.riscvStatementList[statementIndex]
