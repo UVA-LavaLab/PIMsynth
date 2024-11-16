@@ -44,6 +44,12 @@ class Instruction(Statement):
         else:
             return False
 
+    def isMoveInstruction(self):
+        if "mv" in self.opCode:
+            return True
+        else:
+            return False
+
     def isReadInstruction(self):
         if "read" in self.opCode:
             return True

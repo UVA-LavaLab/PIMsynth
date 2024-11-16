@@ -91,6 +91,7 @@ class AsmTranslator:
         self.outputList = outputList
         self.bitSerialStatementList = []
         self.symbolTable = SymbolTable()
+        self.resolvedInputList = []
         self.tempManager = TempManager()
         self.ports = set(inputList + outputList)
         self.translate()
@@ -106,6 +107,9 @@ class AsmTranslator:
                     continue
                 if statement.isStoreInstruction():
                     self.translateStoreInstruction(statementIndex)
+                    continue
+                if statement.isMoveInstruction():
+                    self.translateMoveInstruction(statementIndex)
                     continue
             elif isinstance(statement, Directive) and statement.val == "#APP":
                 self.translateInlineAssembly(statementIndex)
@@ -162,91 +166,127 @@ class AsmTranslator:
         return bool(re.match(pattern, symbol))
 
     def resolveOperand(self, symbol, line=-1):
-
         # Lookup the symbol table
         val = self.symbolTable.getSymbol(symbol)
         returnVal = "XXX"
         doUnsudpendThePath = False
 
         if isinstance(val, str):
-            returnVal, doUnsudpendThePath = self.resolveTemp(val)
+            returnVal, doUnsudpendThePath = self.resolveTemp(val, line=line)
 
         elif isinstance(val, LinkedInstruction):
-            returnVal, doUnsudpendThePath = self.resolveLinkedInstruction(val)
+            returnVal, doUnsudpendThePath = self.resolveLinkedInstruction(val, line=line)
         else:
             returnVal = val
 
         return returnVal, doUnsudpendThePath
 
-    def resolveTemp(self, temp):
+    def resolveTemp(self, temp, line=-1):
         if "temp" in temp:
-            return self.resolveOperand(temp)
+            return self.resolveOperand(temp, line=line)
         return temp, False
 
-    def resolveLinkedInstruction(self, instruction):
+    def resolveLinkedInstruction(self, instruction, line=-1):
         sourceInstruction = instruction.sourceInstructionList[0]
-
         if sourceInstruction is None:
-            return self.getSourceOperandFromInstruction(instruction), False
-
-        if isinstance(sourceInstruction, str):
-            return sourceInstruction, False
+            if self.isBitSerialRegister(self.getSourceOperandFromInstruction(instruction)):
+                return self.getDestinationOperandFromInstruction(instruction), False
+            else:
+                return self.getSourceOperandFromInstruction(instruction), False
 
         destinationOperand = self.getDestinationOperandFromInstruction(sourceInstruction)
-
+        sourceOperand = self.getSourceOperandFromInstruction(sourceInstruction)
         if self.isBitSerialRegister(destinationOperand):
+            if "temp" in self.getDestinationOperandFromInstruction(instruction):
+                if self.isInput(sourceOperand):
+                    doUnsudpendThePath = False
+                    returnVal = sourceOperand
+                elif "temp" not in self.getSourceOperandFromInstruction(instruction):
+                    instruction.unsuspend()
+                    doUnsudpendThePath = True
+                    returnVal = self.getDestinationOperandFromInstruction(instruction)
+                else:
+                    raise Error("Unhandled condition.")
+            return returnVal, doUnsudpendThePath
+
+        else:
+            returnVal, doUnsudpendThePath = self.resolveOperand(destinationOperand)
             if "temp" in self.getDestinationOperandFromInstruction(instruction):
                 if "temp" not in self.getSourceOperandFromInstruction(instruction):
                     instruction.unsuspend()
                     doUnsudpendThePath = True
-                    returnVal = self.getDestinationOperandFromInstruction(instruction)
-            else:
-                doUnsudpendThePath = False
-                returnVal = destinationOperand
+
             return returnVal, doUnsudpendThePath
 
-        returnVal, doUnsudpendThePath = self.resolveOperand(destinationOperand)
-
-        if "temp" in self.getDestinationOperandFromInstruction(instruction):
-            if "temp" not in self.getSourceOperandFromInstruction(instruction):
-                instruction.unsuspend()
-                doUnsudpendThePath = True
-
-        return returnVal, doUnsudpendThePath
+    def translateMoveInstruction(self, statementIndex):
+        riscvInstruction = self.riscvStatementList[statementIndex]
+        if self.isBitSerialRegister(riscvInstruction.operandsList[0]):
+            if self.isBitSerialRegister(riscvInstruction.operandsList[1]):
+                sourceOperand = riscvInstruction.operandsList[1]
+                destinationOperand = riscvInstruction.operandsList[0]
+                self.appendBitSerialInstruction("move", [destinationOperand, sourceOperand], riscvInstruction.line, suspended=False)
+                print(f"DEBUG: riscvInstruction = {riscvInstruction}")
+                print(f"DEBUG: destinationOperand = {destinationOperand}")
+                breakpoint()
+            else:
+                sourceOperand, doUnsudpendThePath = self.resolveOperand(riscvInstruction.operandsList[1], line=riscvInstruction.line)
+                destinationOperand = riscvInstruction.operandsList[0]
+                self.appendBitSerialInstruction("read", [destinationOperand, sourceOperand], riscvInstruction.line, suspended=False)
+                print(f"DEBUG: riscvInstruction = {riscvInstruction}")
+                print(f"DEBUG: destinationOperand = {destinationOperand}")
+                breakpoint()
+        else:
+            if self.isBitSerialRegister(riscvInstruction.operandsList[1]):
+                raise Error("Unhandled move instruction at line {riscvInstruction.line} in the RISCV assembly.")
+            else:
+                raise Error("Unhandled move instruction at line {riscvInstruction.line} in the RISCV assembly.")
 
     def translateLoadInstruction(self, statementIndex):
         riscvInstruction = self.riscvStatementList[statementIndex]
         portInfo = self.riscvStatementList[statementIndex + 1]
 
-        destinationOperand, suspended = self.resolveDestinationOperand(riscvInstruction.operandsList[0])
-        sourceOperand = self.resolveSourceOperandForLoad(riscvInstruction.operandsList[1], portInfo, riscvInstruction)
+        sourceOperand = self.resolveSourceOperandForLoad(riscvInstruction.operandsList[1], portInfo, line=riscvInstruction.line)
+        destinationOperand, suspended = self.resolveDestinationOperand(riscvInstruction.operandsList[0], sourceOperand, line=riscvInstruction.line)
 
         if destinationOperand and sourceOperand:
             self.appendBitSerialInstruction("read", [destinationOperand, sourceOperand], riscvInstruction.line, suspended)
 
-    def resolveDestinationOperand(self, destinationOperand):
-        if "t" in destinationOperand:
+    def resolveDestinationOperand(self, destinationOperand, sourceOperand, line=-1):
+        if self.isBitSerialRegister(destinationOperand):
             return destinationOperand, False  # Not suspended
 
-        resolvedOperand = self.symbolTable.getSymbol(destinationOperand)
-        if resolvedOperand is None:
+        if not self.isInput(sourceOperand):
+            resolvedOperand = self.symbolTable.getSymbol(destinationOperand)
+            if resolvedOperand is None:
+                tempVariable = f"temp{self.tempManager.newTemp()}"
+                self.symbolTable.addSymbol(destinationOperand, tempVariable)
+                resolvedOperand = tempVariable
+                if "temp" in resolvedOperand:
+                    return None, True  # Invalid operand, mark as suspended
+            elif "temp" in resolvedOperand:
+                if sourceOperand is None:
+                    return None, True
+                elif "temp" in sourceOperand:
+                    return None, True
+                else:
+                    return resolvedOperand, True
+
+        else:
             tempVariable = f"temp{self.tempManager.newTemp()}"
             self.symbolTable.addSymbol(destinationOperand, tempVariable)
             resolvedOperand = tempVariable
+            return resolvedOperand, True
 
-        if "temp" in resolvedOperand:
-            return None, True  # Invalid operand, mark as suspended
 
         return resolvedOperand, False
 
-    def resolveSourceOperandForLoad(self, sourceOperand, portInfo, riscvInstruction):
+    def resolveSourceOperandForLoad(self, sourceOperand, portInfo, line=-1):
         if self.isInputPort(portInfo):
-            return portInfo.getPortName()  # Use input port name
+            if not portInfo.getPortName() in self.resolvedInputList:
+                self.resolvedInputList.append(portInfo.getPortName())
+                return portInfo.getPortName()  # Use input port name
 
-        resolvedOperand, doUnsudpendThePath = self.resolveOperand(sourceOperand, line=riscvInstruction.line)
-        if resolvedOperand is None:
-            return None  # Mark as unresolved
-
+        resolvedOperand, doUnsudpendThePath = self.resolveOperand(sourceOperand, line=line)
         return resolvedOperand
 
     def translateStoreInstruction(self, statementIndex):

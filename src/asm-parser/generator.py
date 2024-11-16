@@ -94,7 +94,7 @@ class PimEvalAPICodeGenerator:
         code = ""
         numberOfPorts = len(self.ports)
         i = 0
-        for port in self.ports:
+        for port in sorted(self.ports):
             isLastElement = (i == numberOfPorts - 1)
             code += "\t" + "PimObjId " + port
             if isLastElement:
@@ -182,6 +182,7 @@ class PimEvalAPICodeGenerator:
     def mapPimAsmOpCodeToPimEvalAPI(self, pimOpCode):
         opCodeMap = {
             "not": "pimOpNot",
+            "move": "pimOpMove",
             "and": "pimOpAnd",
             "or": "pimOpOr",
             "xor": "pimOpXor",
@@ -223,8 +224,8 @@ class PimEvalAPICodeGenerator:
         firstIoPort = self.ports[0]
         code += f"\tpimOpMove({firstIoPort}, {self.mapPimAsmRegToPimEvalAPI(sourceOperand)}, PIM_RREG_SA);\n"
 
-        destinationOperand = self.formatOperand(instruction.operandsList[1], isSource=False)
-        code += f"\tpimOpWriteSaToRow({destinationOperand}, 0);\n\n"
+        destinationOperand = self.formatOperand(instruction.operandsList[1])
+        code += f"\tpimOpWriteSaToRow({destinationOperand});\n\n"
 
         return code
 
