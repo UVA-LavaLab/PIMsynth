@@ -69,6 +69,7 @@ class PimEvalAPICodeGenerator:
         self.functionName = functionName
         self.ports = sorted(list(ports))
         self.tempVarMapList = self.getTempVarMapList()
+        self.firstIoPort = self.countBits(self.ports)[0][0]
 
     def generateCode(self):
         code = f"#ifndef {self.functionName.upper()}_H\n"
@@ -90,17 +91,37 @@ class PimEvalAPICodeGenerator:
         code += ")\n"
         return code
 
+    def countBits(self, portList):
+        bitCounts = {}
+        for item in portList:
+            # Check if the port name contains an index
+            parts = item.split('_')
+            if len(parts) >= 3 and parts[1].isdigit():
+                # Port name with an index
+                variableName = parts[0]
+            else:
+                # Port name without an index
+                variableName = item
+
+            # Increment the count for this variable
+            bitCounts[variableName] = bitCounts.get(variableName, 0) + 1
+
+        # Convert the dictionary to a list of tuples
+        return [(variable, count) for variable, count in bitCounts.items()]
+
     def generateFunctionArgs(self):
         code = ""
         numberOfPorts = len(self.ports)
         i = 0
-        for port in sorted(self.ports):
-            isLastElement = (i == numberOfPorts - 1)
-            code += "\t" + "PimObjId " + port
-            if isLastElement:
-                code += "\n"
-            else:
-                code += ",\n"
+        pimObjs = self.countBits(self.ports)
+        numberOfObjs = len(pimObjs)
+        i = 0
+        for pimObj in pimObjs:
+            isLastElement = (i == numberOfObjs - 1)
+            code += "\t" + "PimObjId " + pimObj[0]
+            if not isLastElement:
+                code += ", "
+            code += f" /* {pimObj[1]} bits */ \n"
             i += 1
         return code
 
@@ -145,11 +166,10 @@ class PimEvalAPICodeGenerator:
         dataTypeBitWidth = self.getDataTypeBitWidth()
         numberOfTempVars = len(self.getTempVarList())
         self.numberOfTempVarObjs = math.ceil(numberOfTempVars / dataTypeBitWidth)
-        firstIoPort = self.ports[0]
 
         # Helper function to generate a single temp variable allocation code
         def allocateTempVariable(index):
-            return f"\tPimObjId tempObj{index} = pimAllocAssociated({firstIoPort}, PIM_INT{dataTypeBitWidth});"
+            return f"\tPimObjId tempObj{index} = pimAllocAssociated({self.firstIoPort}, PIM_INT{dataTypeBitWidth});"
 
         # Generate code for each temp variable
         code = "\n".join(allocateTempVariable(i) for i in range(self.numberOfTempVarObjs))
@@ -198,12 +218,24 @@ class PimEvalAPICodeGenerator:
     def generateInstructionComment(self, instruction):
         return f"\t// {instruction.opCode} {concatenateListElements(instruction.operandsList)} (Line: {instruction.line})\n"
 
-    def formatOperand(self, operand, isSource=True):
+    def parsePort(self, portName):
+        # Split the input by underscore and extract the name and index
+        parts = portName.split('_')
+        if len(parts) >= 2 and parts[1].isdigit():
+            variableName = parts[0]
+            index = int(parts[1])  # Convert the index to an integer
+            return (variableName, index)
+        else:
+            return (portName, 0)
+
+    def formatOperand(self, operand):
         if "temp" in operand:
             tmpVarIndex = findTempVarIndex(operand)
             tempObjIndex, offset = self.mapVarIndex(tmpVarIndex)
-            return f"tempObj{tempObjIndex}, {offset}" if isSource else f"tempObj{tempObjIndex}"
-        return f"{operand}, 0" if isSource else operand
+            return f"tempObj{tempObjIndex}, {offset}"
+        else:
+            (name, index) = self.parsePort(operand)
+            return f"{name}, {index}"
 
     def generateReadInstruction(self, instruction):
         code = self.generateInstructionComment(instruction)
@@ -212,8 +244,7 @@ class PimEvalAPICodeGenerator:
         code += f"\tpimOpReadRowToSa({sourceOperand});\n"
 
         destinationOperand = instruction.operandsList[0]
-        firstIoPort = self.ports[0]
-        code += f"\tpimOpMove({firstIoPort}, PIM_RREG_SA, {self.mapPimAsmRegToPimEvalAPI(destinationOperand)});\n\n"
+        code += f"\tpimOpMove({self.firstIoPort}, PIM_RREG_SA, {self.mapPimAsmRegToPimEvalAPI(destinationOperand)});\n\n"
 
         return code
 
@@ -221,8 +252,7 @@ class PimEvalAPICodeGenerator:
         code = self.generateInstructionComment(instruction)
 
         sourceOperand = instruction.operandsList[0]
-        firstIoPort = self.ports[0]
-        code += f"\tpimOpMove({firstIoPort}, {self.mapPimAsmRegToPimEvalAPI(sourceOperand)}, PIM_RREG_SA);\n"
+        code += f"\tpimOpMove({self.firstIoPort}, {self.mapPimAsmRegToPimEvalAPI(sourceOperand)}, PIM_RREG_SA);\n"
 
         destinationOperand = self.formatOperand(instruction.operandsList[1])
         code += f"\tpimOpWriteSaToRow({destinationOperand});\n\n"
@@ -239,8 +269,7 @@ class PimEvalAPICodeGenerator:
         code = self.generateInstructionComment(instruction)
 
         pimEvalFunctionName = self.mapPimAsmOpCodeToPimEvalAPI(instruction.opCode)
-        firstIoPort = self.ports[0]
-        code += f"\t{pimEvalFunctionName}({firstIoPort}, {self.generateLogicalInstructionOperands(instruction.operandsList)});\n\n"
+        code += f"\t{pimEvalFunctionName}({self.firstIoPort}, {self.generateLogicalInstructionOperands(instruction.operandsList)});\n\n"
         return code
 
     def generateStatementsAsm(self):
