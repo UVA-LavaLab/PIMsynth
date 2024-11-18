@@ -6,7 +6,7 @@
 
 // 32-bit golden model function
 int funcGoldenModel(int a, int b) {
-    return a * b;
+    return a / b;
 }
 
 void runTest(int testNumber, int a, int b, PimObjId aPim, PimObjId bPim, PimObjId resultPim) {

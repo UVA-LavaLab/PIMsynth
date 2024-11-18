@@ -5,20 +5,21 @@
 #include "libpimeval.h"
 
 // 32-bit golden model function
-int funcGoldenModel(int a, int b) {
-    return a * b;
+int funcGoldenModel(int a, int b, int c) {
+    return a + b - c;
 }
 
-void runTest(int testNumber, int a, int b, PimObjId aPim, PimObjId bPim, PimObjId resultPim) {
+void runTest(int testNumber, int a, int b, int c, PimObjId aPim, PimObjId bPim, PimObjId cPim, PimObjId resultPim) {
     // Calculate the expected result using the golden model
-    int expectedResult = funcGoldenModel(a, b);
+    int expectedResult = funcGoldenModel(a, b, c);
 
     // Copy data to PIM device
     pimCopyHostToDevice(&a, aPim);
     pimCopyHostToDevice(&b, bPim);
+    pimCopyHostToDevice(&c, cPim);
 
     // Call the function under test
-    func(aPim, bPim, resultPim);
+    func(aPim, bPim, cPim, resultPim);
 
     // Retrieve and verify the result from the PIM device
     int pimResult;
@@ -28,7 +29,7 @@ void runTest(int testNumber, int a, int b, PimObjId aPim, PimObjId bPim, PimObjI
     if (pimResult != expectedResult) {
         // Print all inputs and outputs if there is a mismatch
         std::cerr << "Error: Test " << testNumber << " failed!" << std::endl;
-        std::cerr << "  Input a = " << a << ", b = " << b << std::endl;
+        std::cerr << "  Input a = " << a << ", b = " << b << ", c = " << c << std::endl;
         std::cerr << "  Expected result = " << expectedResult << ", PIM result = " << pimResult << std::endl;
     } else {
         std::cout << "Info: Test " << testNumber << " passed!" << std::endl;
@@ -49,6 +50,7 @@ int main() {
     // Allocate PIM objects for the 32-bit input/output ports with element size = 1
     PimObjId aPim = pimAlloc(PIM_ALLOC_V, 1, PIM_INT32);
     PimObjId bPim = pimAlloc(PIM_ALLOC_V, 1, PIM_INT32);
+    PimObjId cPim = pimAlloc(PIM_ALLOC_V, 1, PIM_INT32);
     PimObjId resultPim = pimAlloc(PIM_ALLOC_V, 1, PIM_INT32);
 
     // Run random tests
@@ -57,13 +59,15 @@ int main() {
     for (int t = 0; t < numTests; ++t) {
         int a = std::rand();  // Generate random 32-bit value for a
         int b = std::rand();  // Generate random 32-bit value for b
+        int c = std::rand();  // Generate random 32-bit value for c
 
-        runTest(testNumber++, a, b, aPim, bPim, resultPim);
+        runTest(testNumber++, a, b, c, aPim, bPim, cPim, resultPim);
     }
 
     // Clean up and free allocated resources
     pimFree(aPim);
     pimFree(bPim);
+    pimFree(cPim);
     pimFree(resultPim);
     pimDeleteDevice();
 

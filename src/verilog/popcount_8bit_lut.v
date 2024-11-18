@@ -2,13 +2,13 @@
 // deyuan, 10/02/2024
 
 module popcount_8bit_lut (
-    data, count
+    data, result
 );
 
 input   [7:0] data;
-output  [3:0] count;
+output  [3:0] result;
 
-assign count = (data == 8'b00000000) ? 4'd0 :
+assign result = (data == 8'b00000000) ? 4'd0 :
                (data == 8'b00000001) ? 4'd1 :
                (data == 8'b00000010) ? 4'd1 :
                (data == 8'b00000011) ? 4'd2 :
