@@ -1,4 +1,4 @@
-// int32 add
+// int32 add - EPFL impl
 // deyuan, 09/25/2024
 
 module add_int32(input [31:0] a, input [31:0] b, output [31:0] result);
