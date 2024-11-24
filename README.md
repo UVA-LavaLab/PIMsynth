@@ -18,6 +18,9 @@ git remote -v
 cd yosys
 git remote set-url --push origin https://github.com/deyuan/bit-serial-compiler.git
 git remote -v
+cd PIMeval-PIMbench
+git remote set-url --push origin https://github.com/deyuan/bit-serial-compiler.git
+git remote -v
 ```
 
 Build apptainer:
@@ -55,6 +58,12 @@ cd yosys
 # in case yosys/abc submodule has not been checked out
 git submodule update --init
 # build
+../apptainer-run.sh make -j10
+```
+
+Build PIMeval:
+```
+cd PIMeval-PIMbench
 ../apptainer-run.sh make -j10
 ```
 
@@ -100,6 +109,7 @@ Submodules:
 * `yosys`: yosys logic synthesizer submodule
 * `llvm-project`: LLVM compiler submodule
 * `llvm-build`: Required location to build llvm
+* `PIMeval-PIMbench`: PIMeval simulator for validation
 
 Source files:
 * `src/`
@@ -107,6 +117,7 @@ Source files:
   * `verilog/`: Verilog source code
   * `blif-parser/`: BLIF parser and C/C++ code generator written in Python
   * `asm-parser/`: RISC-V ASM parser and PIM code generator written in Python
+  * `scripts/`: Utility scripts
 
 Test directories:
 * `tests/`: Testcases

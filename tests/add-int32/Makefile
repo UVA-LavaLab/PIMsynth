@@ -1,10 +1,14 @@
+
+REPO_ROOT := $(shell git rev-parse --show-toplevel)
+LIB_PIMEVAL_PATH := $(REPO_ROOT)/PIMeval-PIMbench/libpimeval
+
 # Compiler and flags
 CXX = g++
 CXXFLAGS = -I$(LIB_PIMEVAL_PATH)/include -I./outputs -I../ # Path to header files
 LDFLAGS = -L$(LIB_PIMEVAL_PATH)/lib -l:libpimeval.a # Path to static library and linking
 
 # Target executable
-TARGET = test
+TARGET = test.out
 
 # Source files 
 SRCS = test.cpp
