@@ -22,7 +22,7 @@ class bitSerialCompiler:
     def __init__(self, args=[]):
         """ Init """
         self.args = args.copy()
-        self.verilog = ''
+        self.verilog = []
         self.genlib = ''
         self.aig = ''
         self.blif = ''
@@ -101,7 +101,7 @@ class bitSerialCompiler:
             --from-stage asm        require --asm
         """)
         parser = argparse.ArgumentParser(epilog=extra_help_msg, formatter_class=argparse.RawTextHelpFormatter)
-        parser.add_argument('--verilog', metavar='[file]', type=str, default='', help='Input Verilog file')
+        parser.add_argument('--verilog', metavar='[files]', type=str, default='', help='Input Verilog files', nargs='+')
         parser.add_argument('--genlib', metavar='[file]', type=str, default='', help='Input GenLib file')
         parser.add_argument('--blif', metavar='[file]', type=str, default='', help='Input BLIF file')
         parser.add_argument('--c', metavar='[file]', type=str, default='', help='Input C file')
@@ -126,8 +126,10 @@ class bitSerialCompiler:
         self.blif = args.blif
         self.c = args.c
         self.asm = args.asm
-        if (not self.sanity_check_input_file(self.verilog, 'Verilog')
-                or not self.sanity_check_input_file(self.genlib, 'GenLib')
+        for file in self.verilog:
+            if not self.sanity_check_input_file(file, 'Verilog'):
+                return False
+        if (not self.sanity_check_input_file(self.genlib, 'GenLib')
                 or not self.sanity_check_input_file(self.blif, 'BLIF')
                 or not self.sanity_check_input_file(self.c, 'C')
                 or not self.sanity_check_input_file(self.asm, 'ASM')):
@@ -214,7 +216,7 @@ class bitSerialCompiler:
         print(self.hbar)
         print("From-to Stage: %s -> %s" % (self.from_stage, self.to_stage))
         if self.verilog:
-            print("Input Verilog File:", self.verilog)
+            print("Input Verilog Files:", self.verilog)
         if self.genlib:
             print("Input GenLib File:", self.genlib)
         if self.blif:
@@ -285,7 +287,7 @@ class bitSerialCompiler:
             techmap
             stat
             write_blif %s
-        """ % (self.verilog, yosys_blif_file))
+        """ % (" ".join(self.verilog), yosys_blif_file))
         yosys_file = os.path.join(self.outdir, self.output + '.yosys')
         with open(yosys_file, 'w') as file:
             file.write(yosys_tmpl)
@@ -311,7 +313,8 @@ class bitSerialCompiler:
             echo "INFO: Reading GenLib"
             read_genlib %s
             echo "INFO: Tech Mapping"
-            map
+            map -v
+            print_stats
             echo "INFO: Writing BLIF"
             write_blif %s
         """ % (yosys_blif_file, self.genlib, blif_file))
@@ -343,10 +346,10 @@ class bitSerialCompiler:
             echo "INFO: Reading GenLib"
             read_genlib %s
             echo "INFO: Tech Mapping"
-            map
+            map -v
             echo "INFO: Writing BLIF"
             write_blif %s
-        """ % (self.verilog, self.genlib, blif_file))
+        """ % (" ".join(self.verilog), self.genlib, blif_file))
         abc_file = os.path.join(self.outdir, self.output + '.abc')
         with open(abc_file, 'w') as file:
             file.write(abc_tmpl)
