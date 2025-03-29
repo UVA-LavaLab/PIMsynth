@@ -37,10 +37,10 @@
 # Ignore the llvm-build directory
 llvm-build/
 
-# Ignore abc related files
+# Ignore bit-serial compiler, abc and yosys output files
 abc.history
 *.log
-outputs/
+outputs*/
 
 # Python
 __pycache__
