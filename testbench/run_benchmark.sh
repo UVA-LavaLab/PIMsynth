@@ -31,10 +31,7 @@ VALID_BENCHMARKS=(
 
 # Function to display valid bit-serial ISA
 show_valid_bit_serial_isa() {
-    echo "Valid bit-serial ISA are:"
-    for isa in "${VALID_BIT_SERIAL_ISA[@]}"; do
-        echo "  - $isa"
-    done
+    echo "Valid bit-serial ISA: ${VALID_BIT_SERIAL_ISA[*]}"
 }
 
 # Check if the provided bit-serial ISA name is valid
@@ -49,7 +46,7 @@ is_valid_bit_serial_isa() {
 
 # Function to display valid num_reg values
 show_valid_num_reg() {
-    echo "Valid num_reg values are: 2, 3, 4, 5, 6, 7"
+    echo "Valid num_reg values: 2 3 4 5 6 7"
 }
 
 # Check if the provided num_reg value is valid
@@ -63,10 +60,7 @@ is_valid_num_reg() {
 
 # Function to display valid benchmarks
 show_valid_benchmarks() {
-    echo "Valid benchmarks are:"
-    for benchmark in "${VALID_BENCHMARKS[@]}"; do
-        echo "  - $benchmark"
-    done
+    echo "Valid benchmark names: ${VALID_BENCHMARKS[*]}"
 }
 
 # Check if the provided benchmark name is valid
@@ -153,86 +147,86 @@ echo "Benchmark Name: $benchmark_name"
 echo "Output Directory: $outdir"
 echo "==========================="
 
+# Collect verilog file dependencies
+verilog_files=()
 case "$benchmark_name" in
     "add_int8" | "add_int16" | "add_int32" | "add_int64")
-        $PROJ_ROOT/apptainer-run.sh $PROJ_ROOT/bit_serial_compiler.py \
-            --verilog "$PROJ_ROOT/benchmarks/${benchmark_name}.v" \
-                      "$PROJ_ROOT/benchmarks/adder_1bit.v" \
-                      "$PROJ_ROOT/benchmarks/adder_nbit.v" \
-            --genlib "$genlib_file" \
-            --num-regs "$num_reg" \
-            --outdir "$outdir"
+        verilog_files=(
+            "$PROJ_ROOT/benchmarks/${benchmark_name}.v"
+            "$PROJ_ROOT/benchmarks/adder_1bit.v"
+            "$PROJ_ROOT/benchmarks/adder_nbit.v"
+        )
         ;;
     "sub_int8" | "sub_int16" | "sub_int32" | "sub_int64")
-        $PROJ_ROOT/apptainer-run.sh $PROJ_ROOT/bit_serial_compiler.py \
-            --verilog "$PROJ_ROOT/benchmarks/${benchmark_name}.v" \
-                      "$PROJ_ROOT/benchmarks/subtractor_1bit.v" \
-                      "$PROJ_ROOT/benchmarks/subtractor_nbit.v" \
-            --genlib "$genlib_file" \
-            --num-regs "$num_reg" \
-            --outdir "$outdir"
+        verilog_files=(
+            "$PROJ_ROOT/benchmarks/${benchmark_name}.v"
+            "$PROJ_ROOT/benchmarks/subtractor_1bit.v"
+            "$PROJ_ROOT/benchmarks/subtractor_nbit.v"
+        )
         ;;
     "mul_int8" | "mul_int16" | "mul_int32" | "mul_int64")
-        $PROJ_ROOT/apptainer-run.sh $PROJ_ROOT/bit_serial_compiler.py \
-            --verilog "$PROJ_ROOT/benchmarks/${benchmark_name}.v" \
-                      "$PROJ_ROOT/benchmarks/multiplier_nbit.v" \
-                      "$PROJ_ROOT/benchmarks/adder_1bit.v" \
-                      "$PROJ_ROOT/benchmarks/adder_nbit.v" \
-            --genlib "$genlib_file" \
-            --num-regs "$num_reg" \
-            --outdir "$outdir"
+        verilog_files=(
+            "$PROJ_ROOT/benchmarks/${benchmark_name}.v"
+            "$PROJ_ROOT/benchmarks/multiplier_nbit.v"
+            "$PROJ_ROOT/benchmarks/adder_1bit.v"
+            "$PROJ_ROOT/benchmarks/adder_nbit.v"
+        )
         ;;
     "not_int1" | "not_int8" | "not_int16" | "not_int32" | "not_int64")
-        $PROJ_ROOT/apptainer-run.sh $PROJ_ROOT/bit_serial_compiler.py \
-            --verilog "$PROJ_ROOT/benchmarks/${benchmark_name}.v" \
-                      "$PROJ_ROOT/benchmarks/not_nbit.v" \
-            --genlib "$genlib_file" \
-            --num-regs "$num_reg" \
-            --outdir "$outdir"
+        verilog_files=(
+            "$PROJ_ROOT/benchmarks/${benchmark_name}.v"
+            "$PROJ_ROOT/benchmarks/not_nbit.v"
+        )
         ;;
     "and_int1" | "and_int8" | "and_int16" | "and_int32" | "and_int64")
-        $PROJ_ROOT/apptainer-run.sh $PROJ_ROOT/bit_serial_compiler.py \
-            --verilog "$PROJ_ROOT/benchmarks/${benchmark_name}.v" \
-                      "$PROJ_ROOT/benchmarks/and_nbit.v" \
-            --genlib "$genlib_file" \
-            --num-regs "$num_reg" \
-            --outdir "$outdir"
+        verilog_files=(
+            "$PROJ_ROOT/benchmarks/${benchmark_name}.v"
+            "$PROJ_ROOT/benchmarks/and_nbit.v"
+        )
         ;;
     "or_int1" | "or_int8" | "or_int16" | "or_int32" | "or_int64")
-        $PROJ_ROOT/apptainer-run.sh $PROJ_ROOT/bit_serial_compiler.py \
-            --verilog "$PROJ_ROOT/benchmarks/${benchmark_name}.v" \
-                      "$PROJ_ROOT/benchmarks/or_nbit.v" \
-            --genlib "$genlib_file" \
-            --num-regs "$num_reg" \
-            --outdir "$outdir"
+        verilog_files=(
+            "$PROJ_ROOT/benchmarks/${benchmark_name}.v"
+            "$PROJ_ROOT/benchmarks/or_nbit.v"
+        )
         ;;
     "xor_int1" | "xor_int8" | "xor_int16" | "xor_int32" | "xor_int64")
-        $PROJ_ROOT/apptainer-run.sh $PROJ_ROOT/bit_serial_compiler.py \
-            --verilog "$PROJ_ROOT/benchmarks/${benchmark_name}.v" \
-                      "$PROJ_ROOT/benchmarks/xor_nbit.v" \
-            --genlib "$genlib_file" \
-            --num-regs "$num_reg" \
-            --outdir "$outdir"
+        verilog_files=(
+            "$PROJ_ROOT/benchmarks/${benchmark_name}.v"
+            "$PROJ_ROOT/benchmarks/xor_nbit.v"
+        )
         ;;
     "xnor_int1" | "xnor_int8" | "xnor_int16" | "xnor_int32" | "xnor_int64")
-        $PROJ_ROOT/apptainer-run.sh $PROJ_ROOT/bit_serial_compiler.py \
-            --verilog "$PROJ_ROOT/benchmarks/${benchmark_name}.v" \
-                      "$PROJ_ROOT/benchmarks/xnor_nbit.v" \
-            --genlib "$genlib_file" \
-            --num-regs "$num_reg" \
-            --outdir "$outdir"
+        verilog_files=(
+            "$PROJ_ROOT/benchmarks/${benchmark_name}.v"
+            "$PROJ_ROOT/benchmarks/xnor_nbit.v"
+        )
         ;;
     "popcount_int32")
-        $PROJ_ROOT/apptainer-run.sh $PROJ_ROOT/bit_serial_compiler.py \
-            --verilog "$PROJ_ROOT/benchmarks/${benchmark_name}.v" \
-                      "$PROJ_ROOT/benchmarks/adder_1bit.v" \
-                      "$PROJ_ROOT/benchmarks/adder_nbit.v" \
-            --genlib "$genlib_file" \
-            --num-regs "$num_reg" \
-            --outdir "$outdir"
+        verilog_files=(
+            "$PROJ_ROOT/benchmarks/${benchmark_name}.v"
+            "$PROJ_ROOT/benchmarks/adder_1bit.v"
+            "$PROJ_ROOT/benchmarks/adder_nbit.v"
+        )
         ;;
     *)
         echo "Unsupported benchmark name: $benchmark_name"
         exit 1
         ;;
 esac
+
+# Check if verilog files exist
+for verilog_file in "${verilog_files[@]}"; do
+    if [ ! -f "$verilog_file" ]; then
+        echo "Error: Verilog file '$verilog_file' not found."
+        exit 1
+    fi
+done
+
+# Call the bit-serial compiler
+$PROJ_ROOT/apptainer-run.sh $PROJ_ROOT/bit_serial_compiler.py \
+    --verilog "${verilog_files[@]}" \
+    --genlib "$genlib_file" \
+    --num-regs "$num_reg" \
+    --outdir "$outdir"
+
