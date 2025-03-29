@@ -11,7 +11,7 @@ module add_int64 #(
 );
     adder_nbit #(
         .WIDTH(WIDTH)
-    ) adder_inst (
+    ) u_adder_nbit (
         .A(A),
         .B(B),
         .Sum(Sum)

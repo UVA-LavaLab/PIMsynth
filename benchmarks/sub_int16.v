@@ -11,7 +11,7 @@ module sub_int16 #(
 );
     subtractor_nbit #(
         .WIDTH(WIDTH)
-    ) subtractor_inst (
+    ) u_subtractor_nbit (
         .A(A),
         .B(B),
         .Sub(Sub)
