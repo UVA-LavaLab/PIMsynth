@@ -1,12 +1,19 @@
 # bit-serial-compiler
 
+## Prerequisite
+In Linux environment, make sure `apptainer` command is available:
+```
+$ apptainer --version
+apptainer version 1.3.3
+```
+
 ## How to build
-Check out current repo:
+Check out current repo and all submodules:
 ```
 git clone --recurse-submodules https://github.com/deyuan/bit-serial-compiler.git
 ```
 
-Optional: Setup fetch/push remote if need to modify submodule:
+Setup fetch/push remote (skip if you don't modify these submodules):
 ```
 # for each submodule, use originial url to fetch, and use local url to push
 cd llvm-project
@@ -23,22 +30,22 @@ git remote set-url --push origin https://github.com/deyuan/bit-serial-compiler.g
 git remote -v
 ```
 
-Build apptainer:
+Build apptainer sif image:
 ```
-# command to build apptainer
+# command to build apptainer sif image
 apptainer build myapptainer.sif myapptainer.def
 
 # command to run apptainer
 apptainer exec myapptainer.sif <command>
 
-# helper utility to build apptainer
+# helper utility to build apptainer sif image
 ./apptainer-build.sh
 
 # helper utility to run apptainer
 ./apptainer-run.sh <command>
 ```
 
-Build LLVM:
+Build LLVM (must be under llvm-build):
 ```
 mkdir llvm-build
 cd llvm-build
@@ -67,37 +74,46 @@ cd PIMeval-PIMbench
 ../apptainer-run.sh make -j10
 ```
 
+Run bit-serial compiler after building all submodules:
+```
+cd testbench/
+./run_benchmark.sh inv_nand 4 add_int32
+```
+
 ## Methodology
-* Step 1: Convert verilog into AIG
-  * Input: Verilog implementation of targeted bit-serial functionality
-  * Output: AIG
-  * Tool: abc
-* Step 2: Convert AIG into circuit
-  * Input: AIG, customized genlib library with bit-serial ISA
-  * Output: Circuit in blif format
-  * Tool: abc
-
-Plan A:
-* Step 3: Convert circuit into LLVM IR
-  * Input: Circuit
-  * Output: LLVM IR
-  * Tool: Blif parser utility, clang++
-* Step 4: Instruction scheduling and register allocation
-  * Input: LLVM IR
-  * Output:
-  * Tool: llvm
-* Step 5: Convert to bit-serial micro-program
-
-Plan B:
-* Step 3: Convert circuit into C with RISC-V inline assembly and register clobber
-  * Input: Circuit
-  * Output: C with inline assembly
-  * Tool: Blif parser utilty
-* Step 4: Perform instruction scheduling, register allocation and spilling
-  * Input: C
-  * Output: RISC-V .s assembly
-  * Tool: clang
-* Step 5: Convert to bit-serial micro-program
+```
+    *.v (verilog input)
+     |
+     v
+    yosys
+     |
+     v
+    *.blif (tech-independent)
+     |
+     v  <-- *.genlib (bit-serial ISA)
+    abc
+     |
+     v
+    *.blif
+     |
+     v
+    blif translator
+     |
+     v
+    *.c (IR)
+     |
+     v
+    clang
+     |
+     v
+    *.s (risc-v assembly)
+     |
+     v
+    asm translator
+     |
+     v
+    *.hpp (bit-serial micro-program) --> PIMeval simulation
+```
 
 ## Source Code Organization
 
@@ -106,18 +122,20 @@ Main bit-serial compiler flow:
 
 Submodules:
 * `abc`: ABC logic synthesizer submodule
-* `yosys`: yosys logic synthesizer submodule
+* `yosys`: Yosys logic synthesizer submodule
 * `llvm-project`: LLVM compiler submodule
-* `llvm-build`: Required location to build llvm
-* `PIMeval-PIMbench`: PIMeval simulator for validation
+* `PIMeval-PIMbench`: PIM simulator
 
 Source files:
 * `src/`
-  * `genlibs/`: GenLib definitions for bit-serial variants
+  * `genlibs/`: GenLib definitions as bit-serial ISA
   * `verilog/`: Verilog source code
   * `blif-parser/`: BLIF parser and C/C++ code generator written in Python
   * `asm-parser/`: RISC-V ASM parser and PIM code generator written in Python
   * `scripts/`: Utility scripts
+* `benchmarks/`: Verilog source code written in bit-serial manner
+* `testbench/`
+  * `run_benchmark.sh`: Script to compile a benchmark Verilog with a specific bit-serial ISA and number of registers
 
 Test directories:
 * `tests/`: Testcases
@@ -128,14 +146,15 @@ Test directories:
  ---------------------
 | Bit-Serial Compiler |
  ---------------------
-usage: bit_serial_compiler.py [-h] [--verilog [file]] [--genlib [file]] [--blif [file]]
+usage: bit_serial_compiler.py [-h] [--verilog [files] [[files] ...]] [--genlib [file]] [--blif [file]]
                               [--c [file]] [--asm [file]] [--num-regs N]
                               [--output [filename]] [--outdir [path]]
                               [--from-stage [stage]] [--to-stage [stage]] [--clang-g]
 
 options:
   -h, --help            show this help message and exit
-  --verilog [file]      Input Verilog file
+  --verilog [files] [[files] ...]
+                        Input Verilog files
   --genlib [file]       Input GenLib file
   --blif [file]         Input BLIF file
   --c [file]            Input C file
