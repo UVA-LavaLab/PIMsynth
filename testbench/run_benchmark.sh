@@ -27,6 +27,7 @@ VALID_BENCHMARKS=(
     "xor_int1" "xor_int8" "xor_int16" "xor_int32" "xor_int64"
     "xnor_int1" "xnor_int8" "xnor_int16" "xnor_int32" "xnor_int64"
     "popcount_int32"
+    "add_sub_int32"
 )
 
 # Function to display valid bit-serial ISA
@@ -207,6 +208,15 @@ case "$benchmark_name" in
             "$PROJ_ROOT/benchmarks/${benchmark_name}.v"
             "$PROJ_ROOT/benchmarks/adder_1bit.v"
             "$PROJ_ROOT/benchmarks/adder_nbit.v"
+        )
+        ;;
+    "add_sub_int32")
+        verilog_files=(
+            "$PROJ_ROOT/benchmarks/${benchmark_name}.v"
+            "$PROJ_ROOT/benchmarks/adder_1bit.v"
+            "$PROJ_ROOT/benchmarks/adder_nbit.v"
+            "$PROJ_ROOT/benchmarks/subtractor_1bit.v"
+            "$PROJ_ROOT/benchmarks/subtractor_nbit.v"
         )
         ;;
     *)
