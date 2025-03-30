@@ -96,7 +96,7 @@ class AsmTranslator:
         self.ports = set(inputList + outputList)
         self.translate()
         tempVariablesShrinker = TempVariablesShrinker(self.bitSerialStatementList)
-        # tempVariablesShrinker.shrinkTempVariables()
+        tempVariablesShrinker.shrinkTempVariables()
         self.bitSerialStatementList = tempVariablesShrinker.newInstructionSequence
 
     def translate(self):
