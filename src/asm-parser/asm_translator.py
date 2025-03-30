@@ -227,6 +227,8 @@ class AsmTranslator:
                 self.appendBitSerialInstruction("move", [destinationOperand, sourceOperand], riscvInstruction.line, suspended=False)
             else:
                 sourceOperand, doUnsudpendThePath = self.resolveOperand(riscvInstruction.operandsList[1], line=riscvInstruction.line)
+                if sourceOperand == None:
+                    return
                 destinationOperand = riscvInstruction.operandsList[0]
                 self.appendBitSerialInstruction("read", [destinationOperand, sourceOperand], riscvInstruction.line, suspended=False)
         else:
