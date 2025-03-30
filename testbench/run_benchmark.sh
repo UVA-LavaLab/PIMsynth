@@ -106,22 +106,7 @@ if ! is_valid_benchmark $benchmark_name; then
 fi
 
 # Map the bit-serial ISA name to genlib file
-genlib_file=""
-case "$bit_serial_isa" in
-    "inv_nand")
-        genlib_file="$PROJ_ROOT/src/genlibs/inv_nand.genlib"
-        ;;
-    "inv_maj_and")
-        genlib_file="$PROJ_ROOT/src/genlibs/inv_maj_and.genlib"
-        ;;
-    "inv_and_xnor_mux")
-        genlib_file="$PROJ_ROOT/src/genlibs/inv_and_xnor_mux.genlib"
-        ;;
-    *)
-        echo "Unsupported bit-serial ISA name: $bit_serial_isa"
-        exit 1
-        ;;
-esac
+genlib_file="$PROJ_ROOT/src/genlibs/${bit_serial_isa}.genlib"
 
 # Check if the genlib file exists
 if [ ! -f "$genlib_file" ]; then
@@ -149,89 +134,16 @@ echo "Benchmark Name: $benchmark_name"
 echo "Output Directory: $outdir"
 echo "==========================="
 
-# Collect verilog file dependencies
+# Collect submodule verilog files
 verilog_files=()
-case "$benchmark_name" in
-    "add_int8" | "add_int16" | "add_int32" | "add_int64")
-        verilog_files=(
-            "$PROJ_ROOT/benchmarks/${benchmark_name}.v"
-            "$PROJ_ROOT/benchmarks/adder_1bit.v"
-            "$PROJ_ROOT/benchmarks/adder_nbit.v"
-        )
-        ;;
-    "sub_int8" | "sub_int16" | "sub_int32" | "sub_int64")
-        verilog_files=(
-            "$PROJ_ROOT/benchmarks/${benchmark_name}.v"
-            "$PROJ_ROOT/benchmarks/subtractor_1bit.v"
-            "$PROJ_ROOT/benchmarks/subtractor_nbit.v"
-        )
-        ;;
-    "mul_int8" | "mul_int16" | "mul_int32" | "mul_int64")
-        verilog_files=(
-            "$PROJ_ROOT/benchmarks/${benchmark_name}.v"
-            "$PROJ_ROOT/benchmarks/multiplier_nbit.v"
-            "$PROJ_ROOT/benchmarks/adder_1bit.v"
-            "$PROJ_ROOT/benchmarks/adder_nbit.v"
-        )
-        ;;
-    "abs_int8" | "abs_int16" | "abs_int32" | "abs_int64")
-        verilog_files=(
-            "$PROJ_ROOT/benchmarks/${benchmark_name}.v"
-            "$PROJ_ROOT/benchmarks/abs_nbit.v"
-            "$PROJ_ROOT/benchmarks/adder_1bit_half.v"
-        )
-        ;;
-    "not_int1" | "not_int8" | "not_int16" | "not_int32" | "not_int64")
-        verilog_files=(
-            "$PROJ_ROOT/benchmarks/${benchmark_name}.v"
-            "$PROJ_ROOT/benchmarks/not_nbit.v"
-        )
-        ;;
-    "and_int1" | "and_int8" | "and_int16" | "and_int32" | "and_int64")
-        verilog_files=(
-            "$PROJ_ROOT/benchmarks/${benchmark_name}.v"
-            "$PROJ_ROOT/benchmarks/and_nbit.v"
-        )
-        ;;
-    "or_int1" | "or_int8" | "or_int16" | "or_int32" | "or_int64")
-        verilog_files=(
-            "$PROJ_ROOT/benchmarks/${benchmark_name}.v"
-            "$PROJ_ROOT/benchmarks/or_nbit.v"
-        )
-        ;;
-    "xor_int1" | "xor_int8" | "xor_int16" | "xor_int32" | "xor_int64")
-        verilog_files=(
-            "$PROJ_ROOT/benchmarks/${benchmark_name}.v"
-            "$PROJ_ROOT/benchmarks/xor_nbit.v"
-        )
-        ;;
-    "xnor_int1" | "xnor_int8" | "xnor_int16" | "xnor_int32" | "xnor_int64")
-        verilog_files=(
-            "$PROJ_ROOT/benchmarks/${benchmark_name}.v"
-            "$PROJ_ROOT/benchmarks/xnor_nbit.v"
-        )
-        ;;
-    "popcount_int32")
-        verilog_files=(
-            "$PROJ_ROOT/benchmarks/${benchmark_name}.v"
-            "$PROJ_ROOT/benchmarks/adder_1bit.v"
-            "$PROJ_ROOT/benchmarks/adder_nbit.v"
-        )
-        ;;
-    "add_sub_int32")
-        verilog_files=(
-            "$PROJ_ROOT/benchmarks/${benchmark_name}.v"
-            "$PROJ_ROOT/benchmarks/adder_1bit.v"
-            "$PROJ_ROOT/benchmarks/adder_nbit.v"
-            "$PROJ_ROOT/benchmarks/subtractor_1bit.v"
-            "$PROJ_ROOT/benchmarks/subtractor_nbit.v"
-        )
-        ;;
-    *)
-        echo "Unsupported benchmark name: $benchmark_name"
-        exit 1
-        ;;
-esac
+while IFS= read -r line || [ -n "$line" ]; do
+    # Skip empty lines and comments
+    [[ -z "$line" || "$line" =~ ^# ]] && continue
+    verilog_files+=("$PROJ_ROOT/benchmarks/$line")
+done < "$PROJ_ROOT/benchmarks/submodule_list.txt"
+
+# Add top-level benchmark file
+verilog_files+=("$PROJ_ROOT/benchmarks/${benchmark_name}.v")
 
 # Check if verilog files exist
 for verilog_file in "${verilog_files[@]}"; do
