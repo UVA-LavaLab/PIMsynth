@@ -1,0 +1,19 @@
+# List of submodules for compiling top level modules
+
+submodules/adder_1bit_half.v
+submodules/adder_1bit.v
+submodules/adder_nbit.v
+
+submodules/subtractor_1bit.v
+submodules/subtractor_nbit.v
+
+submodules/abs_nbit.v
+
+submodules/multiplier_nbit.v
+
+submodules/not_nbit.v
+submodules/and_nbit.v
+submodules/or_nbit.v
+submodules/xor_nbit.v
+submodules/xnor_nbit.v
+
