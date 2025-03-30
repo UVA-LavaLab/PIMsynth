@@ -21,6 +21,7 @@ VALID_BENCHMARKS=(
     "add_int8" "add_int16" "add_int32" "add_int64"
     "sub_int8" "sub_int16" "sub_int32" "sub_int64"
     "mul_int8" "mul_int16" "mul_int32" "mul_int64"
+    "abs_int8" "abs_int16" "abs_int32" "abs_int64"
     "not_int1" "not_int8" "not_int16" "not_int32" "not_int64"
     "and_int1" "and_int8" "and_int16" "and_int32" "and_int64"
     "or_int1" "or_int8" "or_int16" "or_int32" "or_int64"
@@ -171,6 +172,13 @@ case "$benchmark_name" in
             "$PROJ_ROOT/benchmarks/multiplier_nbit.v"
             "$PROJ_ROOT/benchmarks/adder_1bit.v"
             "$PROJ_ROOT/benchmarks/adder_nbit.v"
+        )
+        ;;
+    "abs_int8" | "abs_int16" | "abs_int32" | "abs_int64")
+        verilog_files=(
+            "$PROJ_ROOT/benchmarks/${benchmark_name}.v"
+            "$PROJ_ROOT/benchmarks/abs_nbit.v"
+            "$PROJ_ROOT/benchmarks/adder_1bit_half.v"
         )
         ;;
     "not_int1" | "not_int8" | "not_int16" | "not_int32" | "not_int64")
