@@ -28,7 +28,9 @@ VALID_BENCHMARKS=(
     "xor_int1" "xor_int8" "xor_int16" "xor_int32" "xor_int64"
     "xnor_int1" "xnor_int8" "xnor_int16" "xnor_int32" "xnor_int64"
     "gt_uint8" "gt_uint16" "gt_uint32" "gt_uint64"
+    "gt_int8" "gt_int16" "gt_int32" "gt_int64"
     "lt_uint8" "lt_uint16" "lt_uint32" "lt_uint64"
+    "lt_int8" "lt_int16" "lt_int32" "lt_int64"
     "popcount_int32"
     "add_sub_int32"
 )
