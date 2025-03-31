@@ -3,6 +3,7 @@
 submodules/adder_1bit_half.v
 submodules/adder_1bit.v
 submodules/adder_nbit.v
+submodules/adder_nbit_cout.v
 
 submodules/subtractor_1bit.v
 submodules/subtractor_1bit_cmp.v
