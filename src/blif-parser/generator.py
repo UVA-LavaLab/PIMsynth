@@ -53,6 +53,8 @@ class Generator():
         return str
 
     def generateTemporaryVariables(self):
+        if len(self.parser.wireList) == 0:
+            return ""
         variables = ', '.join(self.parser.wireList)
         return f"\t{self.dataType} {variables};\n"
 
