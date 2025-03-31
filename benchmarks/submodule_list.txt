@@ -22,3 +22,5 @@ submodules/gt_uint_nbit.v
 submodules/gt_int_nbit.v
 submodules/lt_uint_nbit.v
 submodules/lt_int_nbit.v
+submodules/eq_nbit.v
+submodules/ne_nbit.v
