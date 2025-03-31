@@ -5,6 +5,7 @@ submodules/adder_1bit.v
 submodules/adder_nbit.v
 
 submodules/subtractor_1bit.v
+submodules/subtractor_1bit_cmp.v
 submodules/subtractor_nbit.v
 
 submodules/abs_nbit.v
@@ -17,3 +18,5 @@ submodules/or_nbit.v
 submodules/xor_nbit.v
 submodules/xnor_nbit.v
 
+submodules/gt_uint_nbit.v
+submodules/lt_uint_nbit.v
