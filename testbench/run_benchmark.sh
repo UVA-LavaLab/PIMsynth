@@ -33,6 +33,10 @@ VALID_BENCHMARKS=(
     "lt_int8" "lt_int16" "lt_int32" "lt_int64"
     "eq_int8" "eq_int16" "eq_int32" "eq_int64"
     "ne_int8" "ne_int16" "ne_int32" "ne_int64"
+    "min_int8" "min_int16" "min_int32" "min_int64"
+    "min_uint8" "min_uint16" "min_uint32" "min_uint64"
+    "max_int8" "max_int16" "max_int32" "max_int64"
+    "max_uint8" "max_uint16" "max_uint32" "max_uint64"
     "popcount_int32"
     "add_sub_int32"
 )
