@@ -1,8 +1,8 @@
 // AES sbox
 // hosein, 09/17/2024
 
-module sbox(
-    input [7:0] pi0,
+module aes_sbox(
+    input  [7:0] pi0,
     output [7:0] po0
 );
 
@@ -265,4 +265,3 @@ assign po0 = (pi0 == 8'h00) ? 8'h63 :
              8'h00;  // Default case
 
 endmodule
-
