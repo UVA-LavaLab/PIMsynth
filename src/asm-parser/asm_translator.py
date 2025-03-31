@@ -206,7 +206,7 @@ class AsmTranslator:
                     doUnsudpendThePath = True
                     returnVal = self.getDestinationOperandFromInstruction(instruction)
                 else:
-                    raise Error("Unhandled condition.")
+                    raise Exception("Unhandled condition.")
             return returnVal, doUnsudpendThePath
 
         else:
@@ -233,9 +233,10 @@ class AsmTranslator:
                 self.appendBitSerialInstruction("read", [destinationOperand, sourceOperand], riscvInstruction.line, suspended=False)
         else:
             if self.isBitSerialRegister(riscvInstruction.operandsList[1]):
-                raise Error("Unhandled move instruction at line {riscvInstruction.line} in the RISCV assembly.")
+                raise Exception(f"Unhandled move instruction at line {riscvInstruction.line} in the RISCV assembly.")
             else:
-                raise Error("Unhandled move instruction at line {riscvInstruction.line} in the RISCV assembly.")
+                # Ignore this instruction
+                return
 
     def translateLoadInstruction(self, statementIndex):
         riscvInstruction = self.riscvStatementList[statementIndex]
