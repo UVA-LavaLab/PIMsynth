@@ -7,7 +7,7 @@ else
     genlib=../../src/genlibs/inv_and_xnor_mux.genlib
 fi
 
-verilog=../../src/verilog/sboxinv.v
+verilog=../../benchmarks/aes_inverse_sbox.v
 
 echo "GenLib = $genlib"
 echo "Verilog = $verilog"

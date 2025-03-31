@@ -1,7 +1,7 @@
 // AES inverse S-box
 // hosein, 03/28/2025
 
-module sboxinv(
+module aes_inverse_sbox(
     input  [7:0] pi0,
     output [7:0] po0
 );

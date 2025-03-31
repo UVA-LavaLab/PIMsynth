@@ -27,8 +27,19 @@ VALID_BENCHMARKS=(
     "or_int1" "or_int8" "or_int16" "or_int32" "or_int64"
     "xor_int1" "xor_int8" "xor_int16" "xor_int32" "xor_int64"
     "xnor_int1" "xnor_int8" "xnor_int16" "xnor_int32" "xnor_int64"
-    "popcount_int32"
+    "gt_uint8" "gt_uint16" "gt_uint32" "gt_uint64"
+    "gt_int8" "gt_int16" "gt_int32" "gt_int64"
+    "lt_uint8" "lt_uint16" "lt_uint32" "lt_uint64"
+    "lt_int8" "lt_int16" "lt_int32" "lt_int64"
+    "eq_int8" "eq_int16" "eq_int32" "eq_int64"
+    "ne_int8" "ne_int16" "ne_int32" "ne_int64"
+    "min_int8" "min_int16" "min_int32" "min_int64"
+    "min_uint8" "min_uint16" "min_uint32" "min_uint64"
+    "max_int8" "max_int16" "max_int32" "max_int64"
+    "max_uint8" "max_uint16" "max_uint32" "max_uint64"
+    "popcount_int8" "popcount_int16" "popcount_int32" "popcount_int64"
     "add_sub_int32"
+    "aes_sbox" "aes_inverse_sbox"
 )
 
 # Function to display valid bit-serial ISA
