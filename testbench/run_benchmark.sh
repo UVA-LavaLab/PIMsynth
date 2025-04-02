@@ -125,7 +125,8 @@ if [ ! -f "$genlib_file" ]; then
     exit 1
 fi
 
-outdir="$SCRIPT_DIR/outputs__${bit_serial_isa}__${num_reg}__${benchmark_name}"
+target="${bit_serial_isa}__${num_reg}__${benchmark_name}"
+outdir="$SCRIPT_DIR/outputs__$target"
 
 # Delete the output directory if it already exists
 if [ -d "$outdir" ]; then
@@ -169,5 +170,6 @@ $PROJ_ROOT/apptainer-run.sh $PROJ_ROOT/bit_serial_compiler.py \
     --verilog "${verilog_files[@]}" \
     --genlib "$genlib_file" \
     --num-regs "$num_reg" \
+    --output "$target" \
     --outdir "$outdir"
 
