@@ -103,6 +103,7 @@ class GeneratorAsm():
             "xnor2": lambda output, inputs: f'xor %0, %1, %2 \\n not %0, %0" : "=r" ({output}) : "r" ({inputs[0]}), "r" ({inputs[1]}) : {clobber}',
             "mux2": lambda output, inputs: f'not s1, %1 \\n and s2, s1, %2 \\n and s3, %1, %3 \\n or %0, s2, s3" : "=r" ({output}) : "r" ({inputs[0]}), "r" ({inputs[1]}), "r" ({inputs[2]}) : {clobber}',
             "maj3": lambda output, inputs: f'and s1, %1, %2 \\n and s2, %2, %3 \\n and s3, %1, %3 \\n or s1, s1, s2 \\n or %0, s1, s3" : "=r" ({output}) : "r" ({inputs[0]}), "r" ({inputs[1]}), "r" ({inputs[2]}) : {clobber}',
+            "zero": lambda output, inputs: f'xor %0, %0, %0" : "=r" ({output}) : "r" ({output}) : {clobber}',
         }
 
     def generateAsmStatement(self, item, asm_instructions):

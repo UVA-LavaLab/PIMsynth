@@ -78,6 +78,7 @@ class Generator():
                     break
             else:
                 print(f"Error: Unhandled item name {item.name}")
+                breakpoint()
 
         return result
 
