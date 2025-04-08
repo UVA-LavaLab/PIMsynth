@@ -63,6 +63,10 @@ clean:
         opDict = {
             "add": f'return a + b;',
             "sub": f'return a - b;',
+            "mul": f'return a * b;',
+            "and": f'return a & b;',
+            "or": f'return a | b;',
+            "xor": f'return a ^ b;',
             "min": f'return (a > b)?a:b;',
             "max": f'return (a < b)?a:b;',
         }
@@ -70,27 +74,29 @@ clean:
 
     def getCDatatype(self):
         lookupDict = {
-            "int32" : "int",
-            "int8" : "char",
+            "int32" : "int32_t",
+            "int16" : "int16_t",
+            "int8" : "int8_t",
         }
         return lookupDict[self.dataType]
 
     def getPimEvalDataType(self):
         lookupDict = {
             "int32" : "PIM_INT32",
+            "int16" : "PIM_INT16",
             "int8" : "PIM_INT8",
         }
         return lookupDict[self.dataType]
 
     def getOperandsCount(self):
         oneOperand = ["not", "abs", "popcount"]
-        twoOperand = ["add", "and", "or", "xor", "mul", "min", "max"]
+        twoOperand = ["add", "sub", "mul", "and", "or", "xor", "mul", "min", "max"]
 
         if self.operator in oneOperand:
             return 1
         if self.operator in twoOperand:
             return 2
-        raise Exception(f"Error: operator {operator} is not handled.")
+        raise Exception(f"Error: operator {self.operator} is not handled.")
 
     def getInputsList(self):
         if self.getOperandsCount() == 1: return ["a"]
@@ -178,7 +184,7 @@ clean:
     def getRandGenStr(self):
         returnStr = ""
         for inputStr in self.getInputsList():
-            returnStr += f"{self.getCDatatype()} {inputStr} = std::rand();\n\t"
+            returnStr += f"{self.getCDatatype()} {inputStr} = std::rand() % 256;\n\t\t"
         return returnStr
 
     def getPimFreeStr(self):
@@ -203,6 +209,7 @@ clean:
 #include <iostream>
 #include <cstdlib>
 #include <ctime>
+#include <cstdint>
 #include "{self.moduleName}.hpp"
 #include "libpimeval.h"
 
@@ -219,7 +226,7 @@ void runTest(int testNumber, {inputsStrWithType}, {pimObjStrWithType}, PimObjId 
   {self.moduleName}({pimObjsStr}, resultPim);
 
   // Retrieve and verify the result from the PIM device
-  int pimResult;
+  {self.getCDatatype()} pimResult;
   pimCopyDeviceToHost(resultPim, &pimResult);
 
   // Verify the result
