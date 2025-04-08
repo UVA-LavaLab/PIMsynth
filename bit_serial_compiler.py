@@ -33,7 +33,7 @@ class bitSerialCompiler:
         self.num_regs = 0
         self.from_stage = ''
         self.to_stage = ''
-        self.stages = {'verilog':1, 'blif':2, 'c':3, 'asm':4, 'pim':5}
+        self.stages = {'verilog':1, 'blif':2, 'c':3, 'asm':4, 'pim':5, 'test':6}
         self.abc_path = ''
         self.yosys_path = ''
         self.clang_path = ''
@@ -88,6 +88,12 @@ class bitSerialCompiler:
             if not success:
                 return False
 
+        if self.stages[self.from_stage] <= self.stages['pim'] and self.stages[self.to_stage] >= self.stages['test']:
+            success = self.run_pim_to_test()
+            if not success:
+                return False
+
+
         print("Bit-serial compilation completed.")
         return True
 
@@ -115,9 +121,10 @@ class bitSerialCompiler:
                 choices=self.stages, default='verilog')
         parser.add_argument('--to-stage', metavar='[stage]', type=str,
                 help='To stage: verilog, blif, c, asm, pim (default)',
-                choices=self.stages, default='pim')
+                choices=self.stages, default='test')
         parser.add_argument('--clang-g', action='store_false', help='Toggle clang -g, default true')
         parser.add_argument('--top-module', metavar='[name]', type=str, default='', help='Specify Verilog top module')
+        parser.add_argument('--num-tests', '-n', type=int, default=100, help='Number of test cases.')
         return parser
 
     def parse_args(self):
@@ -143,6 +150,7 @@ class bitSerialCompiler:
         self.outdir = args.outdir
         self.from_stage = args.from_stage
         self.to_stage = args.to_stage
+        self.num_tests = args.num_tests
         # from/to rule checks
         if self.stages[self.from_stage] >= self.stages[self.to_stage]:
             print("Error: Invalid from-to range: %s -> %s" % (self.from_stage, self.to_stage))
@@ -430,6 +438,18 @@ class bitSerialCompiler:
         print(self.hbar)
         return True
 
+    def run_pim_to_test(self):
+        """Generate PIMeval test"""
+        print("INFO: Generating Test for PIM API ...")
+
+        script_location = os.path.dirname(os.path.abspath(__file__))
+        test_gen = os.path.join(script_location, 'src/test-gen/main.py')
+        result = subprocess.run(['python3', test_gen, '-m', self.output, '-o', self.outdir, '-n', str(self.num_tests)])
+        if result.returncode != 0:
+            print('Error: Test Gen failed.')
+
+        print(self.hbar)
+        return True
 
 if __name__ == '__main__':
     args = sys.argv[1:]
