@@ -2,27 +2,27 @@
 # -*- coding: utf-8 -*-
 """
 File: test_gen.py
-Description: Geneates test cases to validate the functionality of the generated code using PIMeval
+Description: Geneates test cases to validate the functionality of the output of the bit-serial compiler using PIMeval
 Author: Mohammadhosein Gholamrezaei <uab9qt@virginia.edu>
 Date: 2025-04-05
 """
 
 class TestGenerator:
-    def __init__(self, moduleName, outputPath):
+    def __init__(self, moduleName, outputPath, numTests):
         self.moduleName = moduleName
         self.outputPath = outputPath
-        self.numTests = 100
-        self.operator, self.dataType = self.splitModuleName(self.moduleName)
+        self.numTests = numTests
+        self.arch, self.numRegs, self.operator, self.dataType = self.splitModuleName(self.moduleName)
 
     def splitModuleName(self, name):
-        parts = name.split('_', 1)
-        if len(parts) != 2:
+        parts = name.split('__')
+        if len(parts) != 3:
             raise ValueError(f"Invalid format: '{name}'. Expected format 'operation_datatype'.")
-        operation, datatype = parts
-        return operation, datatype
+        arch, numRegs = parts[:2]
+        operator, dataType = parts[2].split('_')
+        return arch, numRegs, operator, dataType
 
     def generateMakeFile(self):
-
         makefileStr = f"""
 REPO_ROOT := $(shell git rev-parse --show-toplevel)
 LIB_PIMEVAL_PATH := $(REPO_ROOT)/PIMeval-PIMbench/libpimeval
@@ -33,10 +33,10 @@ CXXFLAGS = -I$(LIB_PIMEVAL_PATH)/include # Path to header files
 LDFLAGS = -L$(LIB_PIMEVAL_PATH)/lib -l:libpimeval.a # Path to static library and linking
 
 # Target executable
-TARGET = {self.moduleName}-test.out
+TARGET = {self.moduleName}_test.out
 
 # Source files
-SRCS = {self.moduleName}-test.cpp
+SRCS = {self.moduleName}_test.cpp
 
 # Object files
 OBJS = $(SRCS:.cpp=.o)
@@ -184,7 +184,7 @@ clean:
     def getPimFreeStr(self):
         returnStr = ""
         for objStr in self.getPimObjList():
-            returnStr += f"PimFree({objStr});\n\t"
+            returnStr += f"pimFree({objStr});\n\t"
         return returnStr
 
     def generatCppTestFile(self):
@@ -203,7 +203,7 @@ clean:
 #include <iostream>
 #include <cstdlib>
 #include <ctime>
-#include "tmp.hpp"
+#include "{self.moduleName}.hpp"
 #include "libpimeval.h"
 
 {goldenFunctionStr}
@@ -216,7 +216,7 @@ void runTest(int testNumber, {inputsStrWithType}, {pimObjStrWithType}, PimObjId 
   {pimCopyHostToDeviceStr}
 
   // Call the function under test
-  func({pimObjsStr}, resultPim);
+  {self.moduleName}({pimObjsStr}, resultPim);
 
   // Retrieve and verify the result from the PIM device
   int pimResult;
@@ -226,7 +226,7 @@ void runTest(int testNumber, {inputsStrWithType}, {pimObjStrWithType}, PimObjId 
   if (pimResult != expectedResult) {{
       // Print all inputs and outputs if there is a mismatch
       std::cerr << "Error: Test " << testNumber << " failed!" << std::endl;
-      std::cerr << {coutStr} << std::endl;
+      std::cerr << {coutStr} std::endl;
       std::cerr << "  Expected result = " << expectedResult << ", PIM result = " << pimResult << std::endl;
   }} else {{
       std::cout << "Info: Test " << testNumber << " passed!" << std::endl;
@@ -247,7 +247,7 @@ int main() {{
 
   // Allocate PIM objects for the 32-bit input/output ports with element size = 1
   {pimAllocStr}
-  PimObjId resultPim = pimAlloc(PIM_ALLOC_V, 1, {self.getPimEvalDataType});
+  PimObjId resultPim = pimAlloc(PIM_ALLOC_V, 1, {self.getPimEvalDataType()});
 
   // Run random tests
   int testNumber = 1;
