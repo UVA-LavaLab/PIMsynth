@@ -171,8 +171,8 @@ $PROJ_ROOT/apptainer-run.sh $PROJ_ROOT/bit_serial_compiler.py \
     --genlib "$genlib_file" \
     --num-regs "$num_reg" \
     --output "$target" \
-    --outdir "$outdir"
-    --num_tests 10
+    --outdir "$outdir" \
+    --num-tests 10
 
 # Make the test
 cd "./outputs__$target"
