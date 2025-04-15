@@ -176,9 +176,9 @@ $PROJ_ROOT/apptainer-run.sh $PROJ_ROOT/bit_serial_compiler.py \
 
 # Make the test
 cd "./outputs__$target"
-make
+$PROJ_ROOT/apptainer-run.sh make
 
 # Run the test
-./${target}_test.out
+$PROJ_ROOT/apptainer-run.sh ./${target}_test.out
 cd ..
 
