@@ -33,10 +33,10 @@ CXXFLAGS = -I$(LIB_PIMEVAL_PATH)/include # Path to header files
 LDFLAGS = -L$(LIB_PIMEVAL_PATH)/lib -l:libpimeval.a # Path to static library and linking
 
 # Target executable
-TARGET = {self.moduleName}_test.out
+TARGET = {self.moduleName}.test.out
 
 # Source files
-SRCS = {self.moduleName}_test.cpp
+SRCS = {self.moduleName}.test.cpp
 
 # Object files
 OBJS = $(SRCS:.cpp=.o)

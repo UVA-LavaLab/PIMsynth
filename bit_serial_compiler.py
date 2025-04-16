@@ -273,7 +273,7 @@ class bitSerialCompiler:
     def run_verilog_to_blif_yosys(self):
         """ Compile Verilog to BLIF using yosys verilog frontend and abc tech mapper """
         print("INFO: Creating yosys script (Verilog->Tech-Independent-BLIF)")
-        yosys_blif_file = os.path.join(self.outdir, self.output + '_yosys.blif')
+        yosys_blif_file = os.path.join(self.outdir, self.output + '.yosys.blif')
         # determine top module
         top_module_opt = ''
         if self.top_module:
@@ -314,7 +314,7 @@ class bitSerialCompiler:
         print("INFO: Created yosys script:", yosys_file)
 
         print("INFO: Running yosys to synthesize Verilog to Tech-Independent-BLIF")
-        yosys_log_file = os.path.join(self.outdir, self.output + '_yosys.log')
+        yosys_log_file = os.path.join(self.outdir, self.output + '.yosys.log')
         result = subprocess.run([self.yosys_path, '-s', yosys_file, '-l', yosys_log_file])
         if result.returncode != 0:
             print('Error: yosys synthesizer failed.')

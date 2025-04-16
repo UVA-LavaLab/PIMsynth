@@ -179,6 +179,6 @@ cd "./outputs__$target"
 $PROJ_ROOT/apptainer-run.sh make
 
 # Run the test
-$PROJ_ROOT/apptainer-run.sh ./${target}_test.out
+$PROJ_ROOT/apptainer-run.sh ./${target}.test.out
 cd ..
 

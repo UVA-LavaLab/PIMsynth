@@ -31,7 +31,7 @@ if __name__ == "__main__":
     writeToFile(args.output_path + "/" + "Makefile", testGenerator.generateMakeFile())
 
     # Generate the test CPP file
-    writeToFile(args.output_path + "/" + args.module_name + "_test.cpp", testGenerator.generatCppTestFile())
+    writeToFile(args.output_path + "/" + args.module_name + ".test.cpp", testGenerator.generatCppTestFile())
 
 
 
