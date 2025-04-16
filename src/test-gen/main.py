@@ -16,7 +16,7 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from util import *
 if __name__ == "__main__":
     # Set up argument parser with optional arguments
-    parser = argparse.ArgumentParser(description='Parse RISV assembly and generate either bit-serial assembly or PIMeval API function.')
+    parser = argparse.ArgumentParser(description='Generate PIMeval test code for bit-serial compiler micro-program output.')
     parser.add_argument('--module-name', '-m', type=str, required=True, help='The name of the module to parse. Format: <operation>_<datatype>, example: int_int32.')
     parser.add_argument('--output-path', '-o', type=str, required=True, help='The path where test cpp file and Makefile stored.')
     parser.add_argument('--num-tests', '-n', type=int, default=100, help='Number of test cases.')

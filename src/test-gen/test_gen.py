@@ -74,17 +74,27 @@ clean:
 
     def getCDatatype(self):
         lookupDict = {
-            "int32" : "int32_t",
-            "int16" : "int16_t",
             "int8" : "int8_t",
+            "int16" : "int16_t",
+            "int32" : "int32_t",
+            "int64" : "int64_t",
+            "uint8" : "uint8_t",
+            "uint16" : "uint16_t",
+            "uint32" : "uint32_t",
+            "uint64" : "uint64_t",
         }
         return lookupDict[self.dataType]
 
     def getPimEvalDataType(self):
         lookupDict = {
-            "int32" : "PIM_INT32",
-            "int16" : "PIM_INT16",
             "int8" : "PIM_INT8",
+            "int16" : "PIM_INT16",
+            "int32" : "PIM_INT32",
+            "int64" : "PIM_INT64",
+            "uint8" : "PIM_UINT8",
+            "uint16" : "PIM_UINT16",
+            "uint32" : "PIM_UINT32",
+            "uint64" : "PIM_UINT64",
         }
         return lookupDict[self.dataType]
 
