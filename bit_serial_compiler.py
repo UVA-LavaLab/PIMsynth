@@ -265,6 +265,18 @@ class bitSerialCompiler:
             return False
         return True
 
+    def generate_run_script(self, cmd, filename):
+        """ Generate run script """
+        if not self.gen_run_sh:
+            return
+        run_file = os.path.join(self.outdir, filename)
+        with open(run_file, 'w') as file:
+            file.write("#!/bin/bash\n")
+            file.write('cd $(dirname "$0")/..\n')
+            file.write(' '.join(cmd) + '\n')
+        os.chmod(run_file, 0o755)
+        print("INFO: Created run script:", run_file)
+
     def run_verilog_to_blif(self):
         """ Compile Verilog to BLIF """
         print("INFO: Compiling Verilog to BLIF ...")
@@ -319,14 +331,7 @@ class bitSerialCompiler:
         print("INFO: Running yosys to synthesize Verilog to Tech-Independent-BLIF")
         yosys_log_file = os.path.join(self.outdir, self.output + '.yosys.log')
         cmd = [self.yosys_path, '-s', yosys_file, '-l', yosys_log_file]
-        if self.gen_run_sh:
-            yosys_run_file = os.path.join(self.outdir, self.output + '.run_yosys.sh')
-            with open(yosys_run_file, 'w') as file:
-                file.write("#!/bin/bash\n")
-                file.write('cd $(dirname "$0")/..\n')
-                file.write(' '.join(cmd) + '\n')
-            os.chmod(yosys_run_file, 0o755)
-            print("INFO: Created yosys run script:", yosys_run_file)
+        self.generate_run_script(cmd, self.output + '.run_yosys.sh')
         result = subprocess.run(cmd)
         if result.returncode != 0:
             print('Error: yosys synthesizer failed.')
@@ -357,14 +362,7 @@ class bitSerialCompiler:
 
         print("INFO: Running ABC to synthesize Tech-Independent-BLIF to BLIF")
         cmd = [self.abc_path, '-f', abc_file]
-        if self.gen_run_sh:
-            abc_run_file = os.path.join(self.outdir, self.output + '.run_abc.sh')
-            with open(abc_run_file, 'w') as file:
-                file.write("#!/bin/bash\n")
-                file.write('cd $(dirname "$0")/..\n')
-                file.write(' '.join(cmd) + '\n')
-            os.chmod(abc_run_file, 0o755)
-            print("INFO: Created ABC run script:", abc_run_file)
+        self.generate_run_script(cmd, self.output + '.run_abc.sh')
         result = subprocess.run(cmd)
         if result.returncode != 0:
             print('Error: ABC synthesizer failed.')
@@ -415,14 +413,7 @@ class bitSerialCompiler:
         blif_file = self.blif if self.blif else os.path.join(self.outdir, self.output + '.blif')
         c_file = os.path.join(self.outdir, self.output + '.c')
         cmd = ['python3', blif_parser, '-f', 'asm', '-i', blif_file, '-m', 'func', '-o', c_file, '-r', str(self.num_regs)]
-        if self.gen_run_sh:
-            blif2c_run_file = os.path.join(self.outdir, self.output + '.run_blif2c.sh')
-            with open(blif2c_run_file, 'w') as file:
-                file.write("#!/bin/bash\n")
-                file.write('cd $(dirname "$0")/..\n')
-                file.write(' '.join(cmd) + '\n')
-            os.chmod(blif2c_run_file, 0o755)
-            print("INFO: Created BLIF2C run script:", blif2c_run_file)
+        self.generate_run_script(cmd, self.output + '.run_blif2c.sh')
         result = subprocess.run(cmd)
         if result.returncode != 0:
             print('Error: BLIF to C parser failed.')
@@ -442,14 +433,7 @@ class bitSerialCompiler:
         cmd = [self.clang_path, '-O3', '-target', 'riscv32-unknown-elf', '-S', c_file, '-o', asm_file]
         if self.clang_g:
             cmd.append('-g')
-        if self.gen_run_sh:
-            clang_run_file = os.path.join(self.outdir, self.output + '.run_clang.sh')
-            with open(clang_run_file, 'w') as file:
-                file.write("#!/bin/bash\n")
-                file.write('cd $(dirname "$0")/..\n')
-                file.write(' '.join(cmd) + '\n')
-            os.chmod(clang_run_file, 0o755)
-            print("INFO: Created C2ASM run script:", clang_run_file)
+        self.generate_run_script(cmd, self.output + '.run_clang.sh')
         result = subprocess.run(cmd)
         if result.returncode != 0:
             print('Error: CLANG/LLVM failed.')
@@ -468,14 +452,7 @@ class bitSerialCompiler:
         asm_file = os.path.join(self.outdir, self.output + '.s')
         cpp_file = os.path.join(self.outdir, self.output + '.hpp')
         cmd = ['python3', asm_parser, '-f', 'cpp', '-i', asm_file, '-m', self.output, '-o', cpp_file]
-        if self.gen_run_sh:
-            asm2pim_run_file = os.path.join(self.outdir, self.output + '.run_asm2pim.sh')
-            with open(asm2pim_run_file, 'w') as file:
-                file.write("#!/bin/bash\n")
-                file.write('cd $(dirname "$0")/..\n')
-                file.write(' '.join(cmd) + '\n')
-            os.chmod(asm2pim_run_file, 0o755)
-            print("INFO: Created ASM2PIM run script:", asm2pim_run_file)
+        self.generate_run_script(cmd, self.output + '.run_asm2pim.sh')
         result = subprocess.run(cmd)
         if result.returncode != 0:
             print('Error: CLANG/LLVM failed.')
@@ -492,14 +469,7 @@ class bitSerialCompiler:
         script_location = os.path.dirname(os.path.abspath(__file__))
         test_gen = os.path.join(script_location, 'src/test-gen/main.py')
         cmd = ['python3', test_gen, '-m', self.output, '-o', self.outdir, '-n', str(self.num_tests)]
-        if self.gen_run_sh:
-            test_gen_run_file = os.path.join(self.outdir, self.output + '.run_test_gen.sh')
-            with open(test_gen_run_file, 'w') as file:
-                file.write("#!/bin/bash\n")
-                file.write('cd $(dirname "$0")/..\n')
-                file.write(' '.join(cmd) + '\n')
-            os.chmod(test_gen_run_file, 0o755)
-            print("INFO: Created TestGen run script:", test_gen_run_file)
+        self.generate_run_script(cmd, self.output + '.run_test_gen.sh')
         result = subprocess.run(cmd)
         if result.returncode != 0:
             print('Error: Test Gen failed.')
