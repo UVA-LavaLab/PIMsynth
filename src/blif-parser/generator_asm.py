@@ -65,7 +65,7 @@ class GeneratorAsm():
         code += self.generateTemporaryVariablesIn();
         code += self.generateTemporaryVariablesOut();
         code += "\n"
-        code += self.generateStatementsAsm()
+        code += self.generateAllAsmStatements()
         code += "\n"
         code += self.generateStatementsOutput()
         code += "}\n"
@@ -88,37 +88,109 @@ class GeneratorAsm():
 
     def generateClobberList(self):
         """ Generate the RISC-V register clobbering list """
-        regs = ['"ra"'] + [f'"a{i}"' for i in range(8)] + [f'"s{i}"' for i in range(12)] + [f'"t{i}"' for i in range(self.num_regs, 7)]
-        return ','.join(regs)
+        # risc-v register: ra, a0-a7, s0-s11, t0-t6
+        # ra: return address, a0-a7: argument registers, s0-s11: callee saved registers, t0-t6: temporary registers
+        regs_special = ['"ra"']
+        regs_args = [f'"a{i}"' for i in range(8)]
+        regs_saved = [f'"s{i}"' for i in range(12)]
+        regs_temp = [f'"t{i}"' for i in range(7)]
+        # clobber list: use t0-t6 for 1-7 registers, use s0-s11 for 8-19 registers
+        regs_temp_to_use = 0
+        regs_saved_to_use = 0
+        if self.num_regs > 7 and self.num_regs <= 19:
+            regs_temp_to_use = 7
+            regs_saved_to_use = self.num_regs - 7
+        if self.num_regs <= 7:
+            regs_temp_to_use = self.num_regs
+        regs_to_clobber = regs_special + regs_args + regs_saved[regs_saved_to_use:] + regs_temp[regs_temp_to_use:]
+        return ','.join(regs_to_clobber)
 
     def getAsmInstructions(self, clobber):
         """ Return a dictionary that maps logic gate names to assembly code generation functions """
+        # =r: output register, r: input register
+        # return a single line assembly code. Be careful with " and \\n
         return {
-            "inv1": lambda output, inputs: f'not %0, %1" : "=r" ({output}) : "r" ({inputs[0]}) : {clobber}',
-            "and2": lambda output, inputs: f'and %0, %1, %2" : "=r" ({output}) : "r" ({inputs[0]}), "r" ({inputs[1]}) : {clobber}',
-            "nand2": lambda output, inputs: f'and %0, %1, %2 \\n not %0, %0" : "=r" ({output}) : "r" ({inputs[0]}), "r" ({inputs[1]}) : {clobber}',
-            "or2": lambda output, inputs: f'or %0, %1, %2" : "=r" ({output}) : "r" ({inputs[0]}), "r" ({inputs[1]}) : {clobber}',
-            "nor2": lambda output, inputs: f'or %0, %1, %2 \\n not %0, %0" : "=r" ({output}) : "r" ({inputs[0]}), "r" ({inputs[1]}) : {clobber}',
-            "xor2": lambda output, inputs: f'xor %0, %1, %2" : "=r" ({output}) : "r" ({inputs[0]}), "r" ({inputs[1]}) : {clobber}',
-            "xnor2": lambda output, inputs: f'xor %0, %1, %2 \\n not %0, %0" : "=r" ({output}) : "r" ({inputs[0]}), "r" ({inputs[1]}) : {clobber}',
-            "mux2": lambda output, inputs: f'not s1, %1 \\n and s2, s1, %2 \\n and s3, %1, %3 \\n or %0, s2, s3" : "=r" ({output}) : "r" ({inputs[0]}), "r" ({inputs[1]}), "r" ({inputs[2]}) : {clobber}',
-            "maj3": lambda output, inputs: f'and s1, %1, %2 \\n and s2, %2, %3 \\n and s3, %1, %3 \\n or s1, s1, s2 \\n or %0, s1, s3" : "=r" ({output}) : "r" ({inputs[0]}), "r" ({inputs[1]}), "r" ({inputs[2]}) : {clobber}',
-            "zero": lambda output, inputs: f'xor %0, %0, %0" : "=r" ({output}) : "r" ({output}) : {clobber}',
+            "inv1": lambda output, inputs: (
+                f'"#PIM_OP: inv1 %1 -> %0 \\n'
+                f' not %0, %1'
+                f'" : "=r" ({output}) : "r" ({inputs[0]}) : {clobber}'
+            ),
+            "and2": lambda output, inputs: (
+                f'"#PIM_OP: and2 %1, %2 -> %0 \\n'
+                f' and %0, %1, %2'
+                f'" : "=r" ({output}) : "r" ({inputs[0]}), "r" ({inputs[1]}) : {clobber}'
+            ),
+            "nand2": lambda output, inputs: (
+                f'"#PIM_OP: nand2 %1, %2 -> %0 \\n'
+                f' and %0, %1, %2 \\n'
+                f' not %0, %0'
+                f'" : "=r" ({output}) : "r" ({inputs[0]}), "r" ({inputs[1]}) : {clobber}'
+            ),
+            "or2": lambda output, inputs: (
+                f'"#PIM_OP: or2 %1, %2 -> %0 \\n'
+                f' or %0, %1, %2'
+                f'" : "=r" ({output}) : "r" ({inputs[0]}), "r" ({inputs[1]}) : {clobber}'
+            ),
+            "nor2": lambda output, inputs: (
+                f'"#PIM_OP: nor2 %1, %2 -> %0 \\n'
+                f' or %0, %1, %2 \\n'
+                f' not %0, %0'
+                f'" : "=r" ({output}) : "r" ({inputs[0]}), "r" ({inputs[1]}) : {clobber}'
+            ),
+            "xor2": lambda output, inputs: (
+                f'"#PIM_OP: xor2 %1, %2 -> %0\\n'
+                f' xor %0, %1, %2'
+                f'" : "=r" ({output}) : "r" ({inputs[0]}), "r" ({inputs[1]}) : {clobber}'
+            ),
+            "xnor2": lambda output, inputs: (
+                f'"#PIM_OP: xnor2 %1, %2 -> %0 \\n'
+                f' xor %0, %1, %2 \\n'
+                f' not %0, %0'
+                f'" : "=r" ({output}) : "r" ({inputs[0]}), "r" ({inputs[1]}) : {clobber}'
+            ),
+            "mux2": lambda output, inputs: ( # %0 = %1 ? %3 : %2
+                f'"#PIM_OP: mux2 %1, %2, %3 -> %0 \\n'
+                f' not s1, %1 \\n'
+                f' and s2, s1, %2 \\n'
+                f' and s3, %1, %3 \\n'
+                f' or %0, s2, s3'
+                f'" : "=r" ({output}) : "r" ({inputs[0]}), "r" ({inputs[1]}), "r" ({inputs[2]}) : {clobber}'
+            ),
+            "maj3": lambda output, inputs: (
+                f'"#PIM_OP: maj3 %1, %2, %3 -> %0 \\n'
+                f' and s1, %1, %2 \\n'
+                f' and s2, %2, %3 \\n'
+                f' and s3, %1, %3 \\n'
+                f' or s1, s1, s2 \\n'
+                f' or %0, s1, s3'
+                f'" : "=r" ({output}) : "r" ({inputs[0]}), "r" ({inputs[1]}), "r" ({inputs[2]}) : {clobber}'
+            ),
+            "zero": lambda output, inputs: (
+                f'"#PIM_OP: zero -> %0 \\n'
+                f' xor %0, %0, %0'
+                f'" : "=r" ({output}) : "r" ({output}) : {clobber}'
+            ),
+            "one": lambda output, inputs: (
+                f'"#PIM_OP: one -> %0 \\n'
+                f' xor %0, %0, %0 \\n'
+                f' not %0, %0'
+                f'" : "=r" ({output}) : "r" ({output}) : {clobber}'
+            ),
         }
 
-    def generateAsmStatement(self, item, asm_instructions):
+    def generateSingleAsmStatement(self, item, asm_instructions):
         """ Generate a single assembly statement based on the logic gate type """
         inputs = self.sanitizeTokenList(item.inputList)
         output = self.sanitizeToken(item.output)
 
         for key, asm_func in asm_instructions.items():
             if item.name.startswith(key):
-                return f'\tasm("{asm_func(output, inputs)});\n'
+                return f'\tasm({asm_func(output, inputs)});\n'
 
         print(f"Error: Unhandled item name {item.name}")
         return ''
 
-    def generateStatementsAsm(self):
+    def generateAllAsmStatements(self):
         """ Generate C asm statement sequence """
         # Generate the clobber list and assembly instruction mappings
         clobber = self.generateClobberList()
@@ -129,7 +201,7 @@ class GeneratorAsm():
 
         # Generate assembly statements for each item in the statement list
         for item in self.parser.statementList:
-            code += self.generateAsmStatement(item, asm_instructions)
+            code += self.generateSingleAsmStatement(item, asm_instructions)
 
         code += '\tasm("########## END ##########");\n'
         return code

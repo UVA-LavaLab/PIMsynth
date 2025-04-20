@@ -114,7 +114,7 @@ class bitSerialCompiler:
         parser.add_argument('--blif', metavar='[file]', type=str, default='', help='Input BLIF file')
         parser.add_argument('--c', metavar='[file]', type=str, default='', help='Input C file')
         parser.add_argument('--asm', metavar='[file]', type=str, default='', help='Input ASM file')
-        parser.add_argument('--num-regs', metavar='N', type=int, default=4, help='Number of registers 2~7')
+        parser.add_argument('--num-regs', metavar='N', type=int, default=4, help='Number of registers 2~19', choices=range(2, 20))
         parser.add_argument('--output', metavar='[filename]', type=str, default='tmp', help='Output filename without suffix')
         parser.add_argument('--outdir', metavar='[path]', type=str, default='.', help='Output location, default current dir')
         parser.add_argument('--from-stage', metavar='[stage]', type=str,
@@ -164,9 +164,6 @@ class bitSerialCompiler:
                 or not self.sanity_check_from_to(self.asm, 'asm')):
             return False
         self.num_regs = args.num_regs
-        if self.num_regs < 2 or self.num_regs > 7:
-            print("Error: Unsupported number of registers:", self.num_regs)
-            return False
         self.clang_g = args.clang_g
         self.top_module = args.top_module
         self.gen_run_sh = args.gen_run_sh

@@ -59,12 +59,12 @@ is_valid_bit_serial_isa() {
 
 # Function to display valid num_reg values
 show_valid_num_reg() {
-    echo "Valid num_reg values: 2 3 4 5 6 7"
+    echo "Valid num_reg values: 2 - 19"
 }
 
 # Check if the provided num_reg value is valid
 is_valid_num_reg() {
-    if [[ "$1" =~ ^[2-7]$ ]]; then
+    if [[ "$1" =~ ^[2-9]$|^1[0-9]$ ]]; then
         return 0
     else
         return 1
