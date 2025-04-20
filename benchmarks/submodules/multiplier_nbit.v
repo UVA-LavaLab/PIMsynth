@@ -19,11 +19,11 @@ module multiplier_nbit #(
     genvar i;
     generate
         for (i = 1; i < WIDTH; i = i + 1) begin : chain_adders
-            assign acc[i][i:0] = acc[i-1][i:0];
+            assign acc[i][i-1:0] = acc[i-1][i-1:0];
             adder_nbit #(WIDTH-i) u_adder_nbit (
-                .A(B[i] ? A[WIDTH-1:i+1] : {WIDTH-i{1'b0}}),
-                .B(acc[i-1][WIDTH-1:i+1]),
-                .Sum(acc[i][WIDTH-1:i+1])
+                .A(B[i] ? A[WIDTH-i-1:0] : {WIDTH-i{1'b0}}),
+                .B(acc[i-1][WIDTH-1:i]),
+                .Sum(acc[i][WIDTH-1:i])
             );
         end
     endgenerate
