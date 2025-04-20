@@ -41,6 +41,7 @@ class bitSerialCompiler:
         self.clang_g = False
         self.top_module = ''
         self.gen_run_sh = False
+        self.gen_bitwise = False
         self.parser = self.create_argparse()
         self.hbar = "============================================================"
 
@@ -127,6 +128,7 @@ class bitSerialCompiler:
         parser.add_argument('--top-module', metavar='[name]', type=str, default='', help='Specify Verilog top module')
         parser.add_argument('--num-tests', '-n', type=int, default=100, help='Number of test cases.')
         parser.add_argument('--gen-run-sh', action='store_false', help='Generate intermediate run scripts, default true')
+        parser.add_argument('--gen-bitwise', action='store_false', help='Generate bit-wise C code, default true')
         return parser
 
     def parse_args(self):
@@ -167,6 +169,7 @@ class bitSerialCompiler:
         self.clang_g = args.clang_g
         self.top_module = args.top_module
         self.gen_run_sh = args.gen_run_sh
+        self.gen_bitwise = args.gen_bitwise
         return True
 
     def sanity_check_input_file(self, input_file, tag):
@@ -417,6 +420,16 @@ class bitSerialCompiler:
             return False
         print("INFO: Generated C file:", self.output + '.c')
         print("INFO: Allowed number of registers:", self.num_regs)
+
+        if self.gen_bitwise:
+            bitwise_c_file = os.path.join(self.outdir, self.output + '.bitwise.c')
+            cmd = ['python3', blif_parser, '-f', 'bitwise', '-i', blif_file, '-m', 'func', '-o', bitwise_c_file, '-r', str(self.num_regs)]
+            self.generate_run_script(cmd, self.output + '.run_blif2bitwise.sh')
+            result = subprocess.run(cmd)
+            if result.returncode != 0:
+                print('Error: BLIF to bit-wise C parser failed.')
+                return False
+            print("INFO: Generated bit-wise C file:", self.output + '.bitwise.c')
 
         print(self.hbar)
         return True
