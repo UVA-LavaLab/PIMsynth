@@ -13,6 +13,7 @@ import os
 from parser import *
 from generator import *
 from generator_asm import *
+from generator_bitwise import *
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from util import *
@@ -23,7 +24,7 @@ if __name__ == "__main__":
     parser.add_argument('--input-file', '-i', type=str, required=True, help='The input circuit representation file to parse.')
     parser.add_argument('--output-file', '-o', type=str, required=True, help='The output C++ file.')
     parser.add_argument('--module-name', '-m', type=str, required=True, help='The name of the module to parse.')
-    parser.add_argument('--output-format', '-f', type=str, required=True, help='Output format: asm or cpp.')
+    parser.add_argument('--output-format', '-f', type=str, required=True, choices=['asm', 'bitwise', 'cpp'], help='Output format: asm, bitwise, or cpp.')
     parser.add_argument('--num-regs', '-r', type=int, default=4, choices=range(2, 20), help='Number of registers 2~19')
 
     # Parse the arguments
@@ -55,6 +56,9 @@ if __name__ == "__main__":
         code = generator.generateCode()
     elif args.output_format == 'asm':
         generator = GeneratorAsm(parser, args.num_regs, args.module_name)
+        code = generator.generateCode()
+    elif args.output_format == 'bitwise':
+        generator = GeneratorBitwise(parser, args.num_regs, args.module_name)
         code = generator.generateCode()
 
     # Write the generated C++ code into a file
