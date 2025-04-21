@@ -87,10 +87,11 @@ class GeneratorBitwise():
 
     def getBitwiseInstructions(self):
         """ Return a dictionary that maps logic gate names to bit-wise code generation functions """
+        # Note: Use ! instead of ~ for bitwise NOT to make sure result is 0 or 1
         return {
             "inv1": lambda output, inputs: (
                 f'\t// PIM_OP: inv1 %1 -> %0 \n'
-                f'\t{output} = ~{inputs[0]};\n'
+                f'\t{output} = !{inputs[0]};\n'
             ),
             "and2": lambda output, inputs: (
                 f'\t// PIM_OP: and2 %1, %2 -> %0 \n'
@@ -98,7 +99,7 @@ class GeneratorBitwise():
             ),
             "nand2": lambda output, inputs: (
                 f'\t// PIM_OP: nand2 %1, %2 -> %0 \n'
-                f'\t{output} = ~({inputs[0]} & {inputs[1]});\n'
+                f'\t{output} = !({inputs[0]} & {inputs[1]});\n'
             ),
             "or2": lambda output, inputs: (
                 f'\t// PIM_OP: or2 %1, %2 -> %0 \n'
@@ -106,7 +107,7 @@ class GeneratorBitwise():
             ),
             "nor2": lambda output, inputs: (
                 f'\t// PIM_OP: nor2 %1, %2 -> %0 \n'
-                f'\t{output} = ~({inputs[0]} | {inputs[1]});\n'
+                f'\t{output} = !({inputs[0]} | {inputs[1]});\n'
             ),
             "xor2": lambda output, inputs: (
                 f'\t// PIM_OP: xor2 %1, %2 -> %0 \n'
@@ -114,7 +115,7 @@ class GeneratorBitwise():
             ),
             "xnor2": lambda output, inputs: (
                 f'\t// PIM_OP: xnor2 %1, %2 -> %0 \n'
-                f'\t{output} = ~({inputs[0]} ^ {inputs[1]});\n'
+                f'\t{output} = !({inputs[0]} ^ {inputs[1]});\n'
             ),
             "mux2": lambda output, inputs: ( # %0 = %1 ? %3 : %2
                 f'\t// PIM_OP: mux2 %1, %2, %3 -> %0 \n'
