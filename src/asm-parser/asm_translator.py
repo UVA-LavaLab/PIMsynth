@@ -343,15 +343,29 @@ class AsmTranslator:
             pass
         return newOpCode
 
-    def handleBitSerialInstruction(self, instructionSequence, newOpCode, firstRiscvInstruction):
+    def handleBitSerialInstruction(self, instructionSequence, newOpCode, statementIndex):
         """Handle the translation of the bit-serial instruction from inline assembly."""
-        sourceOperandList = firstRiscvInstruction.operandsList[1:]
-        lastRiscvInstruction = instructionSequence[-1]
-        destinationOperand = lastRiscvInstruction.operandsList[0]
-
-        operandsList = [destinationOperand] + sourceOperandList
+        firstRiscvInstruction = self.riscvStatementList[statementIndex + 1]
         line = firstRiscvInstruction.line
-        self.appendBitSerialInstruction(newOpCode, operandsList, line)
+        twoOpInstrcutions = ["xnor", "nand"] # case 1: two-operand instructions, for example xnor
+        threeOpInstrcutions = ["maj3"] # case 2: three-operand instructions, for example maj3
+        if len(instructionSequence) == 1:
+            self.appendBitSerialInstruction(newOpCode, instructionSequence[0].operandsList, line)
+        elif newOpCode in twoOpInstrcutions:
+            sourceOperandList = firstRiscvInstruction.operandsList[1:]
+            lastRiscvInstruction = instructionSequence[-1]
+            destinationOperand = lastRiscvInstruction.operandsList[0]
+            operandsList = [destinationOperand] + sourceOperandList
+            self.appendBitSerialInstruction(newOpCode, operandsList, line)
+        elif newOpCode in threeOpInstrcutions:
+            sourceOperandList = firstRiscvInstruction.operandsList[1:]
+            secondRiscvInstruction = self.riscvStatementList[statementIndex + 2]
+            lastRiscvInstruction = instructionSequence[-1]
+            destinationOperand = lastRiscvInstruction.operandsList[0]
+            operandsList = [destinationOperand] + sourceOperandList + [secondRiscvInstruction.operandsList[2]]
+            self.appendBitSerialInstruction(newOpCode, operandsList, line)
+        else:
+            raise Exception(f"Error: Unhandled mapping for {newOpCode} op code at line {line}.")
 
     def handleWriteToOutputPort(self, statementIndex, instructionSequence, line):
         """Handle writing to an output port after inline assembly."""
@@ -376,7 +390,7 @@ class AsmTranslator:
             return
 
         # Handle the mapped bit-serial instruction
-        self.handleBitSerialInstruction(instructionSequence, newOpCode, firstRiscvInstruction)
+        self.handleBitSerialInstruction(instructionSequence, newOpCode, statementIndex)
 
         # Handle write to output port if necessary
         self.handleWriteToOutputPort(statementIndex, instructionSequence, firstRiscvInstruction.line)
@@ -395,6 +409,7 @@ class AsmTranslator:
         translationRules = {
             ('xor', 'not'): 'xnor',
             ('and', 'not'): 'nand',
+            ('and', 'and', 'and', 'or', 'or'): 'maj3'
         }
         mappedOpcodes = []  # To store the mapped opcodes
         i = 0

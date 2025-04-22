@@ -208,7 +208,8 @@ class PimEvalAPICodeGenerator:
             "xor": "pimOpXor",
             "nand": "pimOpNand",
             "nor": "pimOpNor",
-            "xnor": "pimOpXnor"
+            "xnor": "pimOpXnor",
+            "maj3": "pimOpMaj",
         }
         if pimOpCode in opCodeMap:
             return opCodeMap[pimOpCode]
@@ -267,7 +268,6 @@ class PimEvalAPICodeGenerator:
 
     def generateLogicInstruction(self, instruction):
         code = self.generateInstructionComment(instruction)
-
         pimEvalFunctionName = self.mapPimAsmOpCodeToPimEvalAPI(instruction.opCode)
         code += f"\t{pimEvalFunctionName}({self.firstIoPort}, {self.generateLogicalInstructionOperands(instruction.operandsList)});\n\n"
         return code

@@ -179,7 +179,7 @@ clean:
         returnStr = ""
         i = 0
         for inputStr in self.getInputsList():
-            returnStr += f"\"Input {inputStr} = \" << {inputStr} << "
+            returnStr += f"\"Input {inputStr} = \" << (int) {inputStr} << "
             if (i != len(self.getInputsList()) - 1):
                 returnStr += "\", \" << "
             i+= 1
@@ -244,7 +244,7 @@ void runTest(int testNumber, {inputsStrWithType}, {pimObjStrWithType}, PimObjId 
       // Print all inputs and outputs if there is a mismatch
       std::cerr << "Error: Test " << testNumber << " failed!" << std::endl;
       std::cerr << {coutStr} std::endl;
-      std::cerr << "  Expected result = " << expectedResult << ", PIM result = " << pimResult << std::endl;
+      std::cerr << "  Expected result = " << (int) expectedResult << ", PIM result = " << (int) pimResult << std::endl;
   }} else {{
       std::cout << "Info: Test " << testNumber << " passed!" << std::endl;
   }}
