@@ -210,7 +210,7 @@ class PimEvalAPICodeGenerator:
             "nor": "pimOpNor",
             "xnor": "pimOpXnor",
             "maj3": "pimOpMaj",
-            "mux2": "pimOpMux",
+            "mux2": "pimOpSel",
         }
         if pimOpCode in opCodeMap:
             return opCodeMap[pimOpCode]

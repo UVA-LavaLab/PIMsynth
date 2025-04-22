@@ -67,8 +67,10 @@ clean:
             "and": f'return a & b;',
             "or": f'return a | b;',
             "xor": f'return a ^ b;',
+            "xnor": f'return ~(a ^ b);',
             "max": f'return (a > b)?a:b;',
             "min": f'return (a < b)?a:b;',
+            "abs": f'return (a > 0)?a:-a;',
         }
         return opDict[operator]
 
@@ -100,7 +102,7 @@ clean:
 
     def getOperandsCount(self):
         oneOperand = ["not", "abs", "popcount"]
-        twoOperand = ["add", "sub", "mul", "and", "or", "xor", "mul", "min", "max"]
+        twoOperand = ["add", "sub", "mul", "and", "or", "xor", "xnor", "mul", "min", "max"]
 
         if self.operator in oneOperand:
             return 1
