@@ -67,8 +67,8 @@ clean:
             "and": f'return a & b;',
             "or": f'return a | b;',
             "xor": f'return a ^ b;',
-            "min": f'return (a > b)?a:b;',
-            "max": f'return (a < b)?a:b;',
+            "max": f'return (a > b)?a:b;',
+            "min": f'return (a < b)?a:b;',
         }
         return opDict[operator]
 
@@ -209,6 +209,7 @@ clean:
         pimObjStrWithType = self.getPimObjStrWithType()
         inputsStr = self.getInputsStr()
         pimCopyHostToDeviceStr = self.getPimCopyHosttoDeviceStr()
+
         pimObjsStr = self.getPimObjsStr()
         coutStr = self.getCoutStr()
         pimAllocStr = self.getPimAllocStr()
