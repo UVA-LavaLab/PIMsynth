@@ -348,7 +348,8 @@ class AsmTranslator:
         firstRiscvInstruction = self.riscvStatementList[statementIndex + 1]
         line = firstRiscvInstruction.line
         twoOpInstrcutions = ["xnor", "nand"] # case 1: two-operand instructions, for example xnor
-        threeOpInstrcutions = ["maj3"] # case 2: three-operand instructions, for example maj3
+        threeOpInstrcutions1 = ["maj3"] # case 2: three-operand instructions, for example maj3
+        threeOpInstrcutions2 = ["mux2"] # case 3: three-operand instructions, for example mux2
         if len(instructionSequence) == 1:
             self.appendBitSerialInstruction(newOpCode, instructionSequence[0].operandsList, line)
         elif newOpCode in twoOpInstrcutions:
@@ -357,12 +358,21 @@ class AsmTranslator:
             destinationOperand = lastRiscvInstruction.operandsList[0]
             operandsList = [destinationOperand] + sourceOperandList
             self.appendBitSerialInstruction(newOpCode, operandsList, line)
-        elif newOpCode in threeOpInstrcutions:
-            sourceOperandList = firstRiscvInstruction.operandsList[1:]
+        elif newOpCode in threeOpInstrcutions1:
             secondRiscvInstruction = self.riscvStatementList[statementIndex + 2]
             lastRiscvInstruction = instructionSequence[-1]
             destinationOperand = lastRiscvInstruction.operandsList[0]
-            operandsList = [destinationOperand] + sourceOperandList + [secondRiscvInstruction.operandsList[2]]
+            operandsList = [destinationOperand] + firstRiscvInstruction.operandsList[1:] + [secondRiscvInstruction.operandsList[2]]
+            self.appendBitSerialInstruction(newOpCode, operandsList, line)
+        elif newOpCode in threeOpInstrcutions2:
+            secondRiscvInstruction = self.riscvStatementList[statementIndex + 2]
+            thirdRiscvInstruction = self.riscvStatementList[statementIndex + 3]
+            lastRiscvInstruction = instructionSequence[-1]
+            destinationOperand = lastRiscvInstruction.operandsList[0]
+            operandsList =[destinationOperand] + [firstRiscvInstruction.operandsList[-1]] + [secondRiscvInstruction.operandsList[-1]] + [thirdRiscvInstruction.operandsList[-1]]
+
+            print(f"DEBUG: line = {line}")
+            breakpoint()
             self.appendBitSerialInstruction(newOpCode, operandsList, line)
         else:
             raise Exception(f"Error: Unhandled mapping for {newOpCode} op code at line {line}.")
@@ -409,7 +419,8 @@ class AsmTranslator:
         translationRules = {
             ('xor', 'not'): 'xnor',
             ('and', 'not'): 'nand',
-            ('and', 'and', 'and', 'or', 'or'): 'maj3'
+            ('and', 'and', 'and', 'or', 'or'): 'maj3',
+            ('not', 'and', 'and', 'or'): 'mux2',
         }
         mappedOpcodes = []  # To store the mapped opcodes
         i = 0
