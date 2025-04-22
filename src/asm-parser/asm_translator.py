@@ -369,10 +369,7 @@ class AsmTranslator:
             thirdRiscvInstruction = self.riscvStatementList[statementIndex + 3]
             lastRiscvInstruction = instructionSequence[-1]
             destinationOperand = lastRiscvInstruction.operandsList[0]
-            operandsList =[destinationOperand] + [firstRiscvInstruction.operandsList[-1]] + [secondRiscvInstruction.operandsList[-1]] + [thirdRiscvInstruction.operandsList[-1]]
-
-            print(f"DEBUG: line = {line}")
-            breakpoint()
+            operandsList =[destinationOperand] + [firstRiscvInstruction.operandsList[-1]] + [thirdRiscvInstruction.operandsList[-1]] + [secondRiscvInstruction.operandsList[-1]]
             self.appendBitSerialInstruction(newOpCode, operandsList, line)
         else:
             raise Exception(f"Error: Unhandled mapping for {newOpCode} op code at line {line}.")
