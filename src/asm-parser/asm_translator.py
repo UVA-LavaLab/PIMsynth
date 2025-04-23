@@ -353,7 +353,7 @@ class AsmTranslator:
         """Handle the translation of the bit-serial instruction from inline assembly."""
         firstRiscvInstruction = self.riscvStatementList[statementIndex + 1]
         line = firstRiscvInstruction.line
-        twoOpInstrcutions = ["xnor", "nand"] # case 1: two-operand instructions, for example xnor
+        twoOpInstrcutions = ["xnor", "nand", "nor"] # case 1: two-operand instructions, for example xnor
         threeOpInstrcutions1 = ["maj3"] # case 2: three-operand instructions, for example maj3
         threeOpInstrcutions2 = ["mux2"] # case 3: three-operand instructions, for example mux2
         if len(instructionSequence) == 1:
@@ -422,6 +422,7 @@ class AsmTranslator:
         translationRules = {
             ('xor', 'not'): 'xnor',
             ('and', 'not'): 'nand',
+            ('or', 'not'): 'nor',
             ('and', 'and', 'and', 'or', 'or'): 'maj3',
             ('not', 'and', 'and', 'or'): 'mux2',
         }

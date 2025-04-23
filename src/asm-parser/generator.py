@@ -209,7 +209,6 @@ class PimEvalAPICodeGenerator:
         if pimAsmReg in regMap:
             return regMap[pimAsmReg]
         else:
-            breakpoint()
             raise ValueError(f"Invalid register: {pimAsmReg}")
 
     def mapPimAsmOpCodeToPimEvalAPI(self, pimOpCode):
