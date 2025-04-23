@@ -13,6 +13,6 @@ module subtractor_1bit_cmp (
 
     // XOR + MUX
     assign tmp = A ^ Bin;
-    assign Bout = tmp ? B : Bin;
+    assign Bout = tmp ? Bin : B;
 
 endmodule
