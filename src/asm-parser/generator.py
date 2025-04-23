@@ -192,11 +192,24 @@ class PimEvalAPICodeGenerator:
             "t3": "PIM_RREG_R4",
             "t4": "PIM_RREG_R5",
             "t5": "PIM_RREG_R6",
-            "t6": "PIM_RREG_R7"
+            "t6": "PIM_RREG_R7",
+            "s0": "PIM_RREG_R8",
+            "s1": "PIM_RREG_R9",
+            "s2": "PIM_RREG_R10",
+            "s3": "PIM_RREG_R11",
+            "s4": "PIM_RREG_R12",
+            "s5": "PIM_RREG_R13",
+            "s6": "PIM_RREG_R14",
+            "s7": "PIM_RREG_R15",
+            "s8": "PIM_RREG_R16",
+            "s9": "PIM_RREG_R17",
+            "s10": "PIM_RREG_R18",
+            "s11": "PIM_RREG_R19",
         }
         if pimAsmReg in regMap:
             return regMap[pimAsmReg]
         else:
+            breakpoint()
             raise ValueError(f"Invalid register: {pimAsmReg}")
 
     def mapPimAsmOpCodeToPimEvalAPI(self, pimOpCode):

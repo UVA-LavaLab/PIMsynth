@@ -89,6 +89,7 @@ class AsmTranslator:
         self.riscvStatementList = riscvStatementList
         self.inputList = inputList
         self.outputList = outputList
+        self.remainedOutputList = outputList.copy()
         self.bitSerialStatementList = []
         self.symbolTable = SymbolTable()
         self.resolvedInputList = []
@@ -102,6 +103,8 @@ class AsmTranslator:
     def translate(self):
         for statementIndex, statement in enumerate(self.riscvStatementList):
             if isinstance(statement, Instruction):
+                if len(self.remainedOutputList) == 0:
+                    return
                 if statement.isLoadInstruction():
                     self.translateLoadInstruction(statementIndex)
                     continue
@@ -113,6 +116,7 @@ class AsmTranslator:
                     continue
             elif isinstance(statement, Directive) and statement.val == "#APP":
                 self.translateInlineAssembly(statementIndex)
+
 
     def getDestinationOperandFromInstruction(self, instruction):
         if instruction.opCode == "write":
@@ -142,6 +146,8 @@ class AsmTranslator:
         bitSerialInstruction = LinkedInstruction(opCode, operands, line, sourceInstructionList=sourceInstructionList, suspended=suspended)
         self.bitSerialStatementList.append(bitSerialInstruction)
         self.symbolTable.addSymbol(self.getDestinationOperand(opCode, operands), bitSerialInstruction)
+        if opCode == "write" and self.getDestinationOperand(opCode, operands) in self.remainedOutputList:
+            self.remainedOutputList.remove(self.getDestinationOperand(opCode, operands))
 
     def isInputPort(self, portInfo):
         """Check if the PortInfo is an input port."""
@@ -162,7 +168,7 @@ class AsmTranslator:
         return symbol in self.inputList
 
     def isBitSerialRegister(self, symbol):
-        pattern = r"^t[0-9]"
+        pattern = r"^[ts][0-9]+$"
         return bool(re.match(pattern, symbol))
 
     def resolveOperand(self, symbol, line=-1):
@@ -299,7 +305,7 @@ class AsmTranslator:
         self.appendBitSerialInstruction("write", [sourceOperand, destinationOperand], riscvInstruction.line, suspended)
 
     def resolveSourceOperandForStore(self, sourceOperand):
-        if "t" not in sourceOperand:
+        if not self.isBitSerialRegister(sourceOperand):
             resolvedOperand = self.symbolTable.getSymbol(sourceOperand)
             if resolvedOperand is None:
                 tempVariable = f"temp{self.tempManager.newTemp()}"
@@ -314,7 +320,7 @@ class AsmTranslator:
         return tempVariable
 
     def handlePointerOperation(self, sourceOperand, destinationOperand):
-        if "t" in sourceOperand and "temp" in destinationOperand:
+        if self.isBitSerialRegister(sourceOperand) and "temp" in destinationOperand:
             value = self.symbolTable.getSymbol(sourceOperand)
             if isinstance(value, str) and self.isOutput(value):
                 self.symbolTable.removeSymbol(sourceOperand)
