@@ -10,9 +10,12 @@
 
 SCRIPT_DIR="$(dirname "${BASH_SOURCE[0]}")"
 PROJ_ROOT=$(git rev-parse --show-toplevel)
-SUBMODULE_DIR=$PROJ_ROOT/benchmarks
-# Note: Copy this script to another directory and set VERILOG_DIR to ./ for testing
-VERILOG_DIR=$PROJ_ROOT/benchmarks
+
+# Note: Copy this script to another directory and configure VERILOG_DIR for testing
+VERILOG_DIR=$PROJ_ROOT/src-verilog/benchmarks
+GENLIB_DIR=$PROJ_ROOT/src-genlib
+SUBMODULE_LIST=$PROJ_ROOT/src-verilog/submodule_list.txt
+SUBMODULE_DIR=$PROJ_ROOT/src-verilog/submodules
 
 # Define a list of valid bit-serial ISA
 VALID_BIT_SERIAL_ISA=(
@@ -122,7 +125,7 @@ if ! is_valid_benchmark $benchmark_name; then
 fi
 
 # Map the bit-serial ISA name to genlib file
-genlib_file="$PROJ_ROOT/src/genlibs/${bit_serial_isa}.genlib"
+genlib_file="$GENLIB_DIR/${bit_serial_isa}.genlib"
 
 # Check if the genlib file exists
 if [ ! -f "$genlib_file" ]; then
@@ -151,13 +154,13 @@ echo "Benchmark Name: $benchmark_name"
 echo "Output Directory: $outdir"
 echo "==========================="
 
-# Collect submodule verilog files
+# Collect submodule verilog files from submodule_list.txt
 verilog_files=()
 while IFS= read -r line || [ -n "$line" ]; do
     # Skip empty lines and comments
     [[ -z "$line" || "$line" =~ ^# ]] && continue
     verilog_files+=("$SUBMODULE_DIR/$line")
-done < "$SUBMODULE_DIR/submodule_list.txt"
+done < "$SUBMODULE_LIST"
 
 # Add top-level benchmark file
 verilog_files+=("$VERILOG_DIR/${benchmark_name}.v")
