@@ -279,7 +279,31 @@ class PimEvalAPICodeGenerator:
         code = f"{concatenateListElements(functionOperands)}"
         return code
 
+    def handleOneInstruction(self, instruction):
+        if not (instruction.opCode == "xor"):
+            return None
+        if not (instruction.operandsList[0] == instruction.operandsList[1] and instruction.operandsList[1] == instruction.operandsList[2]):
+            return None
+        code = f"\t// one {instruction.operandsList[0]} (Line: {instruction.line})\n"
+        code += f"\tpimOpset({self.firstIoPort}, {self.mapPimAsmOpCodeToPimEvalAPI(self.operandsList[0])}, true);\n\n"
+        return code
+
+    def handleZeroInstruction(self, instruction):
+        if not (instruction.opCode == "xnor"):
+            return None
+        if not (instruction.operandsList[0] == instruction.operandsList[1] and instruction.operandsList[1] == instruction.operandsList[2]):
+            return None
+        code = f"\t// one {instruction.operandsList[0]} (Line: {instruction.line})\n"
+        code += f"\tpimOpset({self.firstIoPort}, {self.mapPimAsmOpCodeToPimEvalAPI(self.operandsList[0])}, false);\n\n"
+        return code
+
     def generateLogicInstruction(self, instruction):
+        code = self.handleOneInstruction(instruction)
+        if code != None:
+            return code
+        code = self.handleZeroInstruction(instruction)
+        if code != None:
+            return code
         code = self.generateInstructionComment(instruction)
         pimEvalFunctionName = self.mapPimAsmOpCodeToPimEvalAPI(instruction.opCode)
         code += f"\t{pimEvalFunctionName}({self.firstIoPort}, {self.generateLogicalInstructionOperands(instruction.operandsList)});\n\n"
