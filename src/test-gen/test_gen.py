@@ -59,7 +59,7 @@ clean:
 """
         return makefileStr
 
-    def getGoldenFunctionStatement(self, operator):
+    def getGoldenFunctionStatement(self, operator, dataType=None):
         opDict = {
             "add": f'return a + b;',
             "sub": f'return a - b;',
@@ -75,6 +75,7 @@ clean:
             "gt": f'return (a > b);',
             "eq": f'return (a == b);',
             "ne": f'return (a != b);',
+            "popcount": f'return std::bitset<{dataType[3:]}>(a).count();',
         }
         return opDict[operator]
 
@@ -167,7 +168,7 @@ clean:
 
     def getGoldenFunctionStr(self):
         funcSignatureStr = f"{self.getCDatatype()} funcGoldenModel({self.getInputsStrWithType()})"
-        testStatmentStr = self.getGoldenFunctionStatement(self.operator)
+        testStatmentStr = self.getGoldenFunctionStatement(self.operator, self.dataType)
         returnStr = f"""
 {funcSignatureStr} {{
   {testStatmentStr}
@@ -200,7 +201,7 @@ clean:
     def getRandGenStr(self):
         returnStr = ""
         for inputStr in self.getInputsList():
-            returnStr += f"{self.getCDatatype()} {inputStr} = std::rand() % 256;\n\t\t"
+            returnStr += f"{self.getCDatatype()} {inputStr} = std::rand();\n\t\t"
         return returnStr
 
     def getPimFreeStr(self):
@@ -227,6 +228,7 @@ clean:
 #include <cstdlib>
 #include <ctime>
 #include <cstdint>
+#include <bitset>
 #include "{self.moduleName}.hpp"
 #include "libpimeval.h"
 

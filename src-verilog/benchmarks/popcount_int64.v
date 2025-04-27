@@ -6,7 +6,7 @@ module popcount_int64 #(
     parameter WIDTH = 64
 ) (
     input  [WIDTH-1:0] A,
-    output [WIDTH-1:0] Y
+    output [6:0] Y
 );
 
     // 2-bit partial sum
@@ -91,8 +91,5 @@ module popcount_int64 #(
             );
         end
     endgenerate
-
-    // Assign upper bits to zero
-    assign Y[WIDTH-1:7] = 1'b0;
 
 endmodule
