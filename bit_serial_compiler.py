@@ -39,6 +39,7 @@ class bitSerialCompiler:
         self.clang_path = ''
         self.yosys_fe = True
         self.clang_g = False
+        self.llvm_args = ''
         self.top_module = ''
         self.gen_run_sh = False
         self.gen_bitwise = False
@@ -125,6 +126,7 @@ class bitSerialCompiler:
                 help='To stage: verilog, blif, c, asm, pim (default)',
                 choices=self.stages, default='test')
         parser.add_argument('--clang-g', action='store_false', help='Toggle clang -g, default true')
+        parser.add_argument('--llvm-args', type=str, default='', help='Extra arguments passed to LLVM')
         parser.add_argument('--top-module', metavar='[name]', type=str, default='', help='Specify Verilog top module')
         parser.add_argument('--num-tests', '-n', type=int, default=100, help='Number of test cases.')
         parser.add_argument('--gen-run-sh', action='store_false', help='Generate intermediate run scripts, default true')
@@ -167,6 +169,7 @@ class bitSerialCompiler:
             return False
         self.num_regs = args.num_regs
         self.clang_g = args.clang_g
+        self.llvm_args = args.llvm_args
         self.top_module = args.top_module
         self.gen_run_sh = args.gen_run_sh
         self.gen_bitwise = args.gen_bitwise
@@ -246,6 +249,8 @@ class bitSerialCompiler:
         print("ABC Path:", self.abc_path)
         print("CLANG Path:", self.clang_path)
         print("CLANG -g:", self.clang_g)
+        if self.llvm_args:
+            print("LLVM args:", self.llvm_args)
         print("Number of Registers:", self.num_regs)
         print(self.hbar)
 
@@ -443,6 +448,8 @@ class bitSerialCompiler:
         cmd = [self.clang_path, '-O3', '-target', 'riscv32-unknown-elf', '-S', c_file, '-o', asm_file]
         if self.clang_g:
             cmd.append('-g')
+        if self.llvm_args:
+            cmd += self.llvm_args.split()
         self.generate_run_script(cmd, self.output + '.run_clang.sh')
         result = subprocess.run(cmd)
         if result.returncode != 0:
