@@ -4,11 +4,11 @@
 if [ -n "$1" ]; then
     genlib="$1"
 else
-    genlib=../../src/genlibs/inv_and_xnor_mux.genlib
+    genlib=../../src-genlib/inv_and_or.genlib
 fi
 
-verilog=../../benchmarks/aes_sbox.v
+verilog=../../src-verilog/benchmarks/aes_sbox.v
 
-../../apptainer-run.sh ../../bit_serial_compiler.py \
-    --verilog $verilog --genlib $genlib --outdir outputs
+../../apptainer-run.sh python3 ../../bit_serial_compiler.py \
+    --verilog $verilog --genlib $genlib --outdir outputs --num-regs 4
 

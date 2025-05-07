@@ -52,7 +52,7 @@ void runTest(int testNumber, uint8_t a, PimObjId aPim, PimObjId resultPim) {
     pimCopyHostToDevice(&a, aPim);
 
     // Call the function under test
-    func(aPim, resultPim);
+    tmp(aPim, resultPim);
 
     // Retrieve and verify the result from the PIM device
     uint8_t pimResult;
@@ -74,7 +74,7 @@ int main() {
     std::srand(static_cast<unsigned int>(std::time(nullptr)));
 
     // Initialize PIM device
-    PimStatus status = pimCreateDeviceFromConfig(PIM_DEVICE_BITSIMD_V, nullptr);
+    PimStatus status = pimCreateDevice(PIM_DEVICE_BITSIMD_V, 1, 1, 2, 65636, 65536);
     if (status != PIM_OK) {
         std::cerr << "Error: Failed to create PIM device with default config" << std::endl;
         return -1;
