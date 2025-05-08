@@ -70,15 +70,14 @@ class Generator():
         }
 
         result = ""
-        for item in self.parser.statementList:
-            result += f"\t{item.output} = "
+        for gate in self.parser.gatesList:
+            result += f"\t{gate.outputs[0]} = "
             for key, func in operations.items():
-                if item.name.startswith(key):
-                    result += f"{func(item.inputList)};\n"
+                if gate.type.startswith(key):
+                    result += f"{func(gate.inputs)};\n"
                     break
             else:
-                print(f"Error: Unhandled item name {item.name}")
-                breakpoint()
+                raise ValueError(f"Unhandled gate type: {gate.type}")
 
         return result
 

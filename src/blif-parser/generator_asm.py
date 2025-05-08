@@ -180,11 +180,11 @@ class GeneratorAsm():
 
     def generateSingleAsmStatement(self, item, asm_instructions):
         """ Generate a single assembly statement based on the logic gate type """
-        inputs = self.sanitizeTokenList(item.inputList)
-        output = self.sanitizeToken(item.output)
+        inputs = self.sanitizeTokenList(item.inputs)
+        output = self.sanitizeToken(item.outputs[0])
 
         for key, asm_func in asm_instructions.items():
-            if item.name.startswith(key):
+            if item.type.startswith(key):
                 return f'\tasm({asm_func(output, inputs)});\n'
 
         print(f"Error: Unhandled item name {item.name}")
@@ -200,8 +200,8 @@ class GeneratorAsm():
         code = '\tasm("########## BEGIN ##########");\n'
 
         # Generate assembly statements for each item in the statement list
-        for item in self.parser.statementList:
-            code += self.generateSingleAsmStatement(item, asm_instructions)
+        for gate in self.parser.gatesList:
+            code += self.generateSingleAsmStatement(gate, asm_instructions)
 
         code += '\tasm("########## END ##########");\n'
         return code

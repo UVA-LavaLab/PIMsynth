@@ -137,11 +137,11 @@ class GeneratorBitwise():
 
     def generateSingleBitwiseStatement(self, item, bitwise_instructions):
         """ Generate a single bit-wise statement based on the logic gate type """
-        inputs = self.sanitizeTokenList(item.inputList)
-        output = self.sanitizeToken(item.output)
+        inputs = self.sanitizeTokenList(item.inputs)
+        output = self.sanitizeToken(item.outputs[0])
 
         for key, bitwise_func in bitwise_instructions.items():
-            if item.name.startswith(key):
+            if item.type.startswith(key):
                 return bitwise_func(output, inputs)
 
         print(f"Error: Unhandled item name {item.name}")
@@ -153,8 +153,8 @@ class GeneratorBitwise():
 
         code = '\t// ########## BEGIN ##########\n'
 
-        for item in self.parser.statementList:
-            code += self.generateSingleBitwiseStatement(item, bitwise_instructions)
+        for gate in self.parser.gatesList:
+            code += self.generateSingleBitwiseStatement(gate, bitwise_instructions)
 
         code += '\t// ########## END ##########\n'
         return code

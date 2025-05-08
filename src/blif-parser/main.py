@@ -40,14 +40,14 @@ if __name__ == "__main__":
     parser.parse(fileContent)
 
     # Print the module
-    # print("Info: Module name = ", parser.moduleName)
-    # print("Info: Inputs = ", parser.inputsList)
-    # print("Info: Outputs = ", parser.outputsList)
-    # print("Info: Wires = ", parser.wireList)
-    # print("\nInfo: Statements List")
-    # for statement in parser.statementList:
-        # print(statement.tostr())
-    # print()
+    print("Info: Module name = ", parser.moduleName)
+    print("Info: Inputs = ", parser.inputsList)
+    print("Info: Outputs = ", parser.outputsList)
+    print("Info: Wires = ", parser.wireList)
+    print("\nInfo: Gates List")
+    for gate in parser.gatesList:
+        print(gate)
+    print()
 
     # Generate the code
     code = ''

@@ -11,6 +11,7 @@ Date: 2024-09-03
 from lark import Lark, Transformer, v_args
 import itertools
 import pprint
+import networkx as nx
 
 # Define the Transformer class
 class CircuitTransformer(Transformer):
@@ -88,72 +89,55 @@ circuitGrammar = r"""
 
 """
 
-class Statement():
-    def __init__(self, gtype, name, inputList, output):
-        self.gtype = gtype
-        self.name = name
-        self.inputList = inputList
-        self.output = output
+class GateNode:
+    def __init__(self, gateId, gateType, inputs, outputs):
+        self.id = gateId
+        self.type = gateType
+        self.inputs = inputs
+        self.outputs = outputs
 
-    def tostr(self):
-        input_str = ', '.join(self.inputList)
-        return f"Statement(Name: {self.name}, Type: {self.gtype}, Inputs: [{input_str}], Output: {self.output})"
+    def __repr__(self):
+        return f"{self.type}_{self.id}, inputs: {self.inputs}, outputs: {self.outputs}"
 
-    def __eq__(self, other):
-        return self.output == other.output and self.inputList == other.inputList and self.gtype == other.gtype and self.name == other.name
+class Dag:
+    def __init__(self):
+        self.graph = nx.DiGraph()
+        self.signalToGateOutput = {}
 
-    def __lt__(self, other):
-        return self.compare(other) == -1
+    def addGate(self, gateNode: GateNode):
+        self.graph.add_node(gateNode, label=gateNode.type)
+        # For each input, if it was output by another gate, create an edge
+        for inputSignal in gateNode.inputs:
+            if inputSignal in self.signalToGateOutput:
+                sourceGate = self.signalToGateOutput[inputSignal]
+                self.graph.add_edge(sourceGate, gateNode)
+        # Register this gate as the source for its output signal(s)
+        for outputSignal in gateNode.outputs:
+            self.signalToGateOutput[outputSignal] = gateNode
 
-    def __gt__(self, other):
-        return self.compare(other) == 1
+    def getTopologicallySortedGates(self):
+        return list(nx.topological_sort(self.graph))
 
-    def compare(self, other):
-        if self.output in other.inputList:
-            return -1
-        if other.output in self.inputList:
-            return 1
-        return 0
-
-def insertItem(items, newItem, j):
-    # Create a copy of the items
-    itemsCpy = items.copy()
-
-    # Handle the case when j is 0
-    if j == 0:
-        return [newItem] + itemsCpy
-
-    # Handle the case when j is the length of the list
-    if j == len(itemsCpy):
-        return itemsCpy + [newItem]
-
-    # Handle the general case
-    return itemsCpy[:j] + [newItem] + itemsCpy[j:]
-
-def insertStatement(newStatement, sortedStatements):
-    for j in range(len(sortedStatements)):
-        comparisonResult = newStatement.compare(sortedStatements[j])
-        if comparisonResult == -1:
-            sortedStatements = insertItem(sortedStatements, newStatement, j)
-            return sortedStatements
-        if comparisonResult == +1:
-            pass
-    sortedStatements.append(newStatement)
-    return sortedStatements
-
-def sortStatements(statements):
-    sortedStatements = []
-    for i in range(len(statements)):
-        newStatement = statements[i]
-        sortedStatements = insertStatement(newStatement = newStatement, sortedStatements = sortedStatements)
-    return sortedStatements
+def convertTreeToDag(tree):
+    dag = Dag()
+    gateCounter = 0
+    for item in tree.children:
+        if isinstance(item, dict) and 'gate_name' in item:
+            gateType = item['gate_name']
+            args = item['arguments']
+            inputs = [s for sub in args[:-1] for s in sub]
+            outputs = [s for s in args[-1]]
+            gateNode = GateNode(gateId=gateCounter, gateType=gateType, inputs=inputs, outputs=outputs)
+            dag.addGate(gateNode)
+            gateCounter += 1
+    return dag
 
 class Parser():
     def __init__(self, moduleName="TestModule"):
         # Create the Lark parser
         self.larkParser = Lark(circuitGrammar, parser='lalr', transformer=CircuitTransformer())
         self.parseTree = None
-        self.statementList = []
+        self.gatesList = []
         self.wireList = []
         self.inputsList = []
         self.outputsList = []
@@ -161,27 +145,15 @@ class Parser():
 
     def parse(self, inStr):
         self.parseTree = self.larkParser.parse(inStr)
-        self.getStatementsList()
-        self.statementList = sortStatements(self.statementList)
+        self.dag = convertTreeToDag(self.parseTree)
+        self.gatesList = self.dag.getTopologicallySortedGates()
         self.getPortList()
         self.getWireList()
 
     def getWireList(self):
-        for statement in self.statementList:
-            if 'new' in statement.output:
-                self.wireList.append(statement.output)
-
-    def getStatementsList(self):
-        i = 0
-        for item in self.parseTree.children:
-            if 'gate_name' in item.keys():
-                gtype = item['gate_name']
-                name = gtype + "_" + str(i)
-                inputList = list(itertools.chain(*item['arguments'][:-1]))
-                output = item['arguments'][-1][0]
-                statement = Statement(gtype, name, inputList, output)
-                self.statementList.append(statement)
-                i += 1
+        for gate in self.gatesList:
+            if 'new' in gate.outputs[0]:
+                self.wireList.append(gate.outputs[0])
 
     def getPortList(self):
         for item in self.parseTree.children:
