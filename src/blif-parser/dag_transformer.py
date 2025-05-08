@@ -1,0 +1,77 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+File: dag_transformer.py
+Description: Implements a DAG transformer that eliminates multi-fanout wires by inserting dedicated copy gates. Each consumer of a fanout wire receives a unique copy node to normalize signal flow, enabling easier downstream processing such as technology mapping or code generation.
+Author: Mohammadhosein Gholamrezaei <uab9qt@virginia.edu> - BLIF-to-C parser generator code framework
+Date: 2025-05-08
+"""
+from parser import *
+from typing import Dict, List
+import networkx as nx
+
+class DagTransformer:
+    def apply(self, dag: Dag) -> Dag:
+        """Apply a transformation to the input DAG and return the modified DAG."""
+        raise NotImplementedError("Subclasses must implement the apply() method.")
+
+class FanoutNormalizer(DagTransformer):
+    def __init__(self):
+        self.copyCounter = 0
+        self.newWires = []
+
+    def apply(self, dag):
+        signalConsumers: Dict[str, List[GateNode]] = self.getSignalConsumers(dag)
+        signalProducers: Dict[str, GateNode] = self.getSignalProducers(dag)
+
+        for signal, consumers in signalConsumers.items():
+            if len(consumers) <= 1:
+                continue
+
+            producer = signalProducers.get(signal)
+            if producer is None:
+                continue
+
+            self.insertCopyNodes(dag, signal, producer, consumers)
+
+        return dag
+
+    def getSignalConsumers(self, dag) -> Dict[str, List[GateNode]]:
+        consumers: Dict[str, List[GateNode]] = {}
+        for node in dag.graph.nodes:
+            if hasattr(node, 'inputs'):
+                for signal in node.inputs:
+                    consumers.setdefault(signal, []).append(node)
+        return consumers
+
+    def getSignalProducers(self, dag) -> Dict[str, GateNode]:
+        producers: Dict[str, GateNode] = {}
+        for node in dag.graph.nodes:
+            if hasattr(node, 'outputs'):
+                for signal in node.outputs:
+                    producers[signal] = node
+        return producers
+
+    def insertCopyNodes(self, dag, signal: str, producer: GateNode, consumers: List[GateNode]):
+        for consumer in consumers:
+            if dag.graph.has_edge(producer, consumer):
+                dag.graph.remove_edge(producer, consumer)
+
+            newOutputSignal = f"{signal}_copy_{self.copyCounter}"
+            copyNode = GateNode(
+                gateId=f"copy_{self.copyCounter}",
+                gateType="copy",
+                inputs=[signal],
+                outputs=[newOutputSignal]
+            )
+            self.newWires.append(newOutputSignal)
+            self.copyCounter += 1
+
+            dag.graph.add_node(copyNode, label=copyNode.type)
+            dag.graph.add_edge(producer, copyNode)
+            dag.graph.add_edge(copyNode, consumer)
+
+            consumer.inputs = [
+                newOutputSignal if s == signal else s
+                for s in consumer.inputs
+            ]

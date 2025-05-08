@@ -89,6 +89,10 @@ class GeneratorBitwise():
         """ Return a dictionary that maps logic gate names to bit-wise code generation functions """
         # Note: Use ! instead of ~ for bitwise NOT to make sure result is 0 or 1
         return {
+            "copy": lambda output, inputs: (
+                f'\t// PIM_OP: copy1 %1 -> %0 \n'
+                f'\t{output} = {inputs[0]};\n'
+            ),
             "inv1": lambda output, inputs: (
                 f'\t// PIM_OP: inv1 %1 -> %0 \n'
                 f'\t{output} = !{inputs[0]};\n'
@@ -144,8 +148,7 @@ class GeneratorBitwise():
             if item.type.startswith(key):
                 return bitwise_func(output, inputs)
 
-        print(f"Error: Unhandled item name {item.name}")
-        return ''
+        raise Exception(f"Error: Unhandled gate type {item.type}")
 
     def generateAllBitwiseStatements(self):
         """ Generate C bit-wise statement sequence """

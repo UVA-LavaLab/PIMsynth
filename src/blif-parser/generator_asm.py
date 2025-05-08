@@ -110,6 +110,11 @@ class GeneratorAsm():
         # =r: output register, r: input register
         # return a single line assembly code. Be careful with " and \\n
         return {
+            "copy": lambda output, inputs: (
+                f'"#PIM_OP: copy1 %1 -> %0 \\n'
+                f' addi %0, %1, 0'
+                f'" : "=r" ({output}) : "r" ({inputs[0]}) : {clobber}'
+            ),
             "inv1": lambda output, inputs: (
                 f'"#PIM_OP: inv1 %1 -> %0 \\n'
                 f' not %0, %1'
@@ -187,8 +192,7 @@ class GeneratorAsm():
             if item.type.startswith(key):
                 return f'\tasm({asm_func(output, inputs)});\n'
 
-        print(f"Error: Unhandled item name {item.name}")
-        return ''
+        raise Exception(f"Error: Unhandled gate type {item.type}")
 
     def generateAllAsmStatements(self):
         """ Generate C asm statement sequence """

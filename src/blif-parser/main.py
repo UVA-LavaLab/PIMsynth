@@ -14,6 +14,7 @@ from parser import *
 from generator import *
 from generator_asm import *
 from generator_bitwise import *
+from dag_transformer import *
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from util import *
@@ -25,7 +26,15 @@ if __name__ == "__main__":
     parser.add_argument('--output-file', '-o', type=str, required=True, help='The output C++ file.')
     parser.add_argument('--module-name', '-m', type=str, required=True, help='The name of the module to parse.')
     parser.add_argument('--output-format', '-f', type=str, required=True, choices=['asm', 'bitwise', 'cpp'], help='Output format: asm, bitwise, or cpp.')
-    parser.add_argument('--num-regs', '-r', type=int, default=4, choices=range(2, 20), help='Number of registers 2~19')
+    parser.add_argument('--num-regs', '-r', type=int, default=4, choices=range(2, 20), help='Number of registers 2~16')
+
+    # Add mutually exclusive group for is_analog
+    analog_group = parser.add_mutually_exclusive_group()
+    analog_group.add_argument('--is-analog', dest='is_analog', action='store_true', help='Enable analog mode (default).')
+    analog_group.add_argument('--no-analog', dest='is_analog', action='store_false', help='Disable analog mode.')
+
+# Set default value
+    parser.set_defaults(is_analog=True)
 
     # Parse the arguments
     args = parser.parse_args()
@@ -39,15 +48,24 @@ if __name__ == "__main__":
     # Parse the circuit representation
     parser.parse(fileContent)
 
+    # Transform the DAG
+    if args.is_analog:
+        print("Info: Generate code for analog PIM.")
+        fanoutNormalizer = FanoutNormalizer()
+        parser.dag = fanoutNormalizer.apply(parser.dag)
+        parser.gatesList = parser.dag.getTopologicallySortedGates()
+        parser.wireList.extend(fanoutNormalizer.newWires)
+
+
     # Print the module
-    print("Info: Module name = ", parser.moduleName)
-    print("Info: Inputs = ", parser.inputsList)
-    print("Info: Outputs = ", parser.outputsList)
-    print("Info: Wires = ", parser.wireList)
-    print("\nInfo: Gates List")
-    for gate in parser.gatesList:
-        print(gate)
-    print()
+    # print("Info: Module name = ", parser.moduleName)
+    # print("Info: Inputs = ", parser.inputsList)
+    # print("Info: Outputs = ", parser.outputsList)
+    # print("Info: Wires = ", parser.wireList)
+    # print("\nInfo: Gates List")
+    # for gate in parser.gatesList:
+        # print(gate)
+    # print()
 
     # Generate the code
     code = ''
