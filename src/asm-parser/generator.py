@@ -214,7 +214,7 @@ class PimEvalAPICodeGenerator:
     def mapPimAsmOpCodeToPimEvalAPI(self, pimOpCode):
         opCodeMap = {
             "not": "pimOpNot",
-            "move": "pimOpMove",
+            "mv": "pimOpMove",
             "and": "pimOpAnd",
             "or": "pimOpOr",
             "xor": "pimOpXor",
