@@ -27,11 +27,7 @@ if __name__ == "__main__":
     parser.add_argument('--module-name', '-m', type=str, required=True, help='The name of the module to parse.')
     parser.add_argument('--output-format', '-f', type=str, required=True, choices=['asm', 'bitwise', 'cpp'], help='Output format: asm, bitwise, or cpp.')
     parser.add_argument('--num-regs', '-r', type=int, default=4, choices=range(2, 20), help='Number of registers 2~16')
-
-    # Add mutually exclusive group for is_analog
-    analog_group = parser.add_mutually_exclusive_group()
-    analog_group.add_argument('--is-analog', dest='is_analog', action='store_true', help='Enable analog mode (default).')
-    analog_group.add_argument('--no-analog', dest='is_analog', action='store_false', help='Disable analog mode.')
+    parser.add_argument('--pim-mode', '-p', type=str, default='Digital', help='The PIM architecture mode (Analog/Digital).')
 
 # Set default value
     parser.set_defaults(is_analog=True)
@@ -49,7 +45,7 @@ if __name__ == "__main__":
     parser.parse(fileContent)
 
     # Transform the DAG
-    if args.is_analog:
+    if args.pim_mode == "Analog":
         print("Info: Generate code for analog PIM.")
         fanoutNormalizer = FanoutNormalizer()
         parser.dag = fanoutNormalizer.apply(parser.dag)

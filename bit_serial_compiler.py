@@ -43,6 +43,7 @@ class bitSerialCompiler:
         self.top_module = ''
         self.gen_run_sh = False
         self.gen_bitwise = False
+        self.pim_mode = ''
         self.parser = self.create_argparse()
         self.hbar = "============================================================"
 
@@ -131,6 +132,7 @@ class bitSerialCompiler:
         parser.add_argument('--num-tests', '-n', type=int, default=100, help='Number of test cases.')
         parser.add_argument('--gen-run-sh', action='store_false', help='Generate intermediate run scripts, default true')
         parser.add_argument('--gen-bitwise', action='store_false', help='Generate bit-wise C code, default true')
+        parser.add_argument('--pim-mode', type=str, default='Digital', help='The PIM architecture mode (Analog/Digital).')
         return parser
 
     def parse_args(self):
@@ -173,6 +175,7 @@ class bitSerialCompiler:
         self.top_module = args.top_module
         self.gen_run_sh = args.gen_run_sh
         self.gen_bitwise = args.gen_bitwise
+        self.pim_mode = args.pim_mode
         return True
 
     def sanity_check_input_file(self, input_file, tag):
@@ -417,7 +420,7 @@ class bitSerialCompiler:
         blif_parser = os.path.join(script_location, 'src/blif-parser/main.py')
         blif_file = self.blif if self.blif else os.path.join(self.outdir, self.output + '.blif')
         c_file = os.path.join(self.outdir, self.output + '.c')
-        cmd = ['python3', blif_parser, '-f', 'asm', '-i', blif_file, '-m', 'func', '-o', c_file, '-r', str(self.num_regs)]
+        cmd = ['python3', blif_parser, '-f', 'asm', '-i', blif_file, '-m', 'func', '-o', c_file, '-r', str(self.num_regs), '-p', self.pim_mode]
         self.generate_run_script(cmd, self.output + '.run_blif2c.sh')
         result = subprocess.run(cmd)
         if result.returncode != 0:
@@ -428,7 +431,7 @@ class bitSerialCompiler:
 
         if self.gen_bitwise:
             bitwise_c_file = os.path.join(self.outdir, self.output + '.bitwise.c')
-            cmd = ['python3', blif_parser, '-f', 'bitwise', '-i', blif_file, '-m', 'func', '-o', bitwise_c_file, '-r', str(self.num_regs)]
+            cmd = ['python3', blif_parser, '-f', 'bitwise', '-i', blif_file, '-m', 'func', '-o', bitwise_c_file, '-r', str(self.num_regs), '-p', self.pim_mode]
             self.generate_run_script(cmd, self.output + '.run_blif2bitwise.sh')
             result = subprocess.run(cmd)
             if result.returncode != 0:
