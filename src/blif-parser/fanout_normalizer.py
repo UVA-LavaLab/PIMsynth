@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 """
 File: fanout_normalizer.py
-Description: Eliminates multi-fanout wires by inserting dedicated copy gates into the DAG.
+Description: Eliminates multi-fanout wires by inserting dedicated copy gates for all but one consumer.
 Author: Mohammadhosein Gholamrezaei <uab9qt@virginia.edu>
 Date: 2025-05-08
 """
@@ -29,7 +29,11 @@ class FanoutNormalizer(DagTransformer):
             if producer is None:
                 continue
 
-            self.insertCopyNodes(dag, signal, producer, consumers)
+            # Preserve first consumer as-is, clone for the rest
+            originalConsumer = consumers[0]
+            remainingConsumers = consumers[1:]
+
+            self.insertCopyNodes(dag, signal, producer, remainingConsumers)
 
         return dag
 
@@ -50,7 +54,11 @@ class FanoutNormalizer(DagTransformer):
         return producers
 
     def insertCopyNodes(self, dag, signal: str, producer: GateNode, consumers: List[GateNode]):
-        for consumer in consumers:
+        # Identify the original consumer as the first one in the list
+        originalConsumer = consumers[0]
+        remainingConsumers = consumers[1:]
+
+        for consumer in remainingConsumers:
             if dag.graph.has_edge(producer, consumer):
                 dag.graph.remove_edge(producer, consumer)
 
@@ -65,8 +73,9 @@ class FanoutNormalizer(DagTransformer):
             self.copyCounter += 1
 
             dag.graph.add_node(copyNode, label=copyNode.type)
-            dag.graph.add_edge(producer, copyNode)
-            dag.graph.add_edge(copyNode, consumer)
+            dag.graph.add_edge(producer, copyNode)        # Real data dependency
+            dag.graph.add_edge(copyNode, consumer)        # Real data dependency
+            dag.graph.add_edge(copyNode, originalConsumer)  # Fake edge to enforce topological order
 
             consumer.inputs = [
                 newOutputSignal if s == signal else s
