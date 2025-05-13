@@ -1,19 +1,16 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-File: dag_transformer.py
-Description: Implements a DAG transformer that eliminates multi-fanout wires by inserting dedicated copy gates. Each consumer of a fanout wire receives a unique copy node to normalize signal flow, enabling easier downstream processing such as technology mapping or code generation.
-Author: Mohammadhosein Gholamrezaei <uab9qt@virginia.edu> - BLIF-to-C parser generator code framework
+File: fanout_normalizer.py
+Description: Eliminates multi-fanout wires by inserting dedicated copy gates into the DAG.
+Author: Mohammadhosein Gholamrezaei <uab9qt@virginia.edu>
 Date: 2025-05-08
 """
+
 from parser import *
 from typing import Dict, List
+from dag_transformer_base import DagTransformer
 import networkx as nx
-
-class DagTransformer:
-    def apply(self, dag: Dag) -> Dag:
-        """Apply a transformation to the input DAG and return the modified DAG."""
-        raise NotImplementedError("Subclasses must implement the apply() method.")
 
 class FanoutNormalizer(DagTransformer):
     def __init__(self):
@@ -75,3 +72,4 @@ class FanoutNormalizer(DagTransformer):
                 newOutputSignal if s == signal else s
                 for s in consumer.inputs
             ]
+

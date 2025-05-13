@@ -14,7 +14,7 @@ from parser import *
 from generator import *
 from generator_asm import *
 from generator_bitwise import *
-from dag_transformer import *
+from fanout_normalizer import *
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from util import *

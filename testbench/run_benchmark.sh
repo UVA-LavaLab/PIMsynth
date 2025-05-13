@@ -180,7 +180,8 @@ $PROJ_ROOT/bit_serial_compiler.py \
     --num-regs "$num_reg" \
     --output "$target" \
     --outdir "$outdir" \
-    --num-tests 10
+    --num-tests 10 \
+    --pim-mode "Analog"
 
 # Make the test
 cd "./outputs__$target"
