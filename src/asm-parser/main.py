@@ -24,6 +24,7 @@ if __name__ == "__main__":
     parser.add_argument('--output-file', '-o', type=str, required=True, help='The output C++ file.')
     parser.add_argument('--module-name', '-m', type=str, required=True, help='The name of the module to parse.')
     parser.add_argument('--output-format', '-f', type=str, required=True, help='Output format: asm or cpp.')
+    parser.add_argument('--pim-mode', '-p', type=str, default='digital', help='The PIM architecture mode (analog/digital).')
 
     # Parse the arguments
     args = parser.parse_args()

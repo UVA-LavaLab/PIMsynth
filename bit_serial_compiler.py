@@ -132,7 +132,7 @@ class bitSerialCompiler:
         parser.add_argument('--num-tests', '-n', type=int, default=100, help='Number of test cases.')
         parser.add_argument('--gen-run-sh', action='store_false', help='Generate intermediate run scripts, default true')
         parser.add_argument('--gen-bitwise', action='store_false', help='Generate bit-wise C code, default true')
-        parser.add_argument('--pim-mode', type=str, default='Digital', help='The PIM architecture mode (Analog/Digital).')
+        parser.add_argument('--pim-mode', type=str, default='digital', help='The PIM architecture mode (analog/digital).')
         return parser
 
     def parse_args(self):
