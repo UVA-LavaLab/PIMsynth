@@ -181,7 +181,7 @@ $PROJ_ROOT/bit_serial_compiler.py \
     --output "$target" \
     --outdir "$outdir" \
     --num-tests 10 \
-    --pim-mode "Analog"
+    --pim-mode "digital"
 
 # Make the test
 cd "./outputs__$target"

@@ -471,7 +471,7 @@ class bitSerialCompiler:
         asm_parser = os.path.join(script_location, 'src/asm-parser/main.py')
         asm_file = os.path.join(self.outdir, self.output + '.s')
         cpp_file = os.path.join(self.outdir, self.output + '.hpp')
-        cmd = ['python3', asm_parser, '-f', 'cpp', '-i', asm_file, '-m', self.output, '-o', cpp_file]
+        cmd = ['python3', asm_parser, '-f', 'cpp', '-i', asm_file, '-m', self.output, '-o', cpp_file, '-p', self.pim_mode]
         self.generate_run_script(cmd, self.output + '.run_asm2pim.sh')
         result = subprocess.run(cmd)
         if result.returncode != 0:

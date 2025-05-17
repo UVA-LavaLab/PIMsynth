@@ -12,7 +12,9 @@ import argparse
 import os
 from parser import *
 from asm_translator import *
-from generator import *
+from stats_generator import *
+from digital_pimeval_code_generator import *
+from analog_pimeval_code_generator import *
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from util import *
@@ -61,13 +63,17 @@ if __name__ == "__main__":
         code = "#" + stats + "\n"
         code += generator.generateCode()
     elif args.output_format == "cpp":
-        # Generate bit-serial code following PIMeval API
-        generator = PimEvalAPICodeGenerator(bitSerialAsm, args.module_name, asmTranslator.ports)
-        code = "//" + stats + "\n"
-        code += generator.generateCode()
+        generatorClassMap = {
+            "analog": PimEvalAPIAnalogCodeGenerator,
+            "digital": PimEvalAPIDigitalCodeGenerator,
+        }
+        if args.pim_mode not in generatorClassMap:
+            raise ValueError(f"Error: Unsupported PIM mode: {args.pim_mode}")
+        generatorClass = generatorClassMap[args.pim_mode]
+        codeGenerator = generatorClass(bitSerialAsm, args.module_name, asmTranslator.ports)
+        code = f"//{stats}\n" + codeGenerator.generateCode()
     else:
-        print("Error: Unknown output format.")
-        exit()
+        raise ValueError(f"Error: Unknown output format {args.output_format}")
 
     # Write the generated ASM/C++ code into a file
     writeToFile(args.output_file, code)

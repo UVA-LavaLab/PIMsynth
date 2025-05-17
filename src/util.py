@@ -37,3 +37,6 @@ def writeToFile(fileName, content):
     except Exception as e:
         print(f"Error: {e}")
 
+def concatenateListElements(lst):
+    return ', '.join(map(str, lst))
+
