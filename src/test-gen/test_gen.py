@@ -72,6 +72,7 @@ clean:
             "max": f'return (a > b)?a:b;',
             "min": f'return (a < b)?a:b;',
             "abs": f'return (a > 0)?a:-a;',
+            "not": f'return ~a;',
             "lt": f'return (a < b);',
             "gt": f'return (a > b);',
             "eq": f'return (a == b);',
