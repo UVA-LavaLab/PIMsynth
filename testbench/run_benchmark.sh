@@ -22,6 +22,7 @@ VALID_BIT_SERIAL_ISA=(
     "inv_nand"
     "inv_maj_and"
     "inv_and_xnor_mux"
+    "inv_and_xor"
 )
 
 # Define a list of valid benchmark names
