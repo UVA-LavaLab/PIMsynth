@@ -61,28 +61,6 @@ class PimEvalAPIDigitalCodeGenerator(PimEvalAPICodeGeneratorBase):
         else:
             raise ValueError(f"Invalid PIM opcode: {pimOpCode}")
 
-    def generateInstructionComment(self, instruction):
-        return f"\t// {instruction.opCode} {concatenateListElements(instruction.operandsList)} (Line: {instruction.line})\n"
-
-    def parsePort(self, portName):
-        # Split the input by underscore and extract the name and index
-        parts = portName.split('_')
-        if len(parts) >= 2 and parts[1].isdigit():
-            variableName = parts[0]
-            index = int(parts[1])  # Convert the index to an integer
-            return (variableName, index)
-        else:
-            return (portName, 0)
-
-    def formatOperand(self, operand):
-        if "temp" in operand:
-            tmpVarIndex = findTempVarIndex(operand)
-            tempObjIndex, offset = self.mapVarIndex(tmpVarIndex)
-            return f"tempObj{tempObjIndex}, {offset}"
-        else:
-            (name, index) = self.parsePort(operand)
-            return f"{name}, {index}"
-
     def generateReadInstruction(self, instruction):
         code = self.generateInstructionComment(instruction)
 
@@ -141,4 +119,9 @@ class PimEvalAPIDigitalCodeGenerator(PimEvalAPICodeGeneratorBase):
         code += f"\t{pimEvalFunctionName}({self.firstIoPort}, {self.generateLogicalInstructionOperands(instruction.operandsList)});\n\n"
         return code
 
+    def generateSpecialVariables(self):
+        return ""
+
+    def generateSpecialVariablesFreeFunctions(self):
+        return ""
 

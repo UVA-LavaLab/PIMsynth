@@ -20,12 +20,13 @@ if __name__ == "__main__":
     parser.add_argument('--module-name', '-m', type=str, required=True, help='The name of the module to parse. Format: <operation>_<datatype>, example: int_int32.')
     parser.add_argument('--output-path', '-o', type=str, required=True, help='The path where test cpp file and Makefile stored.')
     parser.add_argument('--num-tests', '-n', type=int, default=100, help='Number of test cases.')
+    parser.add_argument('--pim-mode', '-p', type=str, default='digital', help='The PIM architecture mode (analog/digital).')
 
     # Parse the arguments
     args = parser.parse_args()
 
     # Test Generator ctor
-    testGenerator = TestGenerator(moduleName=args.module_name, outputPath=args.output_path, numTests=args.num_tests)
+    testGenerator = TestGenerator(moduleName=args.module_name, outputPath=args.output_path, numTests=args.num_tests, pimMode=args.pim_mode)
 
     # Generate the Makefile
     writeToFile(args.output_path + "/" + "Makefile", testGenerator.generateMakeFile())

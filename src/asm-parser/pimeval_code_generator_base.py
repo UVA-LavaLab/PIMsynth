@@ -88,9 +88,13 @@ class PimEvalAPICodeGeneratorBase:
         code = "{\n"
         code += self.generateTemporaryVariables()
         code += "\n\n"
+        code += self.generateSpecialVariables()
+        code += "\n\n"
         code += self.generateStatementsAsm()
         code += "\n"
         code += self.generateTemporaryVariablesFreeFunctions()
+        code += "\n"
+        code += self.generateSpecialVariablesFreeFunctions()
         code += "\n}\n"
         return code
 
@@ -143,6 +147,28 @@ class PimEvalAPICodeGeneratorBase:
         code = "\n".join(freeTempVariable(i) for i in range(self.numberOfTempVarObjs))
         return code
 
+    def parsePort(self, portName):
+        # Split the input by underscore and extract the name and index
+        parts = portName.split('_')
+        if len(parts) >= 2 and parts[1].isdigit():
+            variableName = parts[0]
+            index = int(parts[1])  # Convert the index to an integer
+            return (variableName, index)
+        else:
+            return (portName, 0)
+
+    def formatOperand(self, operand):
+        if "temp" in operand:
+            tmpVarIndex = findTempVarIndex(operand)
+            tempObjIndex, offset = self.mapVarIndex(tmpVarIndex)
+            return f"tempObj{tempObjIndex}, {offset}"
+        else:
+            (name, index) = self.parsePort(operand)
+            return f"{name}, {index}"
+
+    def generateInstructionComment(self, instruction):
+        return f"\t// {instruction.opCode} {concatenateListElements(instruction.operandsList)} (Line: {instruction.line})\n"
+
     def generateReadInstruction(self, instruction):
         raise NotImplementedError("Error: Subclasses must implement this method.")
 
@@ -150,6 +176,12 @@ class PimEvalAPICodeGeneratorBase:
         raise NotImplementedError("Error: Subclasses must implement this method.")
 
     def generateLogicInstruction(self, instruction):
+        raise NotImplementedError("Error: Subclasses must implement this method.")
+
+    def generateSpecialVariables(self):
+        raise NotImplementedError("Error: Subclasses must implement this method.")
+
+    def generateSpecialVariablesFreeFunctions(self):
         raise NotImplementedError("Error: Subclasses must implement this method.")
 
     def generateStatementsAsm(self):

@@ -8,10 +8,11 @@ Date: 2025-04-05
 """
 
 class TestGenerator:
-    def __init__(self, moduleName, outputPath, numTests):
+    def __init__(self, moduleName, outputPath, numTests, pimMode = "digital"):
         self.moduleName = moduleName
         self.outputPath = outputPath
         self.numTests = numTests
+        self.pimMode = pimMode
         self.arch, self.numRegs, self.operator, self.dataType = self.splitModuleName(self.moduleName)
 
     def splitModuleName(self, name):
@@ -194,8 +195,10 @@ clean:
 
     def getPimAllocStr(self):
         returnStr = ""
-        for objStr in self.getPimObjList():
-            returnStr += f"PimObjId {objStr} = pimAlloc(PIM_ALLOC_V, 1, {self.getPimEvalDataType()});\n\t"
+        firstObjStr = self.getPimObjList()[0]
+        returnStr += f"PimObjId {firstObjStr} = pimAlloc(PIM_ALLOC_V, 1, {self.getPimEvalDataType()});\n\t"
+        for objStr in self.getPimObjList()[1:]:
+            returnStr += f"PimObjId {objStr} = pimAllocAssociated({firstObjStr}, {self.getPimEvalDataType()});\n\t"
         return returnStr
 
     def getRandGenStr(self):
@@ -223,6 +226,10 @@ clean:
         randGenStr = self.getRandGenStr()
         pimFreeStr = self.getPimFreeStr()
 
+        if self.pimMode == "analog":
+            pimDevice = "PIM_DEIVE_BITSIMD_V"
+        else:
+            pimDevice = "PIM_DEIVE_SIMDRAM"
         testFileStr = f"""
 #include <iostream>
 #include <cstdlib>
@@ -264,7 +271,6 @@ int main() {{
   std::srand(static_cast<unsigned int>(std::time(nullptr)));
 
   // Initialize PIM device
-  //PimStatus status = pimCreateDeviceFromConfig(PIM_DEVICE_BITSIMD_V, nullptr);
   PimStatus status = pimCreateDevice(PIM_DEVICE_BITSIMD_V, 1, 1, 2, 1024, 1024);
   if (status != PIM_OK) {{
       std::cerr << "Error: Failed to create PIM device with default config" << std::endl;
@@ -273,7 +279,7 @@ int main() {{
 
   // Allocate PIM objects for the 32-bit input/output ports with element size = 1
   {pimAllocStr}
-  PimObjId resultPim = pimAlloc(PIM_ALLOC_V, 1, {self.getPimEvalDataType()});
+  PimObjId resultPim = pimAllocAssociated(aPim, {self.getPimEvalDataType()});
 
   // Run random tests
   int testNumber = 1;
