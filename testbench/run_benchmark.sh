@@ -48,7 +48,7 @@ VALID_BENCHMARKS=(
     "max_uint8" "max_uint16" "max_uint32" "max_uint64"
     "popcount_int8" "popcount_int16" "popcount_int32" "popcount_int64"
     "add_sub_int32"
-    "aes_sbox" "aes_inverse_sbox"
+    "aes_sbox" "aes_inverse_sbox" "aes_sbox_usuba"
 )
 
 # Function to display valid bit-serial ISA
