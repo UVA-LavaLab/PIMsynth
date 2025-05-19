@@ -2,27 +2,27 @@
 // deyuan, 05/19/2025
 
 module aes_sbox_usuba (
-    input  wire [7:0] U,
+    input  wire [7:0] A,
     output wire [7:0] S
 );
 
-wire y14__ = U[3] ^ U[5];
-wire y13__ = U[0] ^ U[6];
-wire y9__  = U[0] ^ U[3];
-wire y8__  = U[0] ^ U[5];
-wire t0__  = U[1] ^ U[2];
+wire y14__ = A[3] ^ A[5];
+wire y13__ = A[0] ^ A[6];
+wire y9__  = A[0] ^ A[3];
+wire y8__  = A[0] ^ A[5];
+wire t0__  = A[1] ^ A[2];
 wire y12__ = y13__ ^ y14__;
-wire y1__  = t0__ ^ U[7];
-wire t1__  = U[4] ^ y12__;
-wire y4__  = y1__ ^ U[3];
-wire y2__  = y1__ ^ U[0];
-wire y5__  = y1__ ^ U[6];
-wire y15__ = t1__ ^ U[5];
-wire y20__ = t1__ ^ U[1];
-wire t5__  = y4__ & U[7];
+wire y1__  = t0__ ^ A[7];
+wire t1__  = A[4] ^ y12__;
+wire y4__  = y1__ ^ A[3];
+wire y2__  = y1__ ^ A[0];
+wire y5__  = y1__ ^ A[6];
+wire y15__ = t1__ ^ A[5];
+wire y20__ = t1__ ^ A[1];
+wire t5__  = y4__ & A[7];
 wire y3__  = y5__ ^ y8__;
 wire t8__  = y5__ & y1__;
-wire y6__  = y15__ ^ U[7];
+wire y6__  = y15__ ^ A[7];
 wire y10__ = y15__ ^ t0__;
 wire t2__  = y12__ & y15__;
 wire y11__ = y20__ ^ y9__;
@@ -30,7 +30,7 @@ wire t3__  = y3__ & y6__;
 wire y19__ = y10__ ^ y8__;
 wire t15__ = y8__ & y10__;
 wire t6__  = t5__ ^ t2__;
-wire y7__  = U[7] ^ y11__;
+wire y7__  = A[7] ^ y11__;
 wire y17__ = y10__ ^ y11__;
 wire y16__ = t0__ ^ y11__;
 wire t12__ = y9__ & y11__;
@@ -38,7 +38,7 @@ wire t4__  = t3__ ^ t2__;
 wire t10__ = y2__ & y7__;
 wire t13__ = y14__ & y17__;
 wire y21__ = y13__ ^ y16__;
-wire y18__ = U[0] ^ y16__;
+wire y18__ = A[0] ^ y16__;
 wire t7__  = y13__ & y16__;
 wire t16__ = t15__ ^ t12__;
 wire t17__ = t4__ ^ y20__;
@@ -66,7 +66,7 @@ wire z14__ = t29__ & y2__;
 wire t34__ = t23__ ^ t33__;
 wire t35__ = t27__ ^ t33__;
 wire t42__ = t29__ ^ t33__;
-wire z2__  = t33__ & U[7];
+wire z2__  = t33__ & A[7];
 wire z11__ = t33__ & y4__;
 wire t36__ = t24__ & t35__;
 wire z6__  = t42__ & y11__;
