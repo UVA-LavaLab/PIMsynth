@@ -1,6 +1,6 @@
 # Compiler and flags
 CXX = g++
-CXXFLAGS = -I$(LIB_PIMEVAL_PATH)/include -I./outputs -I../ -g # Path to header files
+CXXFLAGS = -I$(LIB_PIMEVAL_PATH)/include -I./outputs -I../ # Path to header files
 LDFLAGS = -L$(LIB_PIMEVAL_PATH)/lib -l:libpimeval.a # Path to static library and linking
 
 # Target executable

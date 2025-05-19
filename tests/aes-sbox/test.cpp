@@ -62,8 +62,8 @@ void runTest(int testNumber, uint8_t a, PimObjId aPim, PimObjId resultPim) {
     if (pimResult != expectedResult) {
         // Print all inputs and outputs if there is a mismatch
         std::cerr << "Error: Test " << testNumber << " failed!" << std::endl;
-        std::cerr << "  Input a = " << a << std::endl;
-        std::cerr << "  Expected result = " << expectedResult << ", PIM result = " << pimResult << std::endl;
+        std::cerr << "  Input a = " << (int)a << std::endl;
+        std::cerr << "  Expected result = " << (int)expectedResult << ", PIM result = " << (int)pimResult << std::endl;
     } else {
         std::cout << "Info: Test " << testNumber << " passed!" << std::endl;
     }
@@ -82,7 +82,7 @@ int main() {
 
     // Allocate PIM objects for the 32-bit input/output ports with element size = 1
     PimObjId aPim = pimAlloc(PIM_ALLOC_V, 1, PIM_UINT8);
-    PimObjId resultPim = pimAlloc(PIM_ALLOC_V, 1, PIM_UINT8);
+    PimObjId resultPim = pimAllocAssociated(aPim, PIM_UINT8);
 
     // Run random tests
     int testNumber = 1;
