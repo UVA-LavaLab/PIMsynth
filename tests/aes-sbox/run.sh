@@ -9,7 +9,7 @@ fi
 
 verilog=../../src-verilog/benchmarks/aes_sbox_usuba.v
 
-../../apptainer-run.sh python3 ../../bit_serial_compiler.py \
+python3 ../../bit_serial_compiler.py \
     --verilog $verilog --genlib $genlib --outdir outputs --num-regs 4 --to-stage pim
 
 make clean
