@@ -105,7 +105,7 @@ class Dag:
         self.signalToGateOutput = {}
 
     def addGate(self, gateNode: GateNode):
-        self.graph.add_node(gateNode, label=gateNode.type)
+        self.graph.add_node(gateNode, label=gateNode.id)
         # For each input, if it was output by another gate, create an edge
         for inputSignal in gateNode.inputs:
             if inputSignal in self.signalToGateOutput:

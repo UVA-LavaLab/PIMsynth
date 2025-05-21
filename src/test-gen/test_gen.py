@@ -17,10 +17,10 @@ class TestGenerator:
 
     def splitModuleName(self, name):
         parts = name.split('__')
-        if len(parts) != 3:
+        if len(parts) != 4:
             raise ValueError(f"Invalid format: '{name}'. Expected format 'operation_datatype'.")
-        arch, numRegs = parts[:2]
-        operator, dataType = parts[2].split('_')
+        arch, numRegs, pimMode = parts[:3]
+        operator, dataType = parts[3].split('_')
         return arch, numRegs, operator, dataType
 
     def generateMakeFile(self):

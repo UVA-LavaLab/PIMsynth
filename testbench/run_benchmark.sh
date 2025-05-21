@@ -51,6 +51,11 @@ VALID_BENCHMARKS=(
     "aes_sbox" "aes_inverse_sbox" "aes_sbox_usuba"
 )
 
+# Define a list of valid PIM modes
+VALID_PIM_MODES=(
+    "digital" "analog"
+)
+
 # Function to display valid bit-serial ISA
 show_valid_bit_serial_isa() {
     echo "Valid bit-serial ISA: ${VALID_BIT_SERIAL_ISA[*]}"
@@ -68,12 +73,12 @@ is_valid_bit_serial_isa() {
 
 # Function to display valid num_reg values
 show_valid_num_reg() {
-    echo "Valid num_reg values: 2 - 19"
+    echo "Valid num_reg values: 2 - 14"
 }
 
 # Check if the provided num_reg value is valid
 is_valid_num_reg() {
-    if [[ "$1" =~ ^[2-9]$|^1[0-9]$ ]]; then
+    if [[ "$1" =~ ^[2-9]$|^1[0-4]$ ]]; then
         return 0
     else
         return 1
@@ -83,6 +88,21 @@ is_valid_num_reg() {
 # Function to display valid benchmarks
 show_valid_benchmarks() {
     echo "Valid benchmark names: ${VALID_BENCHMARKS[*]}"
+}
+
+# Function to display valid PIM modes
+show_valid_pim_modes() {
+    echo "Valid PIM modes: ${VALID_PIM_MODES[*]}"
+}
+
+# Check if the provided PIM mode is valid
+is_valid_pim_mode() {
+    for benchmark in "${VALID_PIM_MODES[@]}"; do
+        if [ "$1" == "$pim_mode" ]; then
+            return 0
+        fi
+    done
+    return 1
 }
 
 # Check if the provided benchmark name is valid
@@ -95,17 +115,19 @@ is_valid_benchmark() {
     return 1
 }
 
-if [ "$#" -ne 3 ]; then
+if [ "$#" -ne 4 ]; then
     echo "Usage: $0 <bit_serial_isa> <num_reg> <benchmark_name>"
     show_valid_bit_serial_isa
     show_valid_num_reg
+    show_valid_pim_modes
     show_valid_benchmarks
     exit 0
 fi
 
 bit_serial_isa="$1"
 num_reg="$2"
-benchmark_name="$3"
+pim_mode="$3"
+benchmark_name="$4"
 
 if ! is_valid_bit_serial_isa $bit_serial_isa; then
     echo "Error: Invalid bit-serial ISA name '$bit_serial_isa'."
@@ -116,6 +138,12 @@ fi
 if ! is_valid_num_reg $num_reg; then
     echo "Error: Invalid num_reg value '$num_reg'."
     show_valid_num_reg
+    exit 1
+fi
+
+if ! is_valid_pim_mode $pim_mode; then
+    echo "Error: Invalid pim mode '$pim_mode'."
+    show_valid_pim_modes
     exit 1
 fi
 
@@ -134,7 +162,7 @@ if [ ! -f "$genlib_file" ]; then
     exit 1
 fi
 
-target="${bit_serial_isa}__${num_reg}__${benchmark_name}"
+target="${bit_serial_isa}__${num_reg}__${pim_mode}__${benchmark_name}"
 outdir="$SCRIPT_DIR/outputs__$target"
 
 # Delete the output directory if it already exists
@@ -151,6 +179,7 @@ echo "==========================="
 echo "Bit-Serial PIM Benchmark"
 echo "GenLib File: $genlib_file"
 echo "NumReg: $num_reg"
+echo "PIM Mode: $pim_mode"
 echo "Benchmark Name: $benchmark_name"
 echo "Output Directory: $outdir"
 echo "==========================="
@@ -182,7 +211,7 @@ $PROJ_ROOT/bit_serial_compiler.py \
     --output "$target" \
     --outdir "$outdir" \
     --num-tests 10 \
-    --pim-mode "digital"
+    --pim-mode "$pim_mode"
 
 # Make the test
 cd "./outputs__$target"

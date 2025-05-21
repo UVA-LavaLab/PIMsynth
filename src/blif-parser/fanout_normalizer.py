@@ -29,11 +29,7 @@ class FanoutNormalizer(DagTransformer):
             if producer is None:
                 continue
 
-            # Preserve first consumer as-is, clone for the rest
-            originalConsumer = consumers[0]
-            remainingConsumers = consumers[1:]
-
-            self.insertCopyNodes(dag, signal, producer, remainingConsumers)
+            self.insertCopyNodes(dag, signal, producer, consumers)
 
         return dag
 
