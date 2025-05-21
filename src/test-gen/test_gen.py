@@ -288,8 +288,10 @@ int main() {{
   for (int t = 0; t < numTests; ++t) {{
       {randGenStr}
 
+      pimResetStats();
       runTest(testNumber++, {inputsStr}, {pimObjsStr}, resultPim);
   }}
+  pimShowStats();
 
   // Clean up and free allocated resources
   {pimFreeStr}
