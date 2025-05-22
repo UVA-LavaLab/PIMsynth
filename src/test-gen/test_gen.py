@@ -278,7 +278,7 @@ int main() {{
   std::srand(static_cast<unsigned int>(std::time(nullptr)));
 
   // Initialize PIM device
-  PimStatus status = pimCreateDevice(PIM_DEVICE_BITSIMD_V, 1, 1, 2, 1024, 1024);
+  PimStatus status = pimCreateDevice({pimDevice}, 1, 1, 2, 1024, 1024);
   if (status != PIM_OK) {{
       std::cerr << "Error: Failed to create PIM device with default config" << std::endl;
       return -1;
