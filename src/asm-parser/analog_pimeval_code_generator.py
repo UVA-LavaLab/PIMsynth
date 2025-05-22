@@ -102,7 +102,10 @@ class PimEvalAPIAnalogCodeGenerator(PimEvalAPICodeGeneratorBase):
         if not (instruction.opCode == "mv"):
             return None
         code = self.generateInstructionComment(instruction)
-        code += f"\tpimOpAAP(1, 1, {self.mapPimAsmRegToPimEvalAPI(instruction.operandsList[1])}, {self.mapPimAsmRegToPimEvalAPI(instruction.operandsList[0])});\n\n"
+        if instruction.operandsList[0] == instruction.operandsList[1]:
+            pass
+        else:
+            code += f"\tpimOpAAP(1, 1, {self.mapPimAsmRegToPimEvalAPI(instruction.operandsList[1])}, {self.mapPimAsmRegToPimEvalAPI(instruction.operandsList[0])});\n\n"
         return code
 
     def generateLogicInstruction(self, instruction):
