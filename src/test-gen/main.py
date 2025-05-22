@@ -34,5 +34,7 @@ if __name__ == "__main__":
     # Generate the test CPP file
     writeToFile(args.output_path + "/" + args.module_name + ".test.cpp", testGenerator.generatCppTestFile())
 
+    # Generate the bitwise test C file
+    writeToFile(args.output_path + "/" + args.module_name + ".test_bitwise.c", testGenerator.generatBitwiseTestFile())
 
 
