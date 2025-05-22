@@ -219,5 +219,6 @@ make
 
 # Run the test
 ./${target}.test.out
+./${target}.test_bitwise.out
 cd ..
 
