@@ -66,10 +66,10 @@ if __name__ == "__main__":
         generator = Generator(parser)
         code = generator.generateCode()
     elif args.output_format == 'asm':
-        generator = GeneratorAsm(parser, args.num_regs, args.module_name)
+        generator = GeneratorAsm(parser, args.num_regs, args.module_name, args.pim_mode)
         code = generator.generateCode()
     elif args.output_format == 'bitwise':
-        generator = GeneratorBitwise(parser, args.num_regs, args.module_name)
+        generator = GeneratorBitwise(parser, args.num_regs, args.module_name, args.pim_mode)
         code = generator.generateCode()
 
     # Write the generated C++ code into a file

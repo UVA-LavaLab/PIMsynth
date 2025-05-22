@@ -4,17 +4,18 @@
 File: generator_bitwise.py
 Description: C code generator using bit-wise operations
 Author: Mohammadhosein Gholamrezaei <uab9qt@virginia.edu> - BLIF-to-C parser generator code framework
-Author: Deyuan Guo <guodeyuan@gmail.com> - Align C code generation with asm generation
+Author: Deyuan Guo <guodeyuan@gmail.com> - Bit-wise C code generation for digital and analog PIM
 Date: 2025-04-20
 """
 
 class GeneratorBitwise():
-    def __init__(self, parser, num_regs, func_name):
+    def __init__(self, parser, num_regs, func_name, pim_mode):
         """ Init """
         self.parser = parser
         self.dataType = "int"
         self.num_regs = num_regs
         self.func_name = func_name
+        self.pim_mode = pim_mode
 
     def sanitizeToken(self, token):
         """ Sanitize token name to be used as a C variable name
@@ -87,12 +88,17 @@ class GeneratorBitwise():
 
     def getBitwiseInstructions(self):
         """ Return a dictionary that maps logic gate names to bit-wise code generation functions """
+        if self.pim_mode == "digital":
+            return self.getBitwiseInstructionsDigital()
+        elif self.pim_mode == "analog":
+            return self.getBitwiseInstructionsAnalog()
+        else:
+            raise Exception(f"Error: Unknown pim mode {self.pim_mode}")
+
+    def getBitwiseInstructionsDigital(self):
+        """ Return a dictionary that maps logic gate names to bit-wise code generation functions for digital PIM """
         # Note: Use ! instead of ~ for bitwise NOT to make sure result is 0 or 1
         return {
-            "copy": lambda output, inputs: (
-                f'\t// PIM_OP: copy1 %1 -> %0 \n'
-                f'\t{output} = {inputs[0]};\n'
-            ),
             "inv1": lambda output, inputs: (
                 f'\t// PIM_OP: inv1 %1 -> %0 \n'
                 f'\t{output} = !{inputs[0]};\n'
@@ -124,6 +130,36 @@ class GeneratorBitwise():
             "mux2": lambda output, inputs: ( # %0 = %1 ? %3 : %2
                 f'\t// PIM_OP: mux2 %1, %2, %3 -> %0 \n'
                 f'\t{output} = {inputs[0]} ? {inputs[2]} : {inputs[1]};\n'
+            ),
+            "maj3": lambda output, inputs: (
+                f'\t// PIM_OP: maj3 %1, %2, %3 -> %0 \n'
+                f'\t{output} = ({inputs[0]} & {inputs[1]}) | ({inputs[0]} & {inputs[2]}) | ({inputs[1]} & {inputs[2]});\n'
+            ),
+            "zero": lambda output, inputs: (
+                f'\t// PIM_OP: zero -> %0 \n'
+                f'\t{output} = 0;\n'
+            ),
+            "one": lambda output, inputs: (
+                f'\t// PIM_OP: one -> %0 \n'
+                f'\t{output} = 1;\n'
+            ),
+        }
+
+    def getBitwiseInstructionsAnalog(self):
+        """ Return a dictionary that maps logic gate names to bit-wise code generation functions for analog PIM """
+        # Note: Use ! instead of ~ for bitwise NOT to make sure result is 0 or 1
+        return {
+            "copy": lambda output, inputs: (
+                f'\t// PIM_OP: copy1 %1 -> %0 \n'
+                f'\t{output} = {inputs[0]};\n'
+            ),
+            "inv1": lambda output, inputs: (
+                f'\t// PIM_OP: inv1 %1 -> %0 \n'
+                f'\t{output} = !{inputs[0]};\n'
+            ),
+            "and2": lambda output, inputs: (
+                f'\t// PIM_OP: and2 %1, %2 -> %0 \n'
+                f'\t{output} = {inputs[0]} & {inputs[1]};\n'
             ),
             "maj3": lambda output, inputs: (
                 f'\t// PIM_OP: maj3 %1, %2, %3 -> %0 \n'

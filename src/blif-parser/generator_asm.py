@@ -6,16 +6,18 @@ Description: Generator for C with RISC-V inline assembly
 Author: Mohammadhosein Gholamrezaei <uab9qt@virginia.edu> - BLIF-to-C parser generator code framework
 Author: Deyuan Guo <guodeyuan@gmail.com> - Designed and implemented RISC-V inline assembly format
                                          - Support bus inputs and outputs
+                                         - Support inline assembly for analog PIM
 Date: 2024-09-17
 """
 
 class GeneratorAsm():
-    def __init__(self, parser, num_regs, func_name):
+    def __init__(self, parser, num_regs, func_name, pim_mode):
         """ Init """
         self.parser = parser
         self.dataType = "int"
         self.num_regs = num_regs
         self.func_name = func_name
+        self.pim_mode = pim_mode
 
     def sanitizeToken(self, token):
         """ Sanitize token name to be used as a C variable name
@@ -107,14 +109,18 @@ class GeneratorAsm():
 
     def getAsmInstructions(self, clobber):
         """ Return a dictionary that maps logic gate names to assembly code generation functions """
+        if self.pim_mode == "digital":
+            return self.getAsmInstructionsDigital(clobber)
+        elif self.pim_mode == "analog":
+            return self.getAsmInstructionsAnalog(clobber)
+        else:
+            raise Exception(f"Error: Unknown pim mode {self.pim_mode}")
+
+    def getAsmInstructionsDigital(self, clobber):
+        """ Return a dictionary that maps logic gate names to assembly code generation functions for digital PIM """
         # =r: output register, r: input register
         # return a single line assembly code. Be careful with " and \\n
         return {
-            "copy": lambda output, inputs: (
-                f'"#PIM_OP: copy1 %1 -> %0 \\n'
-                f' addi %0, %1, 0'
-                f'" : "=r" ({output}) : "r" ({inputs[0]}) : {clobber}'
-            ),
             "inv1": lambda output, inputs: (
                 f'"#PIM_OP: inv1 %1 -> %0 \\n'
                 f' not %0, %1'
@@ -160,6 +166,48 @@ class GeneratorAsm():
                 f' and s3, %1, %3 \\n'
                 f' or %0, s2, s3'
                 f'" : "=r" ({output}) : "r" ({inputs[0]}), "r" ({inputs[1]}), "r" ({inputs[2]}) : {clobber}'
+            ),
+            "maj3": lambda output, inputs: (
+                f'"#PIM_OP: maj3 %1, %2, %3 -> %0 \\n'
+                f' and s1, %1, %2 \\n'
+                f' and s2, %2, %3 \\n'
+                f' and s3, %1, %3 \\n'
+                f' or s1, s1, s2 \\n'
+                f' or %0, s1, s3'
+                f'" : "=r" ({output}) : "r" ({inputs[0]}), "r" ({inputs[1]}), "r" ({inputs[2]}) : {clobber}'
+            ),
+            "zero": lambda output, inputs: (
+                f'"#PIM_OP: zero -> %0 \\n'
+                f' xor %0, %0, %0'
+                f'" : "=r" ({output}) : "r" ({output}) : {clobber}'
+            ),
+            "one": lambda output, inputs: (
+                f'"#PIM_OP: one -> %0 \\n'
+                f' xor %0, %0, %0 \\n'
+                f' not %0, %0'
+                f'" : "=r" ({output}) : "r" ({output}) : {clobber}'
+            ),
+        }
+
+    def getAsmInstructionsAnalog(self, clobber):
+        """ Return a dictionary that maps logic gate names to assembly code generation functions for analog PIM """
+        # =r: output register, r: input register
+        # return a single line assembly code. Be careful with " and \\n
+        return {
+            "copy": lambda output, inputs: (
+                f'"#PIM_OP: copy1 %1 -> %0 \\n'
+                f' addi %0, %1, 0'
+                f'" : "=r" ({output}) : "r" ({inputs[0]}) : {clobber}'
+            ),
+            "inv1": lambda output, inputs: (
+                f'"#PIM_OP: inv1 %1 -> %0 \\n'
+                f' not %0, %1'
+                f'" : "=r" ({output}) : "r" ({inputs[0]}) : {clobber}'
+            ),
+            "and2": lambda output, inputs: (
+                f'"#PIM_OP: and2 %1, %2 -> %0 \\n'
+                f' and %0, %1, %2'
+                f'" : "=r" ({output}) : "r" ({inputs[0]}), "r" ({inputs[1]}) : {clobber}'
             ),
             "maj3": lambda output, inputs: (
                 f'"#PIM_OP: maj3 %1, %2, %3 -> %0 \\n'
