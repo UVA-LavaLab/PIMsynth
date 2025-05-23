@@ -159,11 +159,11 @@ class GeneratorBitwise():
             ),
             "and2": lambda output, inputs: (
                 f'\t// PIM_OP: and2 %1, %2 -> %0 \n'
-                f'\t{output} = {inputs[0]} & {inputs[1]};\n'
+                f'\t{output} = {inputs[0]} = {inputs[1]} = {inputs[0]} & {inputs[1]};\n'
             ),
             "maj3": lambda output, inputs: (
                 f'\t// PIM_OP: maj3 %1, %2, %3 -> %0 \n'
-                f'\t{output} = ({inputs[0]} & {inputs[1]}) | ({inputs[0]} & {inputs[2]}) | ({inputs[1]} & {inputs[2]});\n'
+                f'\t{output} = {inputs[0]} = {inputs[1]} = {inputs[2]} = ({inputs[0]} & {inputs[1]}) | ({inputs[0]} & {inputs[2]}) | ({inputs[1]} & {inputs[2]});\n'
             ),
             "zero": lambda output, inputs: (
                 f'\t// PIM_OP: zero -> %0 \n'
