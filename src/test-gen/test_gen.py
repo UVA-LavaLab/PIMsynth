@@ -80,6 +80,8 @@ clean:
         lookupDict = {
             "int1" : "int8_t",
             "int2" : "int8_t",
+            "int3" : "int8_t",
+            "int4" : "int8_t",
             "int8" : "int8_t",
             "int16" : "int16_t",
             "int32" : "int32_t",
@@ -95,6 +97,8 @@ clean:
         lookupDict = {
             "int1" : 1,
             "int2" : 2,
+            "int3" : 3,
+            "int4" : 4,
             "int8" : 8,
             "int16" : 16,
             "int32" : 32,
@@ -110,6 +114,8 @@ clean:
         lookupDict = {
             "int1" : "PIM_INT8",
             "int2" : "PIM_INT8",
+            "int3" : "PIM_INT8",
+            "int4" : "PIM_INT8",
             "int8" : "PIM_INT8",
             "int16" : "PIM_INT16",
             "int32" : "PIM_INT32",

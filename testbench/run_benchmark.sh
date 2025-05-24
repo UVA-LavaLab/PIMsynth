@@ -230,11 +230,17 @@ $PROJ_ROOT/bit_serial_compiler.py \
     --pim-mode "$pim_mode"
 
 # Make the test
-cd "./outputs__$target"
+cd $outdir
 make
 
 # Run the test
 ./${target}.test.out
 ./${target}.test_bitwise.out
 cd ..
+
+# Final outputs for debugging
+echo "################################################################################"
+echo "Output Directory:         $outdir"
+echo "Output Directory Name:    outputs__$target"
+echo "################################################################################"
 
