@@ -4,6 +4,7 @@
 File: asm_translator.py
 Description: Translates RISCV assembly code to bit-serial assembly code
 Author: Mohammadhosein Gholamrezaei <uab9qt@virginia.edu>
+Author: Deyuan Guo <guodeyuan@gmail.com> - Analog PIM support
 Date: 2024-09-27
 """
 
@@ -354,9 +355,9 @@ class AsmTranslator:
         firstRiscvInstruction = self.riscvStatementList[statementIndex + 1]
         line = firstRiscvInstruction.line
         twoOpInstrcutions = ["xnor", "nand", "nor"] # case 1: two-operand instructions, for example xnor
-        threeOpInstrcutions1 = ["maj3"] # case 2: three-operand instructions, for example maj3
+        threeOpInstrcutions1 = ["maj3", 'maj3_a'] # case 2: three-operand instructions, for example maj3
         threeOpInstrcutions2 = ["mux2"] # case 3: three-operand instructions, for example mux2
-        if len(instructionSequence) == 1:
+        if len(instructionSequence) == 1 or newOpCode in ['and_a', 'or_a']:
             self.appendBitSerialInstruction(newOpCode, instructionSequence[0].operandsList, line)
         elif newOpCode in twoOpInstrcutions:
             sourceOperandList = firstRiscvInstruction.operandsList[1:]
@@ -425,6 +426,9 @@ class AsmTranslator:
             ('or', 'not'): 'nor',
             ('and', 'and', 'and', 'or', 'or'): 'maj3',
             ('not', 'and', 'and', 'or'): 'mux2',
+            ('and', 'mv', 'mv'): 'and_a',  # analog
+            ('or', 'mv', 'mv'): 'or_a',  # analog
+            ('and', 'and', 'and', 'or', 'or', 'mv', 'mv', 'mv'): 'maj3_a',  # analog
         }
         mappedOpcodes = []  # To store the mapped opcodes
         i = 0

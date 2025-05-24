@@ -196,7 +196,7 @@ class GeneratorAsm():
         return {
             "copy": lambda output, inputs: (
                 f'"#PIM_OP: copy1 %1 -> %0 \\n'
-                f' addi %0, %1, 0'
+                f' mv %0, %1'
                 f'" : "=r" ({output}) : "r" ({inputs[0]}) : {clobber}'
             ),
             "inv1": lambda output, inputs: (
@@ -206,13 +206,17 @@ class GeneratorAsm():
             ),
             "and2": lambda output, inputs: (
                 f'"#PIM_OP: and2 %1, %2 -> %0 \\n'
-                f' and %0, %1, %2'
-                f'" : "=r" ({output}) : "r" ({inputs[0]}), "r" ({inputs[1]}) : {clobber}'
+                f' and %0, %1, %2 \\n'
+                f' mv %1, %0 \\n'
+                f' mv %2, %0'
+                f'" : "=r" ({output}), "+r" ({inputs[0]}), "+r" ({inputs[1]}) : : {clobber}'
             ),
             "or2": lambda output, inputs: (
                 f'"#PIM_OP: or2 %1, %2 -> %0 \\n'
-                f' or %0, %1, %2'
-                f'" : "=r" ({output}) : "r" ({inputs[0]}), "r" ({inputs[1]}) : {clobber}'
+                f' or %0, %1, %2 \\n'
+                f' mv %1, %0 \\n'
+                f' mv %2, %0'
+                f'" : "=r" ({output}), "+r" ({inputs[0]}), "+r" ({inputs[1]}) : : {clobber}'
             ),
             "maj3": lambda output, inputs: (
                 f'"#PIM_OP: maj3 %1, %2, %3 -> %0 \\n'
@@ -220,8 +224,11 @@ class GeneratorAsm():
                 f' and s2, %2, %3 \\n'
                 f' and s3, %1, %3 \\n'
                 f' or s1, s1, s2 \\n'
-                f' or %0, s1, s3'
-                f'" : "=r" ({output}) : "r" ({inputs[0]}), "r" ({inputs[1]}), "r" ({inputs[2]}) : {clobber}'
+                f' or %0, s1, s3 \\n'
+                f' mv %1, %0 \\n'
+                f' mv %2, %0 \\n'
+                f' mv %3, %0'
+                f'" : "=r" ({output}), "+r" ({inputs[0]}), "+r" ({inputs[1]}), "+r" ({inputs[2]}) : : {clobber}'
             ),
             "zero": lambda output, inputs: (
                 f'"#PIM_OP: zero -> %0 \\n'

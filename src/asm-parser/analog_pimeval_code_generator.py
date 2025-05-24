@@ -4,6 +4,7 @@
 File: analog_pimeval_code_generator.py
 Description: bit-serial code generator in PIMeval API for the analog PIM
 Author: Mohammadhosein Gholamrezaei <uab9qt@virginia.edu> - RISCV-to-BITSERIAL code generator framework
+Author: Deyuan Guo <guodeyuan@gmail.com> - Analog PIM support
 Date: 2025-05-17
 """
 
@@ -67,7 +68,7 @@ class PimEvalAPIAnalogCodeGenerator(PimEvalAPICodeGeneratorBase):
         return code
 
     def handleAndInstruction(self, instruction):
-        if not (instruction.opCode == "and"):
+        if not (instruction.opCode == "and_a"):
             return None
         code = self.generateInstructionComment(instruction)
         code += f"\tpimOpAAP(1, 1, {self.zero}, 0, {self.regFile}, 14);\n"
@@ -78,7 +79,7 @@ class PimEvalAPIAnalogCodeGenerator(PimEvalAPICodeGeneratorBase):
         return code
 
     def handleOrInstruction(self, instruction):
-        if not (instruction.opCode == "or"):
+        if not (instruction.opCode == "or_a"):
             return None
         code = self.generateInstructionComment(instruction)
         code += f"\tpimOpAAP(1, 1, {self.one}, 0, {self.regFile}, 14);\n"
@@ -89,7 +90,7 @@ class PimEvalAPIAnalogCodeGenerator(PimEvalAPICodeGeneratorBase):
         return code
 
     def handleMajInstruction(self, instruction):
-        if not (instruction.opCode == "maj3"):
+        if not (instruction.opCode == "maj3_a"):
             return None
         code = self.generateInstructionComment(instruction)
         if instruction.operandsList[0] in instruction.operandsList[1:]:
