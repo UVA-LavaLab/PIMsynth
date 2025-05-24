@@ -11,8 +11,10 @@
 SCRIPT_DIR="$(dirname "${BASH_SOURCE[0]}")"
 PROJ_ROOT=$(git rev-parse --show-toplevel)
 
-# Note: Copy this script to another directory and configure VERILOG_DIR for testing
-VERILOG_DIR=$PROJ_ROOT/src-verilog/benchmarks
+# Note: This script finds verilog inputs from below locations
+VERILOG_DIR1=.
+VERILOG_DIR2=$PROJ_ROOT/src-verilog/benchmarks
+VERILOG_DIR3=$PROJ_ROOT/src-verilog/misc
 GENLIB_DIR=$PROJ_ROOT/src-genlib
 SUBMODULE_LIST=$PROJ_ROOT/src-verilog/submodule_list.txt
 SUBMODULE_DIR=$PROJ_ROOT/src-verilog/submodules
@@ -69,7 +71,9 @@ is_valid_bit_serial_isa() {
             return 0
         fi
     done
-    return 1
+    # allow untracked bit-serial ISA
+    echo "Warning: Bit-serial ISA $1 is experimental."
+    return 0
 }
 
 # Function to display valid num_reg values
@@ -113,11 +117,13 @@ is_valid_benchmark() {
             return 0
         fi
     done
-    return 1
+    # allow untracked verilog
+    echo "Warning: Input verilog $1 is experimental."
+    return 0
 }
 
 if [ "$#" -ne 4 ]; then
-    echo "Usage: $0 <bit_serial_isa> <num_reg> <benchmark_name>"
+    echo "Usage: $0 <bit_serial_isa> <num_reg> <digital|analog> <benchmark_name>"
     show_valid_bit_serial_isa
     show_valid_num_reg
     show_valid_pim_modes
@@ -193,16 +199,25 @@ while IFS= read -r line || [ -n "$line" ]; do
     verilog_files+=("$SUBMODULE_DIR/$line")
 done < "$SUBMODULE_LIST"
 
-# Add top-level benchmark file
-verilog_files+=("$VERILOG_DIR/${benchmark_name}.v")
-
-# Check if verilog files exist
+# Check if verilog submodule files exist
 for verilog_file in "${verilog_files[@]}"; do
     if [ ! -f "$verilog_file" ]; then
-        echo "Error: Verilog file '$verilog_file' not found."
+        echo "Error: Verilog submodule file '$verilog_file' not found."
         exit 1
     fi
 done
+
+# Add top-level benchmark file
+if [ -f "$VERILOG_DIR1/${benchmark_name}.v" ]; then
+    verilog_files+=("$VERILOG_DIR1/${benchmark_name}.v")
+elif [ -f "$VERILOG_DIR2/${benchmark_name}.v" ]; then
+    verilog_files+=("$VERILOG_DIR2/${benchmark_name}.v")
+elif [ -f "$VERILOG_DIR3/${benchmark_name}.v" ]; then
+    verilog_files+=("$VERILOG_DIR3/${benchmark_name}.v")
+else
+    echo "Error: Top-level Verilog file '$benchmark_name.v' not found in any of the expected directories."
+    exit 1
+fi
 
 # Call the bit-serial compiler
 $PROJ_ROOT/bit_serial_compiler.py \
