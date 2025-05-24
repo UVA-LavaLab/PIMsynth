@@ -15,6 +15,7 @@ from generator import *
 from generator_asm import *
 from generator_bitwise import *
 from fanout_normalizer import *
+from input_copy_inserter import *
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from util import *
@@ -44,11 +45,14 @@ if __name__ == "__main__":
     # Transform the DAG
     if args.pim_mode == "analog":
         print("Info: Generate code for analog PIM.")
+        inputCopyInserter = InputCopyInserter()
+        parser.dag = inputCopyInserter.apply(parser.dag)
+        parser.wireList.extend(inputCopyInserter.newWires)
+
         fanoutNormalizer = FanoutNormalizer()
         parser.dag = fanoutNormalizer.apply(parser.dag)
-        parser.gatesList = parser.dag.getTopologicallySortedGates()
         parser.wireList.extend(fanoutNormalizer.newWires)
-
+        parser.gatesList = parser.dag.getTopologicallySortedGates()
 
     # Print the module
     # print("Info: Module name = ", parser.moduleName)
