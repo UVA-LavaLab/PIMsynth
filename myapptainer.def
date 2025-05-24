@@ -15,10 +15,8 @@ From: ubuntu:24.04
         build-essential \
         cmake \
         git \
-        python3 \
-        python3-pip \
-        python3-lark \
-        python3-networkx \
+        python3-full \
+        python3-venv \
         clang \
         libtinfo-dev \
         zlib1g-dev \
@@ -40,6 +38,16 @@ From: ubuntu:24.04
         libreadline-dev gawk tcl-dev libffi-dev git \
         graphviz xdot pkg-config python3 libboost-system-dev \
         libboost-python-dev libboost-filesystem-dev zlib1g-dev
+
+    # Python requirements 
+    python3 -m venv /opt/venv
+    /opt/venv/bin/pip install lark 
+    /opt/venv/bin/pip install networkx
+    /opt/venv/bin/pip install pyvis==0.3.1
+
+%environment
+    export PATH="/opt/venv/bin:$PATH"
+    export VIRTUAL_ENV="/opt/venv"
 
 %runscript
     # apptainer run
