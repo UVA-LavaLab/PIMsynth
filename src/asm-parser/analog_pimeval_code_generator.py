@@ -77,6 +77,17 @@ class PimEvalAPIAnalogCodeGenerator(PimEvalAPICodeGeneratorBase):
             code += f"\tpimOpAAP(3, 1, {self.mapPimAsmRegToPimEvalAPI(instruction.operandsList[1])}, {self.mapPimAsmRegToPimEvalAPI(instruction.operandsList[2])}, {self.regFile}, 14, {self.mapPimAsmRegToPimEvalAPI(instruction.operandsList[0])});\n\n"
         return code
 
+    def handleOrInstruction(self, instruction):
+        if not (instruction.opCode == "or"):
+            return None
+        code = self.generateInstructionComment(instruction)
+        code += f"\tpimOpAAP(1, 1, {self.one}, 0, {self.regFile}, 14);\n"
+        if instruction.operandsList[0] in instruction.operandsList[1:]:
+            code += f"\tpimOpAP(3, {self.mapPimAsmRegToPimEvalAPI(instruction.operandsList[1])}, {self.mapPimAsmRegToPimEvalAPI(instruction.operandsList[2])}, {self.regFile}, 14);\n\n"
+        else:
+            code += f"\tpimOpAAP(3, 1, {self.mapPimAsmRegToPimEvalAPI(instruction.operandsList[1])}, {self.mapPimAsmRegToPimEvalAPI(instruction.operandsList[2])}, {self.regFile}, 14, {self.mapPimAsmRegToPimEvalAPI(instruction.operandsList[0])});\n\n"
+        return code
+
     def handleMajInstruction(self, instruction):
         if not (instruction.opCode == "maj3"):
             return None
@@ -110,6 +121,9 @@ class PimEvalAPIAnalogCodeGenerator(PimEvalAPICodeGeneratorBase):
 
     def generateLogicInstruction(self, instruction):
         code = self.handleAndInstruction(instruction)
+        if code != None:
+            return code
+        code = self.handleOrInstruction(instruction)
         if code != None:
             return code
         code = self.handleMajInstruction(instruction)

@@ -21,6 +21,7 @@ SUBMODULE_DIR=$PROJ_ROOT/src-verilog/submodules
 VALID_BIT_SERIAL_ISA=(
     "inv_nand"
     "inv_maj_and"
+    "inv_maj_and_or"
     "inv_and_xnor_mux"
     "inv_and_xor"
 )

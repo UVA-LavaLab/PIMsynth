@@ -209,6 +209,11 @@ class GeneratorAsm():
                 f' and %0, %1, %2'
                 f'" : "=r" ({output}) : "r" ({inputs[0]}), "r" ({inputs[1]}) : {clobber}'
             ),
+            "or2": lambda output, inputs: (
+                f'"#PIM_OP: or2 %1, %2 -> %0 \\n'
+                f' or %0, %1, %2'
+                f'" : "=r" ({output}) : "r" ({inputs[0]}), "r" ({inputs[1]}) : {clobber}'
+            ),
             "maj3": lambda output, inputs: (
                 f'"#PIM_OP: maj3 %1, %2, %3 -> %0 \\n'
                 f' and s1, %1, %2 \\n'
