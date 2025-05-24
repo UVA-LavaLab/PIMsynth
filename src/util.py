@@ -7,6 +7,9 @@ Author: Mohammadhosein Gholamrezaei <uab9qt@virginia.edu>
 Date: 2024-09-27
 """
 
+import json
+from networkx.readwrite import json_graph
+
 def getContent(fileName):
     try:
         with open(fileName, 'r') as file:
@@ -39,4 +42,9 @@ def writeToFile(fileName, content):
 
 def concatenateListElements(lst):
     return ', '.join(map(str, lst))
+
+def saveGraphAsJson(graph, filePath):
+    data = json_graph.node_link_data(graph)
+    with open(filePath, "w") as f:
+        json.dump(data, f, indent=2)
 

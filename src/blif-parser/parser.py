@@ -103,20 +103,23 @@ class Dag:
     def __init__(self):
         self.graph = nx.DiGraph()
         self.signalToGateOutput = {}
+        self.gateInfo = {}
 
     def addGate(self, gateNode: GateNode):
-        self.graph.add_node(gateNode, label=gateNode.id)
-        # For each input, if it was output by another gate, create an edge
+        gateId = gateNode.id
+        self.graph.add_node(gateId, type=gateNode.type, inputs=gateNode.inputs, outputs=gateNode.outputs)
+        self.gateInfo[gateId] = gateNode
+
         for inputSignal in gateNode.inputs:
             if inputSignal in self.signalToGateOutput:
-                sourceGate = self.signalToGateOutput[inputSignal]
-                self.graph.add_edge(sourceGate, gateNode)
-        # Register this gate as the source for its output signal(s)
+                sourceGateId = self.signalToGateOutput[inputSignal].id
+                self.graph.add_edge(sourceGateId, gateId)
+
         for outputSignal in gateNode.outputs:
             self.signalToGateOutput[outputSignal] = gateNode
 
     def getTopologicallySortedGates(self):
-        return list(nx.topological_sort(self.graph))
+        return [self.gateInfo[gateId] for gateId in nx.topological_sort(self.graph)]
 
 def convertTreeToDag(tree):
     dag = Dag()

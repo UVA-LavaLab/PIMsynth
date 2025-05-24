@@ -12,51 +12,51 @@ from typing import Dict, List
 from dag_transformer_base import DagTransformer
 import networkx as nx
 
+
 class FanoutNormalizer(DagTransformer):
     def __init__(self):
         self.copyCounter = 0
         self.newWires = []
 
     def apply(self, dag):
-        signalConsumers: Dict[str, List[GateNode]] = self.getSignalConsumers(dag)
-        signalProducers: Dict[str, GateNode] = self.getSignalProducers(dag)
+        signalConsumers: Dict[str, List[str]] = self.getSignalConsumers(dag)
+        signalProducers: Dict[str, str] = self.getSignalProducers(dag)
 
         for signal, consumers in signalConsumers.items():
             if len(consumers) <= 1:
                 continue
 
-            producer = signalProducers.get(signal)
-            if producer is None:
+            producerId = signalProducers.get(signal)
+            if producerId is None:
                 continue
 
-            self.insertCopyNodes(dag, signal, producer, consumers)
+            self.insertCopyNodes(dag, signal, producerId, consumers)
 
         return dag
 
-    def getSignalConsumers(self, dag) -> Dict[str, List[GateNode]]:
-        consumers: Dict[str, List[GateNode]] = {}
-        for node in dag.graph.nodes:
-            if hasattr(node, 'inputs'):
-                for signal in node.inputs:
-                    consumers.setdefault(signal, []).append(node)
+    def getSignalConsumers(self, dag) -> Dict[str, List[str]]:
+        consumers: Dict[str, List[str]] = {}
+        for gateId in dag.graph.nodes:
+            gate = dag.gateInfo[gateId]
+            for signal in gate.inputs:
+                consumers.setdefault(signal, []).append(gateId)
         return consumers
 
-    def getSignalProducers(self, dag) -> Dict[str, GateNode]:
-        producers: Dict[str, GateNode] = {}
-        for node in dag.graph.nodes:
-            if hasattr(node, 'outputs'):
-                for signal in node.outputs:
-                    producers[signal] = node
+    def getSignalProducers(self, dag) -> Dict[str, str]:
+        producers: Dict[str, str] = {}
+        for gateId in dag.graph.nodes:
+            gate = dag.gateInfo[gateId]
+            for signal in gate.outputs:
+                producers[signal] = gateId
         return producers
 
-    def insertCopyNodes(self, dag, signal: str, producer: GateNode, consumers: List[GateNode]):
-        # Identify the original consumer as the first one in the list
-        originalConsumer = consumers[0]
-        remainingConsumers = consumers[1:]
+    def insertCopyNodes(self, dag, signal: str, producerId: str, consumerIds: List[str]):
+        originalConsumerId = consumerIds[0]
+        remainingConsumerIds = consumerIds[1:]
 
-        for consumer in remainingConsumers:
-            if dag.graph.has_edge(producer, consumer):
-                dag.graph.remove_edge(producer, consumer)
+        for consumerId in remainingConsumerIds:
+            if dag.graph.has_edge(producerId, consumerId):
+                dag.graph.remove_edge(producerId, consumerId)
 
             newOutputSignal = f"{signal}_copy_{self.copyCounter}"
             copyNode = GateNode(
@@ -65,16 +65,21 @@ class FanoutNormalizer(DagTransformer):
                 inputs=[signal],
                 outputs=[newOutputSignal]
             )
-            self.newWires.append(newOutputSignal)
             self.copyCounter += 1
+            self.newWires.append(newOutputSignal)
 
-            dag.graph.add_node(copyNode, label=copyNode.type)
-            dag.graph.add_edge(producer, copyNode)        # Real data dependency
-            dag.graph.add_edge(copyNode, consumer)        # Real data dependency
-            dag.graph.add_edge(copyNode, originalConsumer)  # Fake edge to enforce topological order
+            # Add the new gate to DAG
+            dag.addGate(copyNode)
 
-            consumer.inputs = [
+            # Add proper edges
+            dag.graph.add_edge(producerId, copyNode.id)
+            dag.graph.add_edge(copyNode.id, consumerId)
+            dag.graph.add_edge(copyNode.id, originalConsumerId)  # To maintain topological order
+
+            # Update the inputs of the consumer
+            consumerGate = dag.gateInfo[consumerId]
+            consumerGate.inputs = [
                 newOutputSignal if s == signal else s
-                for s in consumer.inputs
+                for s in consumerGate.inputs
             ]
 
