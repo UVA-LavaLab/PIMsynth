@@ -46,7 +46,7 @@ def concatenateListElements(lst):
     return ', '.join(map(str, lst))
 
 def saveGraphAsJson(graph, filePath):
-    data = json_graph.node_link_data(graph)
+    data = json_graph.node_link_data(graph, edges="links")
     with open(filePath, "w") as f:
         json.dump(data, f, indent=2)
 
