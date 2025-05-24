@@ -40,15 +40,15 @@ if __name__ == "__main__":
     # Parse the circuit representation
     parser.parse(lines)
     riscvStatementList = parser.statementList
-    inputList = parser.inputList
-    outputList = parser.outputList
+    inputList = list(set(parser.inputList))
+    outputList = list(set(parser.outputList))
 
     # Transrom the riscv assembly to bit-serial assembly
     asmTranslator = AsmTranslator(riscvStatementList, inputList, outputList)
     bitSerialAsm = asmTranslator.getBitSerialAsm()
 
-#     for instruction in bitSerialAsm:
-#         print(instruction)
+    # for instruction in bitSerialAsm:
+        # print(instruction)
 
     # asmTranslator.symbolTable.printSymbols()
 

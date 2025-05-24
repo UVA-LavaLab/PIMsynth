@@ -42,7 +42,7 @@ if __name__ == "__main__":
     # Parse the circuit representation
     parser.parse(fileContent)
 
-    # saveGraphAsJson(parser.dag.graph, "dag_pre_pass.json")
+    saveGraphAsJson(parser.dag.graph, "dag_pre_pass.json")
 
     # Transform the DAG
     if args.pim_mode == "analog":
@@ -56,12 +56,12 @@ if __name__ == "__main__":
         parser.wireList.extend(fanoutNormalizer.newWires)
         parser.gatesList = parser.dag.getTopologicallySortedGates()
 
-    # saveGraphAsJson(parser.dag.graph, "dag_post_pass.json")
+    saveGraphAsJson(parser.dag.graph, "dag_post_pass.json")
 
-    # G_pre_pass = loadGraphFromJson("dag_pre_pass.json")
-    # G_post_pass = loadGraphFromJson("dag_post_pass.json")
-    # drawInteractiveCircuit(G_pre_pass, "G_pre_pass.html")
-    # drawInteractiveCircuit(G_post_pass, "G_post_pass.html")
+    G_pre_pass = loadGraphFromJson("dag_pre_pass.json")
+    G_post_pass = loadGraphFromJson("dag_post_pass.json")
+    drawInteractiveCircuit(G_pre_pass, "G_pre_pass.html")
+    drawInteractiveCircuit(G_post_pass, "G_post_pass.html")
 
     # Print the module
     # print("Info: Module name = ", parser.moduleName)

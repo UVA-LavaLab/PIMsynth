@@ -52,29 +52,34 @@ clean:
 """
         return makefileStr
 
+    def getBound(self):
+        return 2 ** self.getCDataWidth()
+
     def getGoldenFunctionStatement(self, operator, dataType=None):
         opDict = {
-            "add": f'return a + b;',
-            "sub": f'return a - b;',
-            "mul": f'return a * b;',
-            "and": f'return a & b;',
-            "or": f'return a | b;',
-            "xor": f'return a ^ b;',
-            "xnor": f'return ~(a ^ b);',
-            "max": f'return (a > b)?a:b;',
-            "min": f'return (a < b)?a:b;',
-            "abs": f'return (a > 0)?a:-a;',
-            "not": f'return ~a;',
-            "lt": f'return (a < b);',
-            "gt": f'return (a > b);',
-            "eq": f'return (a == b);',
-            "ne": f'return (a != b);',
-            "popcount": f'return std::bitset<{dataType[3:]}>(a).count();',
+            "add": f'a + b',
+            "sub": f'a - b',
+            "mul": f'a * b',
+            "and": f'a & b',
+            "or": f'a | b',
+            "xor": f'a ^ b',
+            "xnor": f'~(a ^ b)',
+            "max": f'(a > b)?a:b',
+            "min": f'(a < b)?a:b',
+            "abs": f'(a > 0)?a:-a',
+            "not": f'~a',
+            "lt": f'(a < b)',
+            "gt": f'(a > b)',
+            "eq": f'(a == b)',
+            "ne": f'(a != b)',
+            "popcount": f'std::bitset<{dataType[3:]}>(a).count()',
         }
-        return opDict[operator]
+        return f"return ({opDict[operator]})% {self.getBound()};"
 
     def getCDatatype(self):
         lookupDict = {
+            "int1" : "int8_t",
+            "int2" : "int8_t",
             "int8" : "int8_t",
             "int16" : "int16_t",
             "int32" : "int32_t",
@@ -88,6 +93,8 @@ clean:
 
     def getCDataWidth(self):
         lookupDict = {
+            "int1" : 1,
+            "int2" : 2,
             "int8" : 8,
             "int16" : 16,
             "int32" : 32,
@@ -101,6 +108,8 @@ clean:
 
     def getPimEvalDataType(self):
         lookupDict = {
+            "int1" : "PIM_INT8",
+            "int2" : "PIM_INT8",
             "int8" : "PIM_INT8",
             "int16" : "PIM_INT16",
             "int32" : "PIM_INT32",
@@ -210,8 +219,9 @@ clean:
     def getRandGenStr(self, c_style = False):
         returnStr = ""
         randFunc = "rand()" if c_style else "std::rand()"
+        bound = 2 ** self.getCDataWidth()
         for inputStr in self.getInputsList():
-            returnStr += f"{self.getCDatatype()} {inputStr} = {randFunc};\n\t\t"
+            returnStr += f"{self.getCDatatype()} {inputStr} = {randFunc} % {bound};\n\t\t"
         return returnStr
 
     def getPimFreeStr(self):
