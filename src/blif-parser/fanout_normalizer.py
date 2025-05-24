@@ -54,32 +54,46 @@ class FanoutNormalizer(DagTransformer):
         originalConsumerId = consumerIds[0]
         remainingConsumerIds = consumerIds[1:]
 
+        lastSignal = signal
+        lastProducerId = producerId
+        lastConsumerId = originalConsumerId
+
         for consumerId in remainingConsumerIds:
             if dag.graph.has_edge(producerId, consumerId):
                 dag.graph.remove_edge(producerId, consumerId)
 
             newOutputSignal = f"{signal}_copy_{self.copyCounter}"
+            copyNodeId = f"copy_{self.copyCounter}"
             copyNode = GateNode(
-                gateId=f"copy_{self.copyCounter}",
+                gateId=copyNodeId,
                 gateType="copy",
-                inputs=[signal],
+                inputs=[lastSignal],
                 outputs=[newOutputSignal]
             )
             self.copyCounter += 1
             self.newWires.append(newOutputSignal)
 
-            # Add the new gate to DAG
+            # Add new gate to DAG
             dag.addGate(copyNode)
 
-            # Add proper edges
-            dag.graph.add_edge(producerId, copyNode.id)
-            dag.graph.add_edge(copyNode.id, consumerId)
-            dag.graph.add_edge(copyNode.id, originalConsumerId)  # To maintain topological order
+            # Add real edge from previous copy (or original) to the new copy
+            dag.graph.add_edge(lastProducerId, copyNodeId)
 
-            # Update the inputs of the consumer
+            # Add fake edge for topological order maintenance
+            dag.graph.add_edge(copyNodeId, lastConsumerId)
+
+            # Add edge to current consumer
+            dag.graph.add_edge(copyNodeId, consumerId)
+
+            # Update consumer's input
             consumerGate = dag.gateInfo[consumerId]
             consumerGate.inputs = [
                 newOutputSignal if s == signal else s
                 for s in consumerGate.inputs
             ]
+
+            # Update for next iteration
+            lastSignal = newOutputSignal
+            lastProducerId = copyNodeId
+            lastConsumerId = consumerId
 
