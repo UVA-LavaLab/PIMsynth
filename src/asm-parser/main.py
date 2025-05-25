@@ -44,7 +44,7 @@ if __name__ == "__main__":
     outputList = list(set(parser.outputList))
 
     # Transrom the riscv assembly to bit-serial assembly
-    asmTranslator = AsmTranslator(riscvStatementList, inputList, outputList)
+    asmTranslator = AsmTranslator(riscvStatementList, inputList, outputList, pimMode=args.pim_mode)
     bitSerialAsm = asmTranslator.getBitSerialAsm()
 
     # for instruction in bitSerialAsm:

@@ -86,10 +86,11 @@ class TempManager:
             raise IndexError("Index out of bounds")
 
 class AsmTranslator:
-    def __init__(self, riscvStatementList, inputList, outputList):
+    def __init__(self, riscvStatementList, inputList, outputList, pimMode):
         self.riscvStatementList = riscvStatementList
         self.inputList = inputList
         self.outputList = outputList
+        self.pimMode = pimMode
         self.remainedOutputList = outputList.copy()
         self.bitSerialStatementList = []
         self.symbolTable = SymbolTable()
@@ -102,22 +103,24 @@ class AsmTranslator:
         self.bitSerialStatementList = tempVariablesShrinker.newInstructionSequence
 
     def translate(self):
-        for statementIndex, statement in enumerate(self.riscvStatementList):
+        statementIndex = 0
+        while statementIndex < len(self.riscvStatementList):
+            statement = self.riscvStatementList[statementIndex]
             if isinstance(statement, Instruction):
                 if len(self.remainedOutputList) == 0:
                     return
-                if statement.isLoadInstruction():
-                    self.translateLoadInstruction(statementIndex)
-                    continue
-                if statement.isStoreInstruction():
-                    self.translateStoreInstruction(statementIndex)
-                    continue
-                if statement.isMoveInstruction():
-                    self.translateMoveInstruction(statementIndex)
-                    continue
+                elif statement.isLoadInstruction():
+                    statementIndex += self.translateLoadInstruction(statementIndex)
+                elif statement.isStoreInstruction():
+                    statementIndex += self.translateStoreInstruction(statementIndex)
+                elif statement.isMoveInstruction():
+                    statementIndex += self.translateMoveInstruction(statementIndex)
+                else:
+                    statementIndex += 1
             elif isinstance(statement, Directive) and statement.val == "#APP":
-                self.translateInlineAssembly(statementIndex)
-
+                statementIndex += self.translateInlineAssembly(statementIndex)
+            else:
+                statementIndex += 1
 
     def getDestinationOperandFromInstruction(self, instruction):
         if instruction.opCode == "write":
@@ -235,7 +238,7 @@ class AsmTranslator:
             else:
                 sourceOperand, doUnsudpendThePath = self.resolveOperand(riscvInstruction.operandsList[1], line=riscvInstruction.line)
                 if sourceOperand == None:
-                    return
+                    return 1
                 destinationOperand = riscvInstruction.operandsList[0]
                 self.appendBitSerialInstruction("read", [destinationOperand, sourceOperand], riscvInstruction.line, suspended=False)
         else:
@@ -243,7 +246,8 @@ class AsmTranslator:
                 raise Exception(f"Unhandled move instruction at line {riscvInstruction.line} in the RISCV assembly.")
             else:
                 # Ignore this instruction
-                return
+                return 1
+        return 1
 
     def translateLoadInstruction(self, statementIndex):
         riscvInstruction = self.riscvStatementList[statementIndex]
@@ -254,6 +258,8 @@ class AsmTranslator:
 
         if destinationOperand and sourceOperand:
             self.appendBitSerialInstruction("read", [destinationOperand, sourceOperand], riscvInstruction.line, suspended)
+
+        return 1
 
     def resolveDestinationOperand(self, destinationOperand, sourceOperand, line=-1):
         if self.isBitSerialRegister(destinationOperand):
@@ -304,6 +310,8 @@ class AsmTranslator:
 
         suspended = True
         self.appendBitSerialInstruction("write", [sourceOperand, destinationOperand], riscvInstruction.line, suspended)
+
+        return 1
 
     def resolveSourceOperandForStore(self, sourceOperand):
         if not self.isBitSerialRegister(sourceOperand):
@@ -367,7 +375,7 @@ class AsmTranslator:
             self.appendBitSerialInstruction(newOpCode, operandsList, line)
         elif newOpCode in threeOpInstrcutions1:
             secondRiscvInstruction = self.riscvStatementList[statementIndex + 2]
-            lastRiscvInstruction = instructionSequence[-1]
+            lastRiscvInstruction = instructionSequence[4]
             destinationOperand = lastRiscvInstruction.operandsList[0]
             operandsList = [destinationOperand] + firstRiscvInstruction.operandsList[1:] + [secondRiscvInstruction.operandsList[2]]
             self.appendBitSerialInstruction(newOpCode, operandsList, line)
@@ -401,13 +409,16 @@ class AsmTranslator:
         newOpCode = self.getMappedOpCode(instructionSequence, firstRiscvInstruction.line)
 
         if newOpCode is None:
-            return
+            return 1
 
         # Handle the mapped bit-serial instruction
         self.handleBitSerialInstruction(instructionSequence, newOpCode, statementIndex)
 
         # Handle write to output port if necessary
         self.handleWriteToOutputPort(statementIndex, instructionSequence, firstRiscvInstruction.line)
+
+        return len(instructionSequence) + 1
+
 
     def matchesSequence(self, instructionSequence, sequence):
         """Check if a given sequence of opcodes matches the translation rule."""
@@ -420,16 +431,23 @@ class AsmTranslator:
         )
 
     def getInstrunctionSequenceOpCode(self, instructionSequence):
-        translationRules = {
-            ('xor', 'not'): 'xnor',
-            ('and', 'not'): 'nand',
-            ('or', 'not'): 'nor',
-            ('and', 'and', 'and', 'or', 'or'): 'maj3',
-            ('not', 'and', 'and', 'or'): 'mux2',
-            ('and', 'mv', 'mv'): 'and_a',  # analog
-            ('or', 'mv', 'mv'): 'or_a',  # analog
-            ('and', 'and', 'and', 'or', 'or', 'mv', 'mv', 'mv'): 'maj3_a',  # analog
-        }
+        if self.pimMode == "digital":
+            translationRules = {
+                ('xor', 'not'): 'xnor',
+                ('and', 'not'): 'nand',
+                ('or', 'not'): 'nor',
+                ('and', 'and', 'and', 'or', 'or'): 'maj3',
+                ('not', 'and', 'and', 'or'): 'mux2',
+            }
+        elif self.pimMode == "analog":
+            translationRules = {
+                ('and', 'mv', 'mv'): 'and_a',  # analog
+                ('or', 'mv', 'mv'): 'or_a',  # analog
+                ('and', 'and', 'and', 'or', 'or', 'mv', 'mv', 'mv'): 'maj3_a',  # analog
+            }
+        else:
+            raise Exception("Error: unknown pim mode {self.pimMode}")
+
         mappedOpcodes = []  # To store the mapped opcodes
         i = 0
         while i < len(instructionSequence):
