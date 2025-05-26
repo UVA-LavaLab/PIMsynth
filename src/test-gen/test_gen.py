@@ -21,7 +21,7 @@ class TestGenerator:
         if len(parts) != 4:
             raise ValueError(f"Invalid format: '{name}'. Expected format 'operation_datatype'.")
         arch, numRegs, pimMode = parts[:3]
-        operator, dataType = parts[3].split('_')
+        operator, dataType = parts[3].rsplit('_', 1)  # split by the last underscore
         return arch, numRegs, operator, dataType
 
     def generateMakeFile(self):
@@ -73,6 +73,8 @@ clean:
             "eq": f'(a == b)',
             "ne": f'(a != b)',
             "popcount": f'std::bitset<{dataType[3:]}>(a).count()',
+            "shift_l" : f'a << b',
+            "shift_r" : f'a >> b',
         }
         return f"return ({opDict[operator]})% {self.getBound()};"
 
@@ -129,7 +131,7 @@ clean:
 
     def getOperandsCount(self):
         oneOperand = ["not", "abs", "popcount"]
-        twoOperand = ["add", "sub", "mul", "and", "or", "xor", "xnor", "mul", "min", "max", "lt", "gt", "eq", "ne"]
+        twoOperand = ["add", "sub", "mul", "and", "or", "xor", "xnor", "mul", "min", "max", "lt", "gt", "eq", "ne", "shift_l", "shift_r"]
 
         if self.operator in oneOperand:
             return 1
@@ -225,8 +227,11 @@ clean:
     def getRandGenStr(self, c_style = False):
         returnStr = ""
         randFunc = "rand()" if c_style else "std::rand()"
-        bound = 2 ** self.getCDataWidth()
-        for inputStr in self.getInputsList():
+        for i, inputStr in enumerate(self.getInputsList()):
+            if self.operator in ["shift_l", "shift_r"] and i == 1:
+                bound = self.getCDataWidth()  # limit the shift amount to the data width
+            else:
+                bound = 2 ** self.getCDataWidth()
             returnStr += f"{self.getCDatatype()} {inputStr} = {randFunc} % {bound};\n\t\t"
         return returnStr
 

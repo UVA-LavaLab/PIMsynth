@@ -26,3 +26,6 @@ lt_int_nbit.v
 eq_nbit.v
 ne_nbit.v
 
+shift_l_nbit.v
+shift_r_nbit.v
+shift_r_nbit_arith.v
