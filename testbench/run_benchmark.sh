@@ -182,6 +182,9 @@ fi
     rm -rfv "$outdir"
 fi
 
+# Create the output directory
+mkdir -p "$outdir"
+
 echo "==========================="
 echo "Bit-Serial PIM Benchmark"
 echo "GenLib File: $genlib_file"
@@ -227,20 +230,30 @@ $PROJ_ROOT/bit_serial_compiler.py \
     --output "$target" \
     --outdir "$outdir" \
     --num-tests 10 \
-    --pim-mode "$pim_mode"
+    --pim-mode "$pim_mode" \
+    | tee "$outdir/$target.log"
 
 # Make the test
 cd $outdir
 make
 
 # Run the test
-./${target}.test.out
-./${target}.test_bitwise.out
+./${target}.test.out | tee -a "$outdir/$target.log"
+./${target}.test_bitwise.out | tee -a "$outdir/$target.log"
 cd ..
 
 # Final outputs for debugging
-echo "################################################################################"
-echo "Output Directory:         $outdir"
-echo "Output Directory Name:    outputs__$target"
-echo "################################################################################"
+{
+    echo "################################################################################"
+    echo "SUMMARY"
+    echo "Output Directory:         $outdir"
+    echo "Output Directory Name:    outputs__$target"
+    grep "Info:  #R" "$outdir/$target.log"
+    grep -E '\b(row_r|row_w|rreg\..*) :' "$outdir/$target.log"
+    grep -E '\b(row_ap@.*|row_aap@.*) :' "$outdir/$target.log"
+    grep "Num Read, Write, Logic" "$outdir/$target.log"
+    grep "PIM test: " "$outdir/$target.log"
+    grep "Bitwise test: " "$outdir/$target.log"
+    echo "################################################################################"
+} | tee -a "$outdir/$target.summary.log"
 
