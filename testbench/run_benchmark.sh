@@ -231,15 +231,15 @@ $PROJ_ROOT/bit_serial_compiler.py \
     --outdir "$outdir" \
     --num-tests 10 \
     --pim-mode "$pim_mode" \
-    | tee "$outdir/$target.log"
+    2>&1 | tee "$outdir/$target.log"
 
 # Make the test
 cd $outdir
 make
 
 # Run the test
-./${target}.test.out | tee -a "$outdir/$target.log"
-./${target}.test_bitwise.out | tee -a "$outdir/$target.log"
+./${target}.test.out 2>&1 | tee -a "$outdir/$target.log"
+./${target}.test_bitwise.out 2>&1 | tee -a "$outdir/$target.log"
 cd ..
 
 # Final outputs for debugging
@@ -255,5 +255,5 @@ cd ..
     grep "PIM test: " "$outdir/$target.log"
     grep "Bitwise test: " "$outdir/$target.log"
     echo "################################################################################"
-} | tee -a "$outdir/$target.summary.log"
+} 2>&1 | tee -a "$outdir/$target.summary.log"
 
