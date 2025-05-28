@@ -7,10 +7,7 @@ Author: Mohammadhosein Gholamrezaei <uab9qt@virginia.edu>
 Date: 2024-09-27
 """
 
-import json
-from networkx.readwrite import json_graph
-from pyvis.network import Network
-import networkx as nx
+
 
 def getContent(fileName):
     try:
@@ -44,37 +41,4 @@ def writeToFile(fileName, content):
 
 def concatenateListElements(lst):
     return ', '.join(map(str, lst))
-
-def saveGraphAsJson(graph, filePath):
-    data = json_graph.node_link_data(graph, edges="links")
-    with open(filePath, "w") as f:
-        json.dump(data, f, indent=2)
-
-def loadGraphFromJson(filePath):
-    with open(filePath) as f:
-        data = json.load(f)
-    return json_graph.node_link_graph(data, edges="links")
-
-
-def drawInteractiveCircuit(graph, outputFile="circuit.html"):
-    net = Network(height='800px', width='100%', directed=True, notebook=False, filter_menu=True, cdn_resources='remote')
-
-    # Add nodes with formatted labels
-    for node, data in graph.nodes(data=True):
-        gateType = data.get('type', 'unknown')
-        outputs = ', '.join(data.get('outputs', []))
-        label = f"{gateType}\n{outputs}"
-        net.add_node(node, label=label, shape="box", color="#AED6F1")
-
-    # Add edges with optional signal label
-    for u, v in graph.edges():
-        fromSignals = set(graph.nodes[u].get('outputs', []))
-        toSignals = set(graph.nodes[v].get('inputs', []))
-        common = fromSignals & toSignals
-        label = ', '.join(common) if common else ''
-        net.add_edge(u, v, label=label)
-
-    net.show_buttons(filter_=['physics'])  # Optional: let user tweak layout
-    net.show(outputFile)
-    print(f"Interactive graph saved to: {outputFile}")
 

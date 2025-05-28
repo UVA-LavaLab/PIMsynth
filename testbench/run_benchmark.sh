@@ -52,6 +52,7 @@ VALID_BENCHMARKS=(
     "popcount_int8" "popcount_int16" "popcount_int32" "popcount_int64"
     "add_sub_int32"
     "aes_sbox" "aes_inverse_sbox" "aes_sbox_usuba"
+    "full_adder_1bit"
 )
 
 # Define a list of valid PIM modes

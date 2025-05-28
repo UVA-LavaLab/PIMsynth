@@ -12,6 +12,7 @@ from lark import Lark, Transformer, v_args
 import itertools
 import pprint
 import networkx as nx
+from dag import *
 
 # Define the Transformer class
 class CircuitTransformer(Transformer):
@@ -88,52 +89,6 @@ circuitGrammar = r"""
 
 
 """
-
-class GateNode:
-    def __init__(self, gateId, gateType, inputs, outputs):
-        self.id = gateId
-        self.type = gateType
-        self.inputs = inputs
-        self.outputs = outputs
-
-    def __repr__(self):
-        return f"{self.type}_{self.id}, inputs: {self.inputs}, outputs: {self.outputs}"
-
-class Dag:
-    def __init__(self):
-        self.graph = nx.DiGraph()
-        self.signalToGateOutput = {}
-        self.gateInfo = {}
-
-    def addGate(self, gateNode: GateNode):
-        gateId = gateNode.id
-        self.graph.add_node(gateId, type=gateNode.type, inputs=gateNode.inputs, outputs=gateNode.outputs)
-        self.gateInfo[gateId] = gateNode
-
-        for inputSignal in gateNode.inputs:
-            if inputSignal in self.signalToGateOutput:
-                sourceGateId = self.signalToGateOutput[inputSignal].id
-                self.graph.add_edge(sourceGateId, gateId)
-
-        for outputSignal in gateNode.outputs:
-            self.signalToGateOutput[outputSignal] = gateNode
-
-    def getTopologicallySortedGates(self):
-        return [self.gateInfo[gateId] for gateId in nx.topological_sort(self.graph)]
-
-def convertTreeToDag(tree):
-    dag = Dag()
-    gateCounter = 0
-    for item in tree.children:
-        if isinstance(item, dict) and 'gate_name' in item:
-            gateType = item['gate_name']
-            args = item['arguments']
-            inputs = [s for sub in args[:-1] for s in sub]
-            outputs = [s for s in args[-1]]
-            gateNode = GateNode(gateId=gateCounter, gateType=gateType, inputs=inputs, outputs=outputs)
-            dag.addGate(gateNode)
-            gateCounter += 1
-    return dag
 
 class Parser():
     def __init__(self, moduleName="TestModule"):
