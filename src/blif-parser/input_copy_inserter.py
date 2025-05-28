@@ -14,13 +14,13 @@ import networkx as nx
 
 class InputCopyInserter(DagTransformer):
     def __init__(self):
-        self.wireCopyCounter: Dict[str, int] = {}
+        self.signalCopyMap: Dict[str, str] = {}
         self.newWires = []
 
     def isPrimaryInput(self, signal: str) -> bool:
         return not signal.startswith("new")
 
-    def renameInput(self, inputStr):
+    def renameInput(self, inputStr: str) -> str:
         return inputStr.replace('[', '_').replace(']', '_')
 
     def apply(self, dag):
@@ -30,24 +30,28 @@ class InputCopyInserter(DagTransformer):
 
             for signal in gate.inputs:
                 if self.isPrimaryInput(signal):
-                    count = self.wireCopyCounter.get(signal, 0)
-                    newSignal = f"{self.renameInput(signal)}_copy_{count}"
-                    self.wireCopyCounter[signal] = count + 1
-                    self.newWires.append(newSignal)
+                    # If a copy hasn't been made yet, make one
+                    if signal not in self.signalCopyMap:
+                        newSignal = f"{self.renameInput(signal)}_copy"
+                        self.signalCopyMap[signal] = newSignal
+                        self.newWires.append(newSignal)
 
-                    copyGateId = f"input_copy_{self.renameInput(signal)}_{count}"
+                        copyGateId = f"input_copy_{self.renameInput(signal)}"
 
-                    copyGate = GateNode(
-                        gateId=copyGateId,
-                        gateType="copy",
-                        inputs=[signal],
-                        outputs=[newSignal]
-                    )
+                        copyGate = GateNode(
+                            gateId=copyGateId,
+                            gateType="copy",
+                            inputs=[signal],
+                            outputs=[newSignal]
+                        )
 
-                    dag.addGate(copyGate)
-                    dag.graph.add_edge(copyGate.id, gateId)
+                        dag.addGate(copyGate)
 
-                    updatedInputs.append(newSignal)
+                    # Add edge from copy to this gate if not already present
+                    copyGateId = f"input_copy_{self.renameInput(signal)}"
+                    dag.graph.add_edge(copyGateId, gateId)
+
+                    updatedInputs.append(self.signalCopyMap[signal])
                 else:
                     updatedInputs.append(signal)
 
