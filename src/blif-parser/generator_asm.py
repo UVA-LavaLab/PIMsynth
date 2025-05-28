@@ -179,13 +179,13 @@ class GeneratorAsm():
             "zero": lambda output, inputs: (
                 f'"#PIM_OP: zero -> %0 \\n'
                 f' xor %0, %0, %0'
-                f'" : "=r" ({output}) : "r" ({output}) : {clobber}'
+                f'" : "=r" ({output}) : : {clobber}'
             ),
             "one": lambda output, inputs: (
                 f'"#PIM_OP: one -> %0 \\n'
                 f' xor %0, %0, %0 \\n'
                 f' not %0, %0'
-                f'" : "=r" ({output}) : "r" ({output}) : {clobber}'
+                f'" : "=r" ({output}) : : {clobber}'
             ),
         }
 
@@ -202,7 +202,7 @@ class GeneratorAsm():
             "inv1": lambda output, inputs: (
                 f'"#PIM_OP: inv1 %1 -> %0 \\n'
                 f' not %0, %1'
-                f'" : "=r" ({output}) : "r" ({inputs[0]}) : {clobber}'
+                f'" : "=r" ({output}) : "0" ({inputs[0]}) : {clobber}'
             ),
             "and2": lambda output, inputs: (
                 f'"#PIM_OP: and2 %1, %2 -> %0 \\n'
@@ -233,13 +233,13 @@ class GeneratorAsm():
             "zero": lambda output, inputs: (
                 f'"#PIM_OP: zero -> %0 \\n'
                 f' xor %0, %0, %0'
-                f'" : "=r" ({output}) : "r" ({output}) : {clobber}'
+                f'" : "=r" ({output}) : : {clobber}'
             ),
             "one": lambda output, inputs: (
                 f'"#PIM_OP: one -> %0 \\n'
                 f' xor %0, %0, %0 \\n'
                 f' not %0, %0'
-                f'" : "=r" ({output}) : "r" ({output}) : {clobber}'
+                f'" : "=r" ({output}) : : {clobber}'
             ),
         }
 
