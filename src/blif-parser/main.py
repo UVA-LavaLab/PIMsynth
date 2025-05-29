@@ -47,21 +47,23 @@ if __name__ == "__main__":
     # Transform the DAG
     if args.pim_mode == "analog":
         print("Info: Generate code for analog PIM.")
+        saveDagAsJson(parser.dag, "dag_pre_pass.json")
+
         inputCopyInserter = InputCopyInserter()
         parser.dag = inputCopyInserter.apply(parser.dag)
         parser.wireList.extend(inputCopyInserter.newWires)
 
-        saveDagAsJson(parser.dag, "dag_pre_pass.json")
-
         fanoutNormalizer = FanoutNormalizer()
         parser.dag = fanoutNormalizer.apply(parser.dag)
         parser.wireList.extend(fanoutNormalizer.newWires)
-        parser.gatesList = parser.dag.getTopologicallySortedGates()
 
         saveDagAsJson(parser.dag, "dag_post_pass.json")
 
+
+        parser.gatesList = parser.dag.getTopologicallySortedGates()
+
+
         G_pre_pass = loadDagFromJson("dag_pre_pass.json")
-        breakpoint()
         G_post_pass = loadDagFromJson("dag_post_pass.json")
         drawInteractiveCircuit(G_pre_pass, "G_pre_pass.html")
         drawInteractiveCircuit(G_post_pass, "G_post_pass.html")
@@ -71,10 +73,10 @@ if __name__ == "__main__":
     # print("Info: Inputs = ", parser.inputsList)
     # print("Info: Outputs = ", parser.outputsList)
     # print("Info: Wires = ", parser.wireList)
-    print("\nInfo: Gates List")
-    for gate in parser.gatesList:
-        print(gate)
-    print()
+    # print("\nInfo: Gates List")
+    # for gate in parser.gatesList:
+        # print(gate)
+    # print()
 
     # Generate the code
     code = ''
