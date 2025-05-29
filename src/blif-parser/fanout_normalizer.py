@@ -12,6 +12,13 @@ from typing import Dict, List
 from dag_transformer_base import DagTransformer
 import networkx as nx
 
+def removeTrailingStars(strings):
+    return [s[:-1] if s.endswith('*') else s for s in strings]
+
+def removeTrailingStarsFromGatesList(gatesList):
+    for i in range(len(gatesList)):
+        gatesList[i].inputs = removeTrailingStars(gatesList[i].inputs)
+    return gatesList
 
 class FanoutNormalizer(DagTransformer):
     def __init__(self):
@@ -32,14 +39,46 @@ class FanoutNormalizer(DagTransformer):
                 continue
 
             producerGate = dag.gateInfo[producerId]
-            ic = len(producerGate.inputs)
-
-            if fanout <= 1 + ic and not (producerGate.type == "inv1" or producerGate.type == "copy"):
-                self.replaceWithInputs(dag, signal, producerId, consumers)
+            isInvGate = (producerGate.type == "inv1")
+            isCopyGate = (producerGate.type == "copy")
+            hasReusableInputs = (not (isInvGate or isCopyGate))
+            originalConsumerId = consumers[0]
+            remainingConsumerIds = consumers[1:]
+            if hasReusableInputs:
+                remainingConsumerIds = self.replaceWithInputs(dag, signal, producerId, remainingConsumerIds)
+                self.insertCopyNodes(dag, signal, producerId, remainingConsumerIds, originalConsumerId)
+            elif isInvGate:
+                self.insertCopyNodes(dag, signal, producerId, remainingConsumerIds, originalConsumerId)
             else:
-                self.insertCopyNodes(dag, signal, producerId, consumers)
+                raise Exception("Error: Unexpected behaivior happened.")
 
         return dag
+
+    def replaceWithInputs(self, dag, signal: str, producerId: str, consumerIds: List[str]):
+        producerGate = dag.gateInfo[producerId]
+        inputs = producerGate.inputs
+        reusableInputs = []
+        for x in inputs:
+            if not "*" in x:
+                reusableInputs.append(x)
+
+        n = min(len(reusableInputs), len(consumerIds))
+        for idx in range(n):
+            newInputSignal = reusableInputs[idx]
+            consumerId = consumerIds[idx]
+            if dag.graph.has_edge(producerId, consumerId):
+                dag.graph.remove_edge(producerId, consumerId)
+            dag.graph.add_edge(producerId, consumerId, label='Fake') # Fake edge to maintain topological sort
+
+            consumerGate = dag.gateInfo[consumerId]
+            consumerGate.inputs = [
+                newInputSignal + "*" if s == signal else s
+                for s in consumerGate.inputs
+            ]
+            dag.gateInfo[consumerId] = consumerGate
+
+        remainingConsumerIds = consumerIds[n:]
+        return remainingConsumerIds
 
     def getSignalConsumers(self, dag) -> Dict[str, List[str]]:
         consumers: Dict[str, List[str]] = {}
@@ -57,35 +96,12 @@ class FanoutNormalizer(DagTransformer):
                 producers[signal] = gateId
         return producers
 
-    def replaceWithInputs(self, dag, signal: str, producerId: str, consumerIds: List[str]):
-        producerGate = dag.gateInfo[producerId]
-        inputs = producerGate.inputs
-
-        originalConsumerId = consumerIds[0]
-        remainingConsumerIds = consumerIds[1:]
-
-        for idx, consumerId in enumerate(remainingConsumerIds):
-            newInputSignal = inputs[idx]
-            if dag.graph.has_edge(producerId, consumerId):
-                dag.graph.remove_edge(producerId, consumerId)
-            dag.graph.add_edge(producerId, consumerId, label='Fake') # Fake edge to maintain topological sort
-
-            consumerGate = dag.gateInfo[consumerId]
-            consumerGate.inputs = [
-                newInputSignal if s == signal else s
-                for s in consumerGate.inputs
-            ]
-            dag.gateInfo[consumerId] = consumerGate
-
-    def insertCopyNodes(self, dag, signal: str, producerId: str, consumerIds: List[str]):
-        originalConsumerId = consumerIds[0]
-        remainingConsumerIds = consumerIds[1:]
-
+    def insertCopyNodes(self, dag, signal: str, producerId: str, consumerIds: List[str], originalConsumerId: str):
         lastSignal = signal
         lastProducerId = producerId
         lastConsumerId = originalConsumerId
 
-        for consumerId in remainingConsumerIds:
+        for consumerId in consumerIds:
             if dag.graph.has_edge(producerId, consumerId):
                 dag.graph.remove_edge(producerId, consumerId)
 
