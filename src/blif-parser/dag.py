@@ -13,7 +13,7 @@ class GateNode:
         self.outputs = outputs
 
     def __repr__(self):
-        return f"{self.type}_{self.id}, inputs: {self.inputs}, outputs: {self.outputs}"
+        return f"{self.type:<10} | outputs: {str(self.outputs):<30} | inputs: {str(self.inputs)}"
 
 class Dag:
     def __init__(self):
@@ -33,6 +33,12 @@ class Dag:
 
         for outputSignal in gateNode.outputs:
             self.signalToGateOutput[outputSignal] = gateNode
+
+    def __repr__(self):
+        code = ""
+        for gate in self.getTopologicallySortedGates():
+            code += gate.__repr__() + "\n"
+        return code
 
     def getTopologicallySortedGates(self):
         return [self.gateInfo[gateId] for gateId in nx.topological_sort(self.graph)]

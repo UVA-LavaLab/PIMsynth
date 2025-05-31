@@ -20,6 +20,7 @@ from input_copy_inserter import *
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from util import *
+DEBUG = False
 
 if __name__ == "__main__":
     # Set up argument parser with optional arguments
@@ -59,6 +60,13 @@ if __name__ == "__main__":
 
         saveDagAsJson(parser.dag, "dag_post_pass.json")
 
+        if DEBUG:
+            print("DEBUG: Module name = ", parser.moduleName)
+            print("DEBUG: Inputs = ", parser.inputsList)
+            print("DEBUG: Outputs = ", parser.outputsList)
+            print("DEBUG: Wires = ", parser.wireList)
+            print(parser.dag)
+            breakpoint()
 
         parser.gatesList = parser.dag.getTopologicallySortedGates()
 
@@ -70,16 +78,7 @@ if __name__ == "__main__":
 
     parser.gatesList = removeTrailingStarsFromGatesList(parser.gatesList)
 
-    # Print the module
-    # print("Info: Module name = ", parser.moduleName)
-    # print("Info: Inputs = ", parser.inputsList)
-    # print("Info: Outputs = ", parser.outputsList)
-    # print("Info: Wires = ", parser.wireList)
-    # print("\nInfo: Gates List")
 
-    # for gate in parser.gatesList:
-        # print(gate)
-    # print()
 
     # Generate the code
     code = ''
