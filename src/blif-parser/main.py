@@ -12,7 +12,6 @@ import argparse
 import os
 from parser import *
 from dag import *
-from generator import *
 from generator_asm import *
 from generator_bitwise import *
 from fanout_normalizer import *
@@ -28,7 +27,7 @@ if __name__ == "__main__":
     parser.add_argument('--input-file', '-i', type=str, required=True, help='The input circuit representation file to parse.')
     parser.add_argument('--output-file', '-o', type=str, required=True, help='The output C++ file.')
     parser.add_argument('--module-name', '-m', type=str, required=True, help='The name of the module to parse.')
-    parser.add_argument('--output-format', '-f', type=str, required=True, choices=['asm', 'bitwise', 'cpp'], help='Output format: asm, bitwise, or cpp.')
+    parser.add_argument('--output-format', '-f', type=str, required=True, choices=['asm', 'bitwise'], help='Output format: asm, bitwise')
     parser.add_argument('--num-regs', '-r', type=int, default=4, choices=range(2, 20), help='Number of registers 2~16')
     parser.add_argument('--pim-mode', '-p', type=str, default='digital', help='The PIM architecture mode (analog/digital).')
 
@@ -82,10 +81,7 @@ if __name__ == "__main__":
 
     # Generate the code
     code = ''
-    if args.output_format == 'cpp':
-        generator = Generator(parser)
-        code = generator.generateCode()
-    elif args.output_format == 'asm':
+    if args.output_format == 'asm':
         generator = GeneratorAsm(parser, args.num_regs, args.module_name, args.pim_mode)
         code = generator.generateCode()
     elif args.output_format == 'bitwise':
