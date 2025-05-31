@@ -8,13 +8,19 @@ Author: Deyuan Guo <guodeyuan@gmail.com> - Bit-wise C test code generation
 Date: 2025-04-05
 """
 
+import sys
+import os
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+from util import *
+
 class TestGenerator:
-    def __init__(self, moduleName, outputPath, numTests, pimMode = "digital"):
+    def __init__(self, moduleName, outputPath, numTests, pimMode = "digital", goldenFunctionPath=None):
         self.moduleName = moduleName
         self.outputPath = outputPath
         self.numTests = numTests
         self.pimMode = pimMode
         self.arch, self.numRegs, self.operator, self.dataType = self.splitModuleName(self.moduleName)
+        self.goldenFunctionPath = goldenFunctionPath
 
     def splitModuleName(self, name):
         parts = name.split('__')
@@ -72,11 +78,15 @@ clean:
             "gt": f'(a > b)',
             "eq": f'(a == b)',
             "ne": f'(a != b)',
-            "popcount": f'std::bitset<{dataType[3:]}>(a).count()',
-            "shift_l" : f'a << b',
-            "shift_r" : f'a >> b',
+            "popcount": f'std::bitset<{dataType[3:]}>(a).count()' if dataType else None,
+            "shift_l": f'a << b',
+            "shift_r": f'a >> b',
         }
-        return f"return ({opDict[operator]})% {self.getBound()};"
+
+        expression = opDict.get(operator)
+        if expression is None:
+            return None
+        return f"return ({expression}) % {self.getBound()};"
 
     def getCDatatype(self):
         lookupDict = {
@@ -190,15 +200,27 @@ clean:
             i+= 1
         return returnStr
 
-    def getGoldenFunctionStr(self):
-        funcSignatureStr = f"{self.getCDatatype()} funcGoldenModel({self.getInputsStrWithType()})"
-        testStatmentStr = self.getGoldenFunctionStatement(self.operator, self.dataType)
-        returnStr = f"""
-{funcSignatureStr} {{
-  {testStatmentStr}
-}}
-"""
-        return returnStr
+    def getGoldenFunctionName(self):
+        return f"{self.moduleName}_golden"
+
+    def generateGoldenFunctionFile(self):
+        if self.goldenFunctionPath is None:
+            functionName = self.getGoldenFunctionName()
+            code = f"#ifndef {functionName.upper()}_H\n"
+            code += f"#define {functionName.upper()}_H\n"
+            signature = f"{self.getCDatatype()} {functionName}({self.getInputsStrWithType()})"
+            testStatmentStr = self.getGoldenFunctionStatement(self.operator, self.dataType)
+            if testStatmentStr is None:
+                raise Exception("Error: The test generator does not support {self.operator} operator.")
+            code += f"""
+    {signature} {{
+      {testStatmentStr}
+    }}\n
+    """
+            code += "#endif\n\n"
+        else:
+            code = getContent(self.goldenModelHeaderFile)
+        return code
 
     def getPimCopyHosttoDeviceStr(self):
         returnStr = ""
@@ -241,8 +263,14 @@ clean:
             returnStr += f"pimFree({objStr});\n\t"
         return returnStr
 
+    def resolveGoldenFunctionPath(self):
+        goldenFunctionFilePath = f"{self.moduleName}.golden.hpp"
+        if not self.goldenFunctionPath is None:
+            goldenFunctionFilePath = self.goldenFunctionFilePath
+        return goldenFunctionFilePath
+
     def generatCppTestFile(self):
-        goldenFunctionStr = self.getGoldenFunctionStr()
+        goldenFunctionFilePath = self.resolveGoldenFunctionPath()
         inputsStrWithType = self.getInputsStrWithType()
         pimObjStrWithType = self.getPimObjStrWithType()
         inputsStr = self.getInputsStr()
@@ -266,13 +294,13 @@ clean:
 #include <cstdint>
 #include <bitset>
 #include "{self.moduleName}.hpp"
+#include "{goldenFunctionFilePath}"
 #include "libpimeval.h"
 
-{goldenFunctionStr}
 
 bool runTest({inputsStrWithType}, {pimObjStrWithType}, PimObjId resultPim) {{
   // Calculate the expected result using the golden model
-  int expectedResult = funcGoldenModel({inputsStr});
+  int expectedResult = {self.getGoldenFunctionName()}({inputsStr});
 
   // Copy data to PIM device
   {pimCopyHostToDeviceStr}
@@ -376,7 +404,7 @@ int main() {{
 
     def generatBitwiseTestFile(self):
         """ Generate test file for bitwise IR """
-        goldenFunctionStr = self.getGoldenFunctionStr()
+        goldenFunctionFilePath = self.resolveGoldenFunctionPath()
         inputsStrWithType = self.getInputsStrWithType()
         inputsStr = self.getInputsStr()
         randGenStr = self.getRandGenStr(True) # C style
@@ -394,13 +422,12 @@ int main() {{
 #include <stdlib.h>
 #include <time.h>
 #include "{self.moduleName}.bitwise.c"
-
-{goldenFunctionStr}
+#include "{goldenFunctionFilePath}"
 
 bool runTest({inputsStrWithType}) {{
     // Calculate the expected result using the golden model
     int result = 0;
-    int expected = funcGoldenModel({inputsStr});
+    int expected = {self.getGoldenFunctionName()}({inputsStr});
 
     {bitwiseOpStr}
 

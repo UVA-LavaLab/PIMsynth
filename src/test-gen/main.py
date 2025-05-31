@@ -21,6 +21,7 @@ if __name__ == "__main__":
     parser.add_argument('--output-path', '-o', type=str, required=True, help='The path where test cpp file and Makefile stored.')
     parser.add_argument('--num-tests', '-n', type=int, default=100, help='Number of test cases.')
     parser.add_argument('--pim-mode', '-p', type=str, default='digital', help='The PIM architecture mode (analog/digital).')
+    parser.add_argument('--golden-function-name', '-g', type=str, default=None, help='The path to the golden function file hpp file.')
 
     # Parse the arguments
     args = parser.parse_args()
@@ -37,4 +38,7 @@ if __name__ == "__main__":
     # Generate the bitwise test C file
     writeToFile(args.output_path + "/" + args.module_name + ".test_bitwise.c", testGenerator.generatBitwiseTestFile())
 
+    # Generte the golden function hpp file
+    if args.golden_function_name is None:
+        writeToFile(args.output_path + "/" + testGenerator.resolveGoldenFunctionPath(), testGenerator.generateGoldenFunctionFile())
 
