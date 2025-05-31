@@ -492,7 +492,7 @@ class bitSerialCompiler:
         test_gen = os.path.join(script_location, 'src/test-gen/main.py')
         cmd = ['python3', test_gen, '-m', self.output, '-o', self.outdir, '-n', str(self.num_tests), '-p', self.pim_mode]
         if not self.golden_function_name is None:
-            cmd.extend('-g', self.golden_function_name)
+            cmd.extend(['-g', self.golden_function_name])
         self.generate_run_script(cmd, self.output + '.run_test_gen.sh')
         result = subprocess.run(cmd)
         if result.returncode != 0:

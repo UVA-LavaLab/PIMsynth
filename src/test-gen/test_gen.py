@@ -13,22 +13,44 @@ import os
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from util import *
 
+class OperandsListGenerator():
+    def __init__(self, operator, dataType):
+        self.operator = operator
+        self.dataType = dataType
+
+    def getOperandsCount(self):
+        oneOperand = ["not", "abs", "popcount"]
+        twoOperand = ["add", "sub", "mul", "and", "or", "xor", "xnor", "mul", "min", "max", "lt", "gt", "eq", "ne", "shift_l", "shift_r"]
+
+        if self.operator in oneOperand:
+            return 1
+        if self.operator in twoOperand:
+            return 2
+        raise Exception(f"Error: operator {self.operator} is not handled.")
+
+    def getInputsList(self):
+        if self.getOperandsCount() == 1: return [("a", self.dataType)]
+        if self.getOperandsCount() == 2: return [("a", self.dataType), ("b", self.dataType)]
+        raise Exception(f"Error: number of input operands is more than 2 which is not handled.")
+
+    def getOutputsList(self):
+        return [("z", self.dataType)]
+        raise Exception(f"Error: number of input operands is more than 2 which is not handled.")
+
+    def getOperands(self):
+        return self.getInputsList(), self.getOutputsList()
+
 class TestGenerator:
-    def __init__(self, moduleName, outputPath, numTests, pimMode = "digital", goldenFunctionPath=None):
+    def __init__(self, moduleName, outputPath, numTests, inputOperands, outputOperands, operator, pimMode = "digital", goldenFunctionPath=None):
         self.moduleName = moduleName
         self.outputPath = outputPath
         self.numTests = numTests
+        self.inputOperands = inputOperands
+        self.outputOperands = outputOperands
+        self.operator = operator
         self.pimMode = pimMode
-        self.arch, self.numRegs, self.operator, self.dataType = self.splitModuleName(self.moduleName)
         self.goldenFunctionPath = goldenFunctionPath
 
-    def splitModuleName(self, name):
-        parts = name.split('__')
-        if len(parts) != 4:
-            raise ValueError(f"Invalid format: '{name}'. Expected format 'operation_datatype'.")
-        arch, numRegs, pimMode = parts[:3]
-        operator, dataType = parts[3].rsplit('_', 1)  # split by the last underscore
-        return arch, numRegs, operator, dataType
 
     def generateMakeFile(self):
         makefileStr = f"""
@@ -59,9 +81,12 @@ clean:
         return makefileStr
 
     def getBound(self):
-        return 2 ** self.getCDataWidth()
+        dataType = self.outputOperands[0][1]
+        return 2 ** self.getCDataWidth(dataType)
 
-    def getGoldenFunctionStatement(self, operator, dataType=None):
+    def getGoldenFunctionStatement(self, operator):
+        operand = self.outputOperands[0][0]
+        dataType = self.outputOperands[0][1]
         opDict = {
             "add": f'a + b',
             "sub": f'a - b',
@@ -86,175 +111,153 @@ clean:
         expression = opDict.get(operator)
         if expression is None:
             return None
-        return f"return ({expression}) % {self.getBound()};"
+        return f"*{operand} = ({expression}) % {self.getBound()};"
 
-    def getCDatatype(self):
-        lookupDict = {
-            "int1" : "int8_t",
-            "int2" : "int8_t",
-            "int3" : "int8_t",
-            "int4" : "int8_t",
-            "int8" : "int8_t",
-            "int16" : "int16_t",
-            "int32" : "int32_t",
-            "int64" : "int64_t",
-            "uint8" : "uint8_t",
-            "uint16" : "uint16_t",
-            "uint32" : "uint32_t",
-            "uint64" : "uint64_t",
-        }
-        return lookupDict[self.dataType]
 
-    def getCDataWidth(self):
-        lookupDict = {
-            "int1" : 1,
-            "int2" : 2,
-            "int3" : 3,
-            "int4" : 4,
-            "int8" : 8,
-            "int16" : 16,
-            "int32" : 32,
-            "int64" : 64,
-            "uint8" : 8,
-            "uint16" : 16,
-            "uint32" : 32,
-            "uint64" : 64,
-        }
-        return lookupDict[self.dataType]
+    def getCDatatype(self, dataType):
+        if dataType in {"int1", "int2", "int3", "int4"}:
+            return "int8_t"
+        return f"{dataType}_t"
 
-    def getPimEvalDataType(self):
-        lookupDict = {
-            "int1" : "PIM_INT8",
-            "int2" : "PIM_INT8",
-            "int3" : "PIM_INT8",
-            "int4" : "PIM_INT8",
-            "int8" : "PIM_INT8",
-            "int16" : "PIM_INT16",
-            "int32" : "PIM_INT32",
-            "int64" : "PIM_INT64",
-            "uint8" : "PIM_UINT8",
-            "uint16" : "PIM_UINT16",
-            "uint32" : "PIM_UINT32",
-            "uint64" : "PIM_UINT64",
-        }
-        return lookupDict[self.dataType]
+    def getCDataWidth(self, dataType):
+        if dataType.startswith(("int", "uint")) and dataType[3:].isdigit():
+            return int(dataType[3:])
+        raise ValueError(f"Unknown data type: {dataType}")
 
-    def getOperandsCount(self):
-        oneOperand = ["not", "abs", "popcount"]
-        twoOperand = ["add", "sub", "mul", "and", "or", "xor", "xnor", "mul", "min", "max", "lt", "gt", "eq", "ne", "shift_l", "shift_r"]
-
-        if self.operator in oneOperand:
-            return 1
-        if self.operator in twoOperand:
-            return 2
-        raise Exception(f"Error: operator {self.operator} is not handled.")
-
-    def getInputsList(self):
-        if self.getOperandsCount() == 1: return ["a"]
-        if self.getOperandsCount() == 2: return ["a", "b"]
-        raise Exception(f"Error: number of input operands is more than 2 which is not handled.")
+    def getPimEvalDataType(self, dataType):
+        if dataType in {"int1", "int2", "int3", "int4", "int8"}:
+            return "PIM_INT8"
+        if dataType.startswith("int") or dataType.startswith("uint"):
+            return f"PIM_{dataType.upper()}"
+        raise ValueError(f"Unknown data type: {dataType}")
 
     def getPimObjList(self):
-        lst = []
-        for item in self.getInputsList():
-            lst.append(item + "Pim")
-        return lst
+        return [f"{operand}Pim" for operand, _ in self.inputOperands]
 
-    def getInputsStr(self):
-        returnStr = ""
-        i = 0
-        for inputStr in self.getInputsList():
-            returnStr += f"{inputStr}"
-            if (i != len(self.getInputsList()) - 1):
-                returnStr += ", "
-            i+= 1
-        return returnStr
+    def getInputsStr(self, withType=False):
+        inputs = [
+            f"{self.getCDatatype(dataType)} {operand}" if withType else operand
+            for operand, dataType in self.inputOperands
+        ]
+        return ", ".join(inputs)
 
-    def getPimObjsStr(self):
-        returnStr = ""
-        i = 0
-        for inputStr in self.getInputsList():
-            returnStr += f"{inputStr}Pim"
-            if (i != len(self.getInputsList()) - 1):
-                returnStr += ", "
-            i+= 1
-        return returnStr
+    def getOutputsStr(self, withType=False, withAsterisk=False, withReference=False):
+        output_parts = []
 
-    def getInputsStrWithType(self):
-        returnStr = ""
-        i = 0
-        for inputStr in self.getInputsList():
-            returnStr += f"{self.getCDatatype()} {inputStr}"
-            if (i != len(self.getInputsList()) - 1):
-                returnStr += ", "
-            i+= 1
-        return returnStr
+        for operand, dataType in self.outputOperands:
+            if withType:
+                ctype = self.getCDatatype(dataType)
+                prefix = f"{ctype}* " if withAsterisk else f"{ctype} "
+                output_parts.append(f"{prefix}{operand}")
+            else:
+                if withReference:
+                    output_parts.append(f"&{operand}")
+                elif withAsterisk:
+                    output_parts.append(f"*{operand}")
+                else:
+                    output_parts.append(operand)
 
-    def getPimObjStrWithType(self):
-        returnStr = ""
-        i = 0
-        for objStr in self.getPimObjList():
-            returnStr += f"PimObjId {objStr}"
-            if (i != len(self.getPimObjList()) - 1):
-                returnStr += ", "
-            i+= 1
-        return returnStr
+        return ", ".join(output_parts)
+
+    def getPimObjsStr(self, withType=False):
+        operands = self.inputOperands + self.outputOperands
+        objs = [
+            f"PimObjId {operand}Pim" if withType else f"{operand}Pim"
+            for operand, _ in operands
+        ]
+        return ", ".join(objs)
+
+    def getOutputsDeclarationStr(self, withResult=False):
+        return "\n\t".join(
+            f"{self.getCDatatype(dataType)} {operand}_res;" if withResult else f"{self.getCDatatype(dataType)} {operand};"
+            for operand, dataType in self.outputOperands
+        ) + ("\n\t" if self.outputOperands else "")
 
     def getGoldenFunctionName(self):
         return f"{self.moduleName}_golden"
 
     def generateGoldenFunctionFile(self):
-        if self.goldenFunctionPath is None:
+        if not self.goldenFunctionPath is None:
+            code = getContent(self.goldenModelHeaderFile)
+        else:
+            outputOperandType = self.outputOperands[0][1]
             functionName = self.getGoldenFunctionName()
             code = f"#ifndef {functionName.upper()}_H\n"
             code += f"#define {functionName.upper()}_H\n"
-            signature = f"{self.getCDatatype()} {functionName}({self.getInputsStrWithType()})"
-            testStatmentStr = self.getGoldenFunctionStatement(self.operator, self.dataType)
+            signature = f"void {functionName}({self.getInputsStr(withType=True)}, {self.getOutputsStr(withType=True, withAsterisk=True)})"
+            testStatmentStr = self.getGoldenFunctionStatement(self.operator)
             if testStatmentStr is None:
                 raise Exception("Error: The test generator does not support {self.operator} operator.")
             code += f"""
     {signature} {{
       {testStatmentStr}
-    }}\n
+      return;
+    }}\n\n
     """
             code += "#endif\n\n"
-        else:
-            code = getContent(self.goldenModelHeaderFile)
         return code
 
     def getPimCopyHosttoDeviceStr(self):
         returnStr = ""
-        for inputStr in self.getInputsList():
-            returnStr += f"pimCopyHostToDevice(&{inputStr}, {inputStr}Pim);\n\t"
+        for (operand, dataType) in self.inputOperands:
+            returnStr += f"pimCopyHostToDevice(&{operand}, {operand}Pim);\n\t"
+        return returnStr
+
+    def getPimCopyDeviceToHost(self):
+        returnStr = ""
+        for (operand, dataType) in self.outputOperands:
+            returnStr += f"pimCopyDeviceToHost({operand}Pim, &{operand}_res);\n\t"
         return returnStr
 
     def getCoutStr(self):
         returnStr = ""
         i = 0
-        for inputStr in self.getInputsList():
-            returnStr += f"\"Input {inputStr} = \" << (int) {inputStr} << "
-            if (i != len(self.getInputsList()) - 1):
+        for (operand, dataType) in self.inputOperands:
+            returnStr += f"\"Input {operand} = \" << (int) {operand} << "
+            if (i != len(self.inputOperands) - 1):
                 returnStr += "\", \" << "
             i+= 1
         return returnStr
 
     def getPimAllocStr(self):
         returnStr = ""
-        firstObjStr = self.getPimObjList()[0]
-        returnStr += f"PimObjId {firstObjStr} = pimAlloc(PIM_ALLOC_V, 1, {self.getPimEvalDataType()});\n\t"
-        for objStr in self.getPimObjList()[1:]:
-            returnStr += f"PimObjId {objStr} = pimAllocAssociated({firstObjStr}, {self.getPimEvalDataType()});\n\t"
+        firstObj = f"{self.inputOperands[0][0]}Pim"
+        firstObjDataType = self.inputOperands[0][1]
+        returnStr += f"PimObjId {firstObj} = pimAlloc(PIM_ALLOC_V, 1, {self.getPimEvalDataType(firstObjDataType)});\n\t"
+        for (operand, dataType) in self.inputOperands[1:] + self.outputOperands:
+            obj = f"{operand}Pim"
+            returnStr += f"PimObjId {obj} = pimAllocAssociated({firstObj}, {self.getPimEvalDataType(dataType)});\n\t"
         return returnStr
 
-    def getRandGenStr(self, c_style = False):
+    def getRandGenStr(self, cStyle=False):
         returnStr = ""
-        randFunc = "rand()" if c_style else "std::rand()"
-        for i, inputStr in enumerate(self.getInputsList()):
+        randFunc = "rand()" if cStyle else "std::rand()"
+        for i, (operand, dataType) in enumerate(self.inputOperands):
             if self.operator in ["shift_l", "shift_r"] and i == 1:
-                bound = self.getCDataWidth()  # limit the shift amount to the data width
+                bound = self.getCDataWidth(dataType)  # limit the shift amount to the data width
             else:
-                bound = 2 ** self.getCDataWidth()
-            returnStr += f"{self.getCDatatype()} {inputStr} = {randFunc} % {bound};\n\t\t"
+                bound = 2 ** self.getCDataWidth(dataType)
+            returnStr += f"{self.getCDatatype(dataType)} {operand} = {randFunc} % {bound};\n\t\t"
+        return returnStr
+
+    def getPrintAllOperandsStr(self):
+        returnStr = ""
+        for (operand, dataType) in self.inputOperands:
+            returnStr += f"std::cerr << \"{operand}: \" << ({self.getCDatatype(dataType)}) {operand} << std::endl;\n\t"
+        for (operand, dataType) in self.outputOperands:
+            returnStr += f"std::cerr << \"{operand}(expected): \" << ({self.getCDatatype(dataType)}) {operand} << std::endl;\n\t"
+            returnStr += f"std::cerr << \"{operand}(pim     ): \" << ({self.getCDatatype(dataType)}) {operand} << std::endl;\n\t"
+        return returnStr
+
+    def getVerificationCodeStr(self):
+        returnStr = ""
+        for (operand, dataType) in self.outputOperands:
+            returnStr += f"""
+    if ({operand} != {operand}_res) {{
+        {self.getPrintAllOperandsStr()}
+        return false;
+    }}
+            """
         return returnStr
 
     def getPimFreeStr(self):
@@ -271,16 +274,22 @@ clean:
 
     def generatCppTestFile(self):
         goldenFunctionFilePath = self.resolveGoldenFunctionPath()
-        inputsStrWithType = self.getInputsStrWithType()
-        pimObjStrWithType = self.getPimObjStrWithType()
+        inputsStrWithType = self.getInputsStr(withType=True)
+        outputsStrWithType = self.getOutputsStr(withType=True)
+        pimObjStrWithType = self.getPimObjsStr(withType=True)
         inputsStr = self.getInputsStr()
+        outputStrWithReference = self.getOutputsStr(withReference=True)
         pimCopyHostToDeviceStr = self.getPimCopyHosttoDeviceStr()
+        pimCopyDeviceToHostStr = self.getPimCopyDeviceToHost()
 
         pimObjsStr = self.getPimObjsStr()
+        outputsDeclarationStr = self.getOutputsDeclarationStr()
+        outputResultsDeclarationStr = self.getOutputsDeclarationStr(withResult=True)
         coutStr = self.getCoutStr()
         pimAllocStr = self.getPimAllocStr()
         randGenStr = self.getRandGenStr()
         pimFreeStr = self.getPimFreeStr()
+        outputDataType = self.outputOperands[0][1]
 
         if self.pimMode == "digital":
             pimDevice = "PIM_DEVICE_BITSIMD_V"
@@ -298,27 +307,24 @@ clean:
 #include "libpimeval.h"
 
 
-bool runTest({inputsStrWithType}, {pimObjStrWithType}, PimObjId resultPim) {{
+bool runTest({inputsStrWithType}, {pimObjStrWithType}) {{
+  // Declare the output signals
+  {outputsDeclarationStr}
+  {outputResultsDeclarationStr}
+
   // Calculate the expected result using the golden model
-  int expectedResult = {self.getGoldenFunctionName()}({inputsStr});
+  {self.getGoldenFunctionName()}({inputsStr}, {outputStrWithReference});
 
   // Copy data to PIM device
   {pimCopyHostToDeviceStr}
 
   // Call the function under test
-  {self.moduleName}({pimObjsStr}, resultPim);
+  {self.moduleName}({pimObjsStr});
 
   // Retrieve and verify the result from the PIM device
-  {self.getCDatatype()} pimResult;
-  pimCopyDeviceToHost(resultPim, &pimResult);
+  {pimCopyDeviceToHostStr}
 
-  // Verify the result
-  if (pimResult != expectedResult) {{
-      // Print all inputs and outputs if there is a mismatch
-      std::cerr << {coutStr} std::endl;
-      std::cerr << "  Expected result = " << (int) expectedResult << ", PIM result = " << (int) pimResult << std::endl;
-      return false;
-  }}
+  {self.getVerificationCodeStr()}
   return true;
 }}
 
@@ -333,9 +339,8 @@ int main() {{
       return -1;
   }}
 
-  // Allocate PIM objects for the 32-bit input/output ports with element size = 1
+  // Allocate PIM objects for the input/output vector with element size = 1
   {pimAllocStr}
-  PimObjId resultPim = pimAllocAssociated(aPim, {self.getPimEvalDataType()});
 
   // Run random tests
   int numTests = {self.numTests};  // Number of random test cases
@@ -344,7 +349,7 @@ int main() {{
       {randGenStr}
 
       pimResetStats();
-      bool ok = runTest({inputsStr}, {pimObjsStr}, resultPim);
+      bool ok = runTest({inputsStr}, {pimObjsStr});
       allPassed &= ok;
       if (!ok) {{
           std::cerr << "Error: Test " << testNumber << " failed!" << std::endl;
@@ -362,30 +367,29 @@ int main() {{
 
   // Clean up and free allocated resources
   {pimFreeStr}
-  pimFree(resultPim);
   pimDeleteDevice();
 
   return 0;
 }}
 
 """
-
         return testFileStr
 
     def getBitwiseFuncCall(self):
         """ Call the bitwise function """
-        dataWidth = self.getCDataWidth()
         funcCallStr = ''
         params = ''
-        for input in self.getInputsList():
+
+        for (operand, dataType) in self.inputOperands:
+            dataWidth = self.getCDataWidth(dataType)
             funcCallStr += f"""
-            int bit_{input}[{dataWidth}];
+            int bit_{operand}[{dataWidth}];
             for (int i = 0; i < {dataWidth}; i++) {{
-                bit_{input}[i] = {input} & (1 << i) ? 1 : 0;
+                bit_{operand}[i] = {operand} & (1 << i) ? 1 : 0;
             }}
             """
             for i in range(dataWidth):
-                params += f'bit_{input}+{i}, '
+                params += f'bit_{operand}+{i}, '
 
         funcCallStr += f'\tint bit_out[{dataWidth}];\n'
         for i in range(dataWidth):
@@ -405,14 +409,14 @@ int main() {{
     def generatBitwiseTestFile(self):
         """ Generate test file for bitwise IR """
         goldenFunctionFilePath = self.resolveGoldenFunctionPath()
-        inputsStrWithType = self.getInputsStrWithType()
+        inputsStrWithType = self.getInputsStr(withType=True)
         inputsStr = self.getInputsStr()
-        randGenStr = self.getRandGenStr(True) # C style
+        randGenStr = self.getRandGenStr(cStyle=True)
         bitwiseOpStr = self.getBitwiseFuncCall()
         printInputs = ''
-        cDataType = self.getCDatatype()
-        for inputStr in self.getInputsList():
-            printInputs += f"\tprintf(\"Input {inputStr} = %d\\n\", (int) {inputStr});\n"
+        cDataType = self.getCDatatype(self.inputOperands[0][1])
+        for (operand, dataType) in self.inputOperands:
+            printInputs += f"\tprintf(\"Input {operand} = %d\\n\", ({self.getCDatatype(dataType)}) {operand});\n"
 
         testFileStr = f"""
 // Automatically generated by bit-serial compiler
@@ -426,8 +430,9 @@ int main() {{
 
 bool runTest({inputsStrWithType}) {{
     // Calculate the expected result using the golden model
-    int result = 0;
-    int expected = {self.getGoldenFunctionName()}({inputsStr});
+    {cDataType} result = 0;
+    {cDataType} expected;
+    {self.getGoldenFunctionName()}({inputsStr}, &expected);
 
     {bitwiseOpStr}
 
@@ -468,6 +473,5 @@ void main() {{
     }}
 }}
 """
-
         return testFileStr
 

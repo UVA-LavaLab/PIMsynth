@@ -14,6 +14,15 @@ from test_gen import *
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from util import *
+
+def splitModuleName(name):
+    parts = name.split('__')
+    if len(parts) != 4:
+        raise ValueError(f"Invalid format: '{name}'. Expected format 'operation_datatype'.")
+    arch, numRegs, pimMode = parts[:3]
+    operator, dataType = parts[3].rsplit('_', 1)  # split by the last underscore
+    return arch, numRegs, operator, dataType
+
 if __name__ == "__main__":
     # Set up argument parser with optional arguments
     parser = argparse.ArgumentParser(description='Generate PIMeval test code for bit-serial compiler micro-program output.')
@@ -26,8 +35,22 @@ if __name__ == "__main__":
     # Parse the arguments
     args = parser.parse_args()
 
+
+    # Resolve the operands list
+    operator = None
+    if args.golden_function_name is None:
+        # Resolve operator and data type
+        arch, numRegs, operator, dataType = splitModuleName(args.module_name)
+        operandsListGenerator = OperandsListGenerator(operator, dataType)
+        inputOperands, outputOperands = operandsListGenerator.getOperands()
+    else:
+        # Parse the golden model function signature
+        print("DEBUG: TODO")
+        breakpoint()
+
+
     # Test Generator ctor
-    testGenerator = TestGenerator(moduleName=args.module_name, outputPath=args.output_path, numTests=args.num_tests, pimMode=args.pim_mode)
+    testGenerator = TestGenerator(moduleName=args.module_name, outputPath=args.output_path, numTests=args.num_tests, inputOperands=inputOperands, outputOperands=outputOperands, operator=operator, pimMode=args.pim_mode)
 
     # Generate the Makefile
     writeToFile(args.output_path + "/" + "Makefile", testGenerator.generateMakeFile())

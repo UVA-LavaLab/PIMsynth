@@ -7,8 +7,6 @@ Author: Mohammadhosein Gholamrezaei <uab9qt@virginia.edu>
 Date: 2024-09-27
 """
 
-
-
 def getContent(fileName):
     try:
         with open(fileName, 'r') as file:
