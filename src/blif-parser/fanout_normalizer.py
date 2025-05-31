@@ -7,7 +7,7 @@ Author: Mohammadhosein Gholamrezaei <uab9qt@virginia.edu>
 Date: 2025-05-08
 """
 
-from parser import *
+from blif_parser import *
 from typing import Dict, List
 from dag_transformer_base import DagTransformer
 import networkx as nx

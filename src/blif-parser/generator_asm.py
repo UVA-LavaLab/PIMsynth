@@ -191,13 +191,17 @@ class GeneratorAsm():
 
     def getAsmInstructionsAnalog(self, clobber):
         """ Return a dictionary that maps logic gate names to assembly code generation functions for analog PIM """
-        # =r: output register, r: input register
         # return a single line assembly code. Be careful with " and \\n
+        # r: input register
+        # +r: both input and output
+        # 0: input uses same register as output 0
+        # =r: output register
+        # =&r: output must be different from inputs using early clobber
         return {
             "copy": lambda output, inputs: (
                 f'"#PIM_OP: copy1 %1 -> %0 \\n'
                 f' mv %0, %1'
-                f'" : "=r" ({output}) : "r" ({inputs[0]}) : {clobber}'
+                f'" : "=&r" ({output}) : "r" ({inputs[0]}) : {clobber}'
             ),
             "inv1": lambda output, inputs: (
                 f'"#PIM_OP: inv1 %1 -> %0 \\n'
@@ -209,14 +213,14 @@ class GeneratorAsm():
                 f' and %0, %1, %2 \\n'
                 f' mv %1, %0 \\n'
                 f' mv %2, %0'
-                f'" : "=r" ({output}), "+r" ({inputs[0]}), "+r" ({inputs[1]}) : : {clobber}'
+                f'" : "=&r" ({output}), "+r" ({inputs[0]}), "+r" ({inputs[1]}) : : {clobber}'
             ),
             "or2": lambda output, inputs: (
                 f'"#PIM_OP: or2 %1, %2 -> %0 \\n'
                 f' or %0, %1, %2 \\n'
                 f' mv %1, %0 \\n'
                 f' mv %2, %0'
-                f'" : "=r" ({output}), "+r" ({inputs[0]}), "+r" ({inputs[1]}) : : {clobber}'
+                f'" : "=&r" ({output}), "+r" ({inputs[0]}), "+r" ({inputs[1]}) : : {clobber}'
             ),
             "maj3": lambda output, inputs: (
                 f'"#PIM_OP: maj3 %1, %2, %3 -> %0 \\n'
@@ -228,7 +232,7 @@ class GeneratorAsm():
                 f' mv %1, %0 \\n'
                 f' mv %2, %0 \\n'
                 f' mv %3, %0'
-                f'" : "=r" ({output}), "+r" ({inputs[0]}), "+r" ({inputs[1]}), "+r" ({inputs[2]}) : : {clobber}'
+                f'" : "=&r" ({output}), "+r" ({inputs[0]}), "+r" ({inputs[1]}), "+r" ({inputs[2]}) : : {clobber}'
             ),
             "zero": lambda output, inputs: (
                 f'"#PIM_OP: zero -> %0 \\n'
