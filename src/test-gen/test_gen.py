@@ -240,21 +240,53 @@ clean:
             returnStr += f"{self.getCDatatype(dataType)} {operand} = {randFunc} % {bound};\n\t\t"
         return returnStr
 
-    def getPrintAllOperandsStr(self):
+    def getPrintAllOperandsStr(self, cStyle=False):
         returnStr = ""
+
+        def getPrintfFormat(dataType):
+            formatDict = {
+                "int1": "%d",
+                "int2": "%d",
+                "int3": "%d",
+                "int4": "%d",
+                "int8": "%d",
+                "int16": "%d",
+                "int32": "%d",
+                "int64": "%ld",
+                "uint8": "%u",
+                "uint16": "%u",
+                "uint32": "%u",
+                "uint64": "%lu",
+                "float": "%f",
+                "double": "%lf",
+            }
+            return formatDict.get(dataType, "%d")  # default to %d
+
         for (operand, dataType) in self.inputOperands:
-            returnStr += f"std::cerr << \"{operand}: \" << ({self.getCDatatype(dataType)}) {operand} << std::endl;\n\t"
+            if cStyle:
+                fmt = getPrintfFormat(dataType)
+                returnStr += f'printf("{operand}: {fmt}\\n", ({self.getCDatatype(dataType)}) {operand});\n\t'
+            else:
+                returnStr += f'std::cerr << "{operand}: " << ({self.getCDatatype(dataType)}) {operand} << std::endl;\n\t'
+
         for (operand, dataType) in self.outputOperands:
-            returnStr += f"std::cerr << \"{operand}(expected): \" << ({self.getCDatatype(dataType)}) {operand} << std::endl;\n\t"
-            returnStr += f"std::cerr << \"{operand}(pim     ): \" << ({self.getCDatatype(dataType)}) {operand} << std::endl;\n\t"
+            if cStyle:
+                fmt = getPrintfFormat(dataType)
+                returnStr += f'printf("{operand}(expected): {fmt}\\n", ({self.getCDatatype(dataType)}) {operand});\n\t'
+                returnStr += f'printf("{operand}(pim     ): {fmt}\\n", ({self.getCDatatype(dataType)}) {operand});\n\t'
+            else:
+                returnStr += f'std::cerr << "{operand}(expected): " << ({self.getCDatatype(dataType)}) {operand} << std::endl;\n\t'
+                returnStr += f'std::cerr << "{operand}(pim     ): " << ({self.getCDatatype(dataType)}) {operand} << std::endl;\n\t'
+
         return returnStr
 
-    def getVerificationCodeStr(self):
+
+    def getVerificationCodeStr(self, cStyle=False):
         returnStr = ""
         for (operand, dataType) in self.outputOperands:
             returnStr += f"""
     if ({operand} != {operand}_res) {{
-        {self.getPrintAllOperandsStr()}
+        {self.getPrintAllOperandsStr(cStyle)}
         return false;
     }}
             """
@@ -391,19 +423,24 @@ int main() {{
             for i in range(dataWidth):
                 params += f'bit_{operand}+{i}, '
 
-        funcCallStr += f'\tint bit_out[{dataWidth}];\n'
-        for i in range(dataWidth):
-            params += f'bit_out+{i}, '
-        params = params[:-2] # remove last comma and space
 
+        for (operand, dataType) in self.outputOperands:
+            dataWidth = self.getCDataWidth(dataType)
+            funcCallStr += f'\tint {operand}_bit_out[{dataWidth}];\n'
+            for i in range(dataWidth):
+                params += f'{operand}_bit_out+{i}, '
+
+        params = params[:-2] # remove last comma and space
         funcCallStr += f'\tfunc({params});'
 
-        funcCallStr += f"""
-            result = 0;
-            for (int i = 0; i < {dataWidth}; i++) {{
-                result |= bit_out[i] << i;
-            }}
-        """
+        for (operand, dataType) in self.outputOperands:
+            dataWidth = self.getCDataWidth(dataType)
+            funcCallStr += f"""
+        {operand}_res = 0;
+        for (int i = 0; i < {dataWidth}; i++) {{
+            {operand}_res |= {operand}_bit_out[i] << i;
+        }}
+            """
         return funcCallStr
 
     def generatBitwiseTestFile(self):
@@ -415,6 +452,9 @@ int main() {{
         bitwiseOpStr = self.getBitwiseFuncCall()
         printInputs = ''
         cDataType = self.getCDatatype(self.inputOperands[0][1])
+        outputsDeclarationStr = self.getOutputsDeclarationStr()
+        outputResultsDeclarationStr = self.getOutputsDeclarationStr(withResult=True)
+        outputStrWithReference = self.getOutputsStr(withReference=True)
         for (operand, dataType) in self.inputOperands:
             printInputs += f"\tprintf(\"Input {operand} = %d\\n\", ({self.getCDatatype(dataType)}) {operand});\n"
 
@@ -430,19 +470,14 @@ int main() {{
 
 bool runTest({inputsStrWithType}) {{
     // Calculate the expected result using the golden model
-    {cDataType} result = 0;
-    {cDataType} expected;
-    {self.getGoldenFunctionName()}({inputsStr}, &expected);
+    {outputsDeclarationStr}
+    {outputResultsDeclarationStr}
+    {self.getGoldenFunctionName()}({inputsStr}, {outputStrWithReference});
 
     {bitwiseOpStr}
 
-    // Verify the result
-    if (({cDataType})result != ({cDataType})expected) {{
-        // Print all inputs and outputs if there is a mismatch
-        {printInputs}
-        printf("expected = %d, result = %d\\n", expected, result);
-        return false;
-    }}
+    {self.getVerificationCodeStr(cStyle=True)}
+
     return true;
 }}
 
