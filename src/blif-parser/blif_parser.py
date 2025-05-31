@@ -14,8 +14,9 @@ import pprint
 import networkx as nx
 from blif_dag import *
 
-# Define the Transformer class
-class CircuitTransformer(Transformer):
+
+# Define the BLIF Transformer class for Lark
+class BlifTransformer(Transformer):
     def header(self, items):
         return {"header": items[0]}
 
@@ -57,8 +58,9 @@ class CircuitTransformer(Transformer):
     def COMMENT(self, item):
         return str(item)
 
-# Define the grammar
-circuitGrammar = r"""
+
+# Define the BLIF grammar
+BlifGrammar = r"""
     start: header model inputs outputs gate+ end
 
     header: COMMENT
@@ -86,51 +88,55 @@ circuitGrammar = r"""
     %import common.WS
     %ignore WS
     %ignore /\\/
-
-
 """
 
-class BlifParser():
-    def __init__(self, moduleName="TestModule"):
-        # Create the Lark parser
-        self.larkParser = Lark(circuitGrammar, parser='lalr', transformer=CircuitTransformer())
+class BlifParser:
+    """ BLIF parser class: Convert a BLIF file to a DAG representation """
+
+    def __init__(self, moduleName):
+        """ Initialize the BLIF parser """
+        self.larkParser = Lark(BlifGrammar, parser='lalr', transformer=BlifTransformer())
         self.parseTree = None
-        self.gatesList = []
-        self.wireList = []
-        self.inputsList = []
-        self.outputsList = []
         self.moduleName = moduleName
 
     def parse(self, inStr):
+        """ Parse the input BLIF file content and create DAG """
         self.parseTree = self.larkParser.parse(inStr)
-        self.dag = convertTreeToDag(self.parseTree)
-        self.gatesList = self.dag.getTopologicallySortedGates()
-        self.getPortList()
-        self.getWireList()
-        return True
-
-    def getWireList(self):
-        for gate in self.gatesList:
-            if 'new' in gate.outputs[0]:
-                self.wireList.append(gate.outputs[0])
-
-    def getPortList(self):
-        for item in self.parseTree.children:
-            if 'inputs' in item.keys():
-                self.inputsList = list(itertools.chain(*item['inputs']))
-            if 'outputs' in item.keys():
-                self.outputsList = list(itertools.chain(*item['outputs']))
-
-    def getName(self):
-        self.moduleName = self.parseTree['name']
+        success, dag = self.convertTreeToDag()
+        return success, dag
 
     def printTree(self):
+        """ Print the parse tree """
         pprint.pprint(self.parseTree)
 
-    def extractListFromKey(self, objList, key):
-        returnList = []
-        for obj in objList:
-            if obj['type'] == key:
-                returnList.append(obj)
-        return returnList
+    def convertTreeToDag(self):
+        """ Convert parse tree to DAG """
+        success = True
+        dag = Dag()
+        dag.module_name = self.moduleName
+
+        # Handle gates
+        gateCounter = 0
+        for item in self.parseTree.children:
+            if isinstance(item, dict) and 'gate_name' in item:
+                gateType = item['gate_name']
+                args = item['arguments']
+                inputs = [s for sub in args[:-1] for s in sub]
+                outputs = [s for s in args[-1]]
+                gateNode = GateNode(gateId=gateCounter, gateType=gateType, inputs=inputs, outputs=outputs)
+                dag.addGate(gateNode)
+                gateCounter += 1
+
+        # Handle in/out parts
+        for item in self.parseTree.children:
+            if 'inputs' in item.keys():
+                dag.inPortList = list(itertools.chain(*item['inputs']))
+            if 'outputs' in item.keys():
+                dag.outPortList = list(itertools.chain(*item['outputs']))
+
+        # Temp: Set gate list and wire list
+        dag.gateList = dag.getGateList()
+        dag.wireList = dag.getWireList()
+
+        return (success, dag) if success else (False, None)
 

@@ -9,9 +9,9 @@ Date: 2025-04-20
 """
 
 class GeneratorBitwise():
-    def __init__(self, parser, num_regs, func_name, pim_mode):
+    def __init__(self, dag, num_regs, func_name, pim_mode):
         """ Init """
-        self.parser = parser
+        self.dag = dag
         self.dataType = "int"
         self.num_regs = num_regs
         self.func_name = func_name
@@ -52,9 +52,9 @@ class GeneratorBitwise():
 
     def generateFunctionArgs(self):
         """ Generate function args passed by pointers """
-        inputs = self.sanitizeTokenList(self.parser.inputsList)
+        inputs = self.sanitizeTokenList(self.dag.inPortList)
         in_items = [f"{self.dataType} *{item}_pi" for item in inputs]
-        outputs = self.sanitizeTokenList(self.parser.outputsList)
+        outputs = self.sanitizeTokenList(self.dag.outPortList)
         out_items = [f"{self.dataType} *{item}_po" for item in outputs]
         return f"\t{',\n\t'.join(in_items + out_items)}\n"
 
@@ -72,18 +72,18 @@ class GeneratorBitwise():
         return code
 
     def generateTemporaryVariables(self):
-        if len(self.parser.wireList) == 0:
+        if len(self.dag.wireList) == 0:
             return ""
-        variables = ', '.join(self.parser.wireList)
+        variables = ', '.join(self.dag.wireList)
         return f"\t{self.dataType} {variables};\n"
 
     def generateTemporaryVariablesIn(self):
         """ Generate temp variables that dereference input pointers """
-        return f"\t{self.dataType} {', '.join([f'{item} = *{item}_pi' for item in self.sanitizeTokenList(self.parser.inputsList)])};\n"
+        return f"\t{self.dataType} {', '.join([f'{item} = *{item}_pi' for item in self.sanitizeTokenList(self.dag.inPortList)])};\n"
 
     def generateTemporaryVariablesOut(self):
         """ Generate temp variables for storing outputs """
-        outputs = self.sanitizeTokenList(self.parser.outputsList)
+        outputs = self.sanitizeTokenList(self.dag.outPortList)
         return f"\t{self.dataType} {', '.join(outputs)};\n"
 
     def getBitwiseInstructions(self):
@@ -196,7 +196,7 @@ class GeneratorBitwise():
 
         code = '\t// ########## BEGIN ##########\n'
 
-        for gate in self.parser.gatesList:
+        for gate in self.dag.gateList:
             code += self.generateSingleBitwiseStatement(gate, bitwise_instructions)
 
         code += '\t// ########## END ##########\n'
@@ -205,7 +205,7 @@ class GeneratorBitwise():
     def generateStatementsOutput(self):
         """ Generate statements to store output temp vars to pointers """
         code = ""
-        outputs = [item.replace("[", "_").replace("]", "_") for item in self.parser.outputsList]
+        outputs = [item.replace("[", "_").replace("]", "_") for item in self.dag.outPortList]
         for item in outputs:
             code += "\t*" + item + '_po = ' + item + ";\n"
         return code

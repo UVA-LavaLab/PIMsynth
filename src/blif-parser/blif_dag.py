@@ -26,8 +26,13 @@ class GateNode:
 class Dag:
     def __init__(self):
         self.graph = nx.DiGraph()
+        self.module_name = ''
         self.signalToGateOutput = {}
         self.gateInfo = {}
+        self.inPortList = []
+        self.outPortList = []
+        self.gateList = []
+        self.wireList = []
 
     def addGate(self, gateNode: GateNode):
         gateId = gateNode.id
@@ -51,19 +56,16 @@ class Dag:
     def getTopologicallySortedGates(self):
         return [self.gateInfo[gateId] for gateId in nx.topological_sort(self.graph)]
 
-def convertTreeToDag(tree):
-    dag = Dag()
-    gateCounter = 0
-    for item in tree.children:
-        if isinstance(item, dict) and 'gate_name' in item:
-            gateType = item['gate_name']
-            args = item['arguments']
-            inputs = [s for sub in args[:-1] for s in sub]
-            outputs = [s for s in args[-1]]
-            gateNode = GateNode(gateId=gateCounter, gateType=gateType, inputs=inputs, outputs=outputs)
-            dag.addGate(gateNode)
-            gateCounter += 1
-    return dag
+    def getGateList(self):
+        return self.getTopologicallySortedGates()
+
+    def getWireList(self):
+        wireList = []
+        gateList = self.getGateList()
+        for gate in gateList:
+            if 'new' in gate.outputs[0]:
+                wireList.append(gate.outputs[0])
+        return wireList
 
 
 def saveDagAsJson(dag, filePath):
