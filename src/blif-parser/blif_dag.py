@@ -1,4 +1,12 @@
-
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+File: blif_dag.py
+Description: DAG representation for BLIF translator
+Author: Mohammadhosein Gholamrezaei <uab9qt@virginia.edu>
+Author: Deyaun Guo <guodeyuan@gmail.com>
+Date: 2025-05-28
+"""
 
 import json
 from networkx.readwrite import json_graph

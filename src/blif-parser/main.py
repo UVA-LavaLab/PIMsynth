@@ -2,92 +2,160 @@
 # -*- coding: utf-8 -*-
 """
 File: main.py
-Description: BLIF parser and C generator
-Author: Mohammadhosein Gholamrezaei <uab9qt@virginia.edu> - BLIF-to-C parser generator code framework
+Description: Bit-serial compiler BLIF translator
+Author: Mohammadhosein Gholamrezaei <uab9qt@virginia.edu>
+Author: Deyuan Guo <guodeyuan@gmail.com>
 Date: 2024-09-03
 """
 
 import sys
 import argparse
 import os
-from parser import *
-from dag import *
-from generator_asm import *
-from generator_bitwise import *
-from fanout_normalizer import *
-from input_copy_inserter import *
 
+import blif_parser
+import blif_dag
+import generator_asm
+import generator_bitwise
+import fanout_normalizer
+import input_copy_inserter
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-from util import *
-DEBUG = False
+import util
 
-if __name__ == "__main__":
-    # Set up argument parser with optional arguments
-    parser = argparse.ArgumentParser(description='Parse circuit representation and generate C++ code.')
-    parser.add_argument('--input-file', '-i', type=str, required=True, help='The input circuit representation file to parse.')
-    parser.add_argument('--output-file', '-o', type=str, required=True, help='The output C++ file.')
-    parser.add_argument('--module-name', '-m', type=str, required=True, help='The name of the module to parse.')
-    parser.add_argument('--output-format', '-f', type=str, required=True, choices=['asm', 'bitwise'], help='Output format: asm, bitwise')
-    parser.add_argument('--num-regs', '-r', type=int, default=4, choices=range(2, 20), help='Number of registers 2~16')
-    parser.add_argument('--pim-mode', '-p', type=str, default='digital', help='The PIM architecture mode (analog/digital).')
+class BlifTranslator:
+    def __init__(self):
+        """ Initialize the BLIF translator """
+        self.input_file = ''
+        self.output_file = ''
+        self.module_name = ''
+        self.output_format = ''
+        self.num_regs = 0
+        self.pim_mode = ''
+        self.visualize = False
+        self.debug = False
 
-    # Parse the arguments
-    args = parser.parse_args()
-
-    # Read the file content
-    fileContent = getContent(args.input_file)
-
-    # Parser ctor
-    parser = Parser(moduleName=args.module_name)
-
-    # Parse the circuit representation
-    parser.parse(fileContent)
+        self.parser = None
 
 
-    # Transform the DAG
-    if args.pim_mode == "analog":
-        print("Info: Generate code for analog PIM.")
-        saveDagAsJson(parser.dag, "dag_pre_pass.json")
+    def parse_args(self, input_args):
+        """ Parse command line arguments """
+        arg_parser = argparse.ArgumentParser(description='BLIF Translator')
+        arg_parser.add_argument('--input-file', '-i', type=str, required=True, help='Input circuit in BLIF format')
+        arg_parser.add_argument('--output-file', '-o', type=str, required=True, help='Bit-serial compiler output file')
+        arg_parser.add_argument('--module-name', '-m', type=str, required=True, help='Bit-serial compiler module name')
+        arg_parser.add_argument('--output-format', '-f', type=str, required=True, choices=['asm', 'bitwise'], help='Output format: asm, bitwise')
+        arg_parser.add_argument('--num-regs', '-r', type=int, default=4, choices=range(2, 16), help='Number of registers 2~16')
+        arg_parser.add_argument('--pim-mode', '-p', type=str, default='digital', choices=['digital', 'analog'], help='PIM architecture mode: digital, analog')
+        arg_parser.add_argument('--visualize', action='store_true', default=False, help='Enable visualization of the DAG')
+        arg_parser.add_argument('--debug', action='store_true', default=False, help='Enable debug mode')
 
-        inputCopyInserter = InputCopyInserter()
-        parser.dag = inputCopyInserter.apply(parser.dag)
-        parser.wireList.extend(inputCopyInserter.newWires)
+        args = arg_parser.parse_args(input_args)
 
-        fanoutNormalizer = FanoutNormalizer()
-        parser.dag = fanoutNormalizer.apply(parser.dag)
-        parser.wireList.extend(fanoutNormalizer.newWires)
+        self.input_file = args.input_file
+        self.output_file = args.output_file
+        self.module_name = args.module_name
+        self.output_format = args.output_format
+        self.num_regs = args.num_regs
+        self.pim_mode = args.pim_mode
+        self.visualize = args.visualize
+        self.debug = args.debug
 
-        saveDagAsJson(parser.dag, "dag_post_pass.json")
+        success = True
+        if not os.path.isfile(self.input_file):
+            print(f"Error: Input file '{self.input_file}' does not exist.")
+            success = False
+        if os.path.isfile(self.output_file):
+            print(f"Warning: Output file '{self.output_file}' already exists and will be overwritten.")
 
-        if DEBUG:
-            print("DEBUG: Module name = ", parser.moduleName)
-            print("DEBUG: Inputs = ", parser.inputsList)
-            print("DEBUG: Outputs = ", parser.outputsList)
-            print("DEBUG: Wires = ", parser.wireList)
-            print(parser.dag)
+        if not success:
+            print("Error: Invalid command line arguments.")
+        return success
+
+
+    def run_analog_optimization(self):
+        """ Run optimizations for analog PIM mode """
+        print("Info: Optimizing DAG for analog PIM")
+        if self.visualize:
+            util.saveDagAsJson(self.parser.dag, "dag_pre_pass.json")
+
+        inputCopyInserter = input_copy_inserter.InputCopyInserter()
+        self.parser.dag = inputCopyInserter.apply(self.parser.dag)
+        self.parser.wireList.extend(inputCopyInserter.newWires)
+
+        fanoutNormalizer = fanout_normalizer.FanoutNormalizer()
+        self.parser.dag = fanoutNormalizer.apply(self.parser.dag)
+        self.parser.wireList.extend(fanoutNormalizer.newWires)
+
+        if self.visualize:
+            blif_dag.saveDagAsJson(self.parser.dag, "dag_post_pass.json")
+
+        if self.debug:
+            print("DEBUG: Module name = ", self.module_name)
+            print("DEBUG: Inputs = ", self.parser.inputsList)
+            print("DEBUG: Outputs = ", self.parser.outputsList)
+            print("DEBUG: Wires = ", self.parser.wireList)
+            print(self.parser.dag)
             breakpoint()
 
-        parser.gatesList = parser.dag.getTopologicallySortedGates()
+        self.parser.gatesList = self.parser.dag.getTopologicallySortedGates()
+
+        if self.visualize:
+            G_pre_pass = blif_dag.loadDagFromJson("dag_pre_pass.json")
+            G_post_pass = blif_dag.loadDagFromJson("dag_post_pass.json")
+            blif_dag.drawInteractiveCircuit(G_pre_pass, "G_pre_pass.html")
+            blif_dag.drawInteractiveCircuit(G_post_pass, "G_post_pass.html")
+
+        self.parser.gatesList = fanout_normalizer.removeTrailingStarsFromGatesList(self.parser.gatesList)
+        return True
 
 
-        G_pre_pass = loadDagFromJson("dag_pre_pass.json")
-        G_post_pass = loadDagFromJson("dag_post_pass.json")
-        drawInteractiveCircuit(G_pre_pass, "G_pre_pass.html")
-        drawInteractiveCircuit(G_post_pass, "G_post_pass.html")
+    def run_code_generation(self):
+        """ Run code generation based on the output format """
+        code = ''
+        if self.output_format == 'asm':
+            print("Info: Generating inline assembly IR for PIM")
+            generator = generator_asm.GeneratorAsm(self.parser, self.num_regs, self.module_name, self.pim_mode)
+            code = generator.generateCode()
+        elif self.output_format == 'bitwise':
+            print("Info: Generating bitwise IR for PIM")
+            generator = generator_bitwise.GeneratorBitwise(self.parser, self.num_regs, self.module_name, self.pim_mode)
+            code = generator.generateCode()
 
-    parser.gatesList = removeTrailingStarsFromGatesList(parser.gatesList)
+        # Write the generated C++ code into a file
+        util.writeToFile(self.output_file, code)
+        return True
 
 
+    def run(self, input_args):
+        """ Run the BLIF parser """
+        success = self.parse_args(input_args)
+        if not success:
+            return False
 
-    # Generate the code
-    code = ''
-    if args.output_format == 'asm':
-        generator = GeneratorAsm(parser, args.num_regs, args.module_name, args.pim_mode)
-        code = generator.generateCode()
-    elif args.output_format == 'bitwise':
-        generator = GeneratorBitwise(parser, args.num_regs, args.module_name, args.pim_mode)
-        code = generator.generateCode()
+        # Run BLIF parser
+        self.parser = blif_parser.BlifParser(moduleName=self.module_name)
+        if success:
+            fileContent = util.getContent(self.input_file)
+            success = self.parser.parse(fileContent)
 
-    # Write the generated C++ code into a file
-    writeToFile(args.output_file, code)
+        # Run ananlog optimizations if needed
+        if success and self.pim_mode == "analog":
+            success = self.run_analog_optimization()
+
+        # Generate code into the output file
+        if success:
+            success = self.run_code_generation()
+
+        return success
+
+
+# Main entry point
+if __name__ == "__main__":
+    blif_translator = BlifTranslator()
+    success = blif_translator.run(sys.argv[1:])
+    if not success:
+        print("Error: BLIF translation failed.")
+        sys.exit(1)
+    else:
+        print("Info: BLIF translation completed successfully.")
+        sys.exit(0)
 

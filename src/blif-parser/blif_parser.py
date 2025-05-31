@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-File: parser.py
+File: blif_parser.py
 Description: BLIF parser
 Author: Mohammadhosein Gholamrezaei <uab9qt@virginia.edu> - BLIF-to-C parser generator code framework
 Author: Deyuan Guo <guodeyuan@gmail.com> - Support bus inputs and outputs; Support backslash; Support mux/maj
@@ -12,7 +12,7 @@ from lark import Lark, Transformer, v_args
 import itertools
 import pprint
 import networkx as nx
-from dag import *
+from blif_dag import *
 
 # Define the Transformer class
 class CircuitTransformer(Transformer):
@@ -90,7 +90,7 @@ circuitGrammar = r"""
 
 """
 
-class Parser():
+class BlifParser():
     def __init__(self, moduleName="TestModule"):
         # Create the Lark parser
         self.larkParser = Lark(circuitGrammar, parser='lalr', transformer=CircuitTransformer())
@@ -107,6 +107,7 @@ class Parser():
         self.gatesList = self.dag.getTopologicallySortedGates()
         self.getPortList()
         self.getWireList()
+        return True
 
     def getWireList(self):
         for gate in self.gatesList:

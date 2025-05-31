@@ -7,7 +7,7 @@ Author: Mohammadhosein Gholamrezaei <uab9qt@virginia.edu>
 Date: 2025-05-08
 """
 
-from parser import *
+from blif_dag import Dag
 
 class DagTransformer:
     def apply(self, dag: Dag) -> Dag:
