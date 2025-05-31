@@ -419,7 +419,7 @@ class bitSerialCompiler:
         print("INFO: Compiling BLIF to C ...")
 
         script_location = os.path.dirname(os.path.abspath(__file__))
-        blif_parser = os.path.join(script_location, 'src/blif-parser/main.py')
+        blif_parser = os.path.join(script_location, 'src/blif-translator/main.py')
         blif_file = self.blif if self.blif else os.path.join(self.outdir, self.output + '.blif')
         c_file = os.path.join(self.outdir, self.output + '.c')
         cmd = ['python3', blif_parser, '-f', 'asm', '-i', blif_file, '-m', 'func', '-o', c_file, '-r', str(self.num_regs), '-p', self.pim_mode]

@@ -130,7 +130,7 @@ Source files:
 * `src/`
   * `genlibs/`: GenLib definitions as bit-serial ISA
   * `verilog/`: Verilog source code
-  * `blif-parser/`: BLIF parser and C/C++ code generator written in Python
+  * `blif-translator/`: BLIF translator written in Python
   * `asm-parser/`: RISC-V ASM parser and PIM code generator written in Python
   * `scripts/`: Utility scripts
 * `benchmarks/`: Verilog source code written in bit-serial manner
