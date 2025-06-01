@@ -7,127 +7,141 @@ Author: Mohammadhosein Gholamrezaei <uab9qt@virginia.edu>
 Date: 2025-05-08
 """
 
-from blif_parser import *
 from typing import Dict, List
 from dag_transformer_base import DagTransformer
-import networkx as nx
+from blif_parser import GateNode
 
-def removeTrailingStars(strings):
-    return [s[:-1] if s.endswith('*') else s for s in strings]
-
-def removeTrailingStarsFromGatesList(gatesList):
-    for i in range(len(gatesList)):
-        gatesList[i].inputs = removeTrailingStars(gatesList[i].inputs)
-    return gatesList
 
 class FanoutNormalizer(DagTransformer):
+    """ FanoutNormalizer class """
+
     def __init__(self):
-        self.copyCounter = 0
-        self.newWires = []
+        """ Initialize the FanoutNormalizer """
+        self.copy_count = 0
+        self.new_wires = []
 
     def apply(self, dag):
-        signalConsumers: Dict[str, List[str]] = self.getSignalConsumers(dag)
-        signalProducers: Dict[str, str] = self.getSignalProducers(dag)
+        """ Apply the fanout normalizer transformation to the DAG """
+        wire_fanouts: Dict[str, List[str]] = self.get_wire_fanouts(dag)
+        wire_fanin: Dict[str, str] = self.get_wire_fanin(dag)
 
-        for signal, consumers in signalConsumers.items():
-            fanout = len(consumers)
+        for wire, to_gate_ids in wire_fanouts.items():
+            fanout = len(to_gate_ids)
             if fanout <= 1:
                 continue
 
-            producerId = signalProducers.get(signal)
-            if producerId is None:
+            from_gate_id = wire_fanin.get(wire)
+            if from_gate_id is None:
                 continue
 
-            producerGate = dag.gateInfo[producerId]
-            isInvGate = (producerGate.type == "inv1")
-            isCopyGate = (producerGate.type == "copy")
-            hasReusableInputs = (not (isInvGate or isCopyGate))
-            originalConsumerId = consumers[0]
-            remainingConsumerIds = consumers[1:]
-            if hasReusableInputs:
-                remainingConsumerIds = self.replaceWithInputs(dag, signal, producerId, remainingConsumerIds)
-                self.insertCopyNodes(dag, signal, producerId, remainingConsumerIds, originalConsumerId)
-            elif isInvGate:
-                self.insertCopyNodes(dag, signal, producerId, remainingConsumerIds, originalConsumerId)
+            from_gate = dag.gate_info[from_gate_id]
+            is_inv_gate = from_gate.gate_func == "inv1"
+            is_copy_gate = from_gate.gate_func == "copy"
+            has_reusable_inputs = not (is_inv_gate or is_copy_gate)
+            first_to_gate_id = to_gate_ids[0]
+            remaining_to_gate_ids = to_gate_ids[1:]
+            if has_reusable_inputs:
+                remaining_to_gate_ids = self.replace_with_inputs(dag, wire, from_gate_id, remaining_to_gate_ids)
+                self.insert_copy_nodes(dag, wire, from_gate_id, remaining_to_gate_ids, first_to_gate_id)
+            elif is_inv_gate:
+                self.insert_copy_nodes(dag, wire, from_gate_id, remaining_to_gate_ids, first_to_gate_id)
             else:
                 raise Exception("Error: Unexpected behaivior happened.")
 
+        # Temp: Track wire list separately for now
+        dag.wire_list.extend(self.new_wires)
 
-    def replaceWithInputs(self, dag, signal: str, producerId: str, consumerIds: List[str]):
-        producerGate = dag.gateInfo[producerId]
-        inputs = producerGate.inputs
-        reusableInputs = []
-        for x in inputs:
-            if not "*" in x:
-                reusableInputs.append(x)
 
-        n = min(len(reusableInputs), len(consumerIds))
-        for idx in range(n):
-            newInputSignal = reusableInputs[idx]
-            consumerId = consumerIds[idx]
-            if dag.graph.has_edge(producerId, consumerId):
-                dag.graph.remove_edge(producerId, consumerId)
-            dag.graph.add_edge(producerId, consumerId, label='Fake') # Fake edge to maintain topological sort
+    def replace_with_inputs(self, dag, target_wire: str, from_gate_id: str, to_gate_ids: List[str]):
+        """ Replace fanout inputs with reusable inputs from the previous stage """
+        from_gate = dag.gate_info[from_gate_id]
+        reusable_inputs = []
+        for wire in from_gate.inputs:
+            if not "*" in wire:
+                reusable_inputs.append(wire)
 
-            consumerGate = dag.gateInfo[consumerId]
-            consumerGate.inputs = [
-                newInputSignal + "*" if s == signal else s
-                for s in consumerGate.inputs
-            ]
-            dag.gateInfo[consumerId] = consumerGate
+        num_replace = min(len(reusable_inputs), len(to_gate_ids))
+        for idx in range(num_replace):
+            reuse_wire = reusable_inputs[idx]
+            to_gate_id = to_gate_ids[idx]
+            if dag.graph.has_edge(from_gate_id, to_gate_id):
+                dag.graph.remove_edge(from_gate_id, to_gate_id)
+            else:
+                raise Exception(f"Error: Edge from {from_gate_id} to {to_gate_id} does not exist.")
 
-        remainingConsumerIds = consumerIds[n:]
-        return remainingConsumerIds
+            # Create a fake edge to maintain topological order
+            dag.graph.add_edge(from_gate_id, to_gate_id, label='Fake')
 
-    def getSignalConsumers(self, dag) -> Dict[str, List[str]]:
-        consumers: Dict[str, List[str]] = {}
-        for gateId in dag.graph.nodes:
-            gate = dag.gateInfo[gateId]
-            for signal in gate.inputs:
-                consumers.setdefault(signal, []).append(gateId)
-        return consumers
+            to_gate = dag.gate_info[to_gate_id]
+            to_gate.inputs = [reuse_wire + "*" if wire == target_wire else wire for wire in to_gate.inputs]
+            #dag.gate_info[to_gate_id] = to_gate
 
-    def getSignalProducers(self, dag) -> Dict[str, str]:
-        producers: Dict[str, str] = {}
-        for gateId in dag.graph.nodes:
-            gate = dag.gateInfo[gateId]
-            for signal in gate.outputs:
-                producers[signal] = gateId
-        return producers
+        remaining_to_gate_ids = to_gate_ids[num_replace:]
+        return remaining_to_gate_ids
 
-    def insertCopyNodes(self, dag, signal: str, producerId: str, consumerIds: List[str], originalConsumerId: str):
-        lastSignal = signal
-        lastProducerId = producerId
-        lastConsumerId = originalConsumerId
+    def get_wire_fanouts(self, dag) -> Dict[str, List[str]]:
+        """ Get the fanouts for each wire in the DAG """
+        wire_fanouts: Dict[str, List[str]] = {}
+        for gate_id in dag.graph.nodes:
+            gate = dag.gate_info[gate_id]
+            for wire in gate.inputs:
+                wire_fanouts.setdefault(wire, []).append(gate_id)
+        return wire_fanouts
 
-        for consumerId in consumerIds:
-            if dag.graph.has_edge(producerId, consumerId):
-                dag.graph.remove_edge(producerId, consumerId)
+    def get_wire_fanin(self, dag) -> Dict[str, str]:
+        """ Get the fanin for each wire in the DAG """
+        wire_fanin: Dict[str, str] = {}
+        for gate_id in dag.graph.nodes:
+            gate = dag.gate_info[gate_id]
+            for wire in gate.outputs:
+                wire_fanin[wire] = gate_id
+        return wire_fanin
 
-            newOutputSignal = f"{signal}_copy_{self.copyCounter}"
-            copyNodeId = f"copy_{self.copyCounter}"
-            copyNode = GateNode(
-                gateId=copyNodeId,
-                gateType="copy",
-                inputs=[lastSignal],
-                outputs=[newOutputSignal]
+    def insert_copy_nodes(self, dag, wire: str, from_gate_id: str, to_gate_ids: List[str], first_to_gate_id: str):
+        """ Insert copy nodes to handle input-destroying gates """
+        prev_wire = wire
+        prev_from_gate_id = from_gate_id
+        prev_to_gate_id = first_to_gate_id
+
+        for to_gate_id in to_gate_ids:
+            if dag.graph.has_edge(from_gate_id, to_gate_id):
+                dag.graph.remove_edge(from_gate_id, to_gate_id)
+
+            new_wire = f"{wire}_copy_{self.copy_count}"
+            copy_gate_id = f"copy_{self.copy_count}"
+            copy_gate = GateNode(
+                gate_id=copy_gate_id,
+                gate_func="copy",
+                inputs=[prev_wire],
+                outputs=[new_wire]
             )
-            self.copyCounter += 1
-            self.newWires.append(newOutputSignal)
+            self.copy_count += 1
+            self.new_wires.append(new_wire)
 
-            dag.addGate(copyNode)
-            dag.graph.add_edge(lastProducerId, copyNodeId)
-            dag.graph.add_edge(copyNodeId, lastConsumerId, label='Fake')
-            dag.graph.add_edge(copyNodeId, consumerId)
+            dag.add_gate(copy_gate)
+            dag.graph.add_edge(prev_from_gate_id, copy_gate_id)
+            dag.graph.add_edge(copy_gate_id, to_gate_id)
+            # Create a fake edge to maintain topological order
+            # TODO: Double check dependency
+            dag.graph.add_edge(copy_gate_id, prev_to_gate_id, label='Fake')
 
-            consumerGate = dag.gateInfo[consumerId]
-            consumerGate.inputs = [
-                newOutputSignal if s == signal else s
-                for s in consumerGate.inputs
-            ]
-            dag.gateInfo[consumerId] = consumerGate
+            to_gate = dag.gate_info[to_gate_id]
+            to_gate.inputs = [new_wire if s == wire else s for s in to_gate.inputs]
+            #dag.gate_info[to_gate_id] = to_gate
 
-            lastSignal = newOutputSignal
-            lastProducerId = copyNodeId
-            lastConsumerId = consumerId
+            prev_wire = new_wire
+            prev_from_gate_id = copy_gate_id
+            prev_to_gate_id = to_gate_id
 
+
+    @staticmethod
+    def remove_trailing_stars(wire_list):
+        """ Remove trailing stars from a list of strings """
+        return [w[:-1] if w.endswith('*') else w for w in wire_list]
+
+    @staticmethod
+    def remove_trailing_stars_from_gate_list(gate_list):
+        """ Remove trailing stars from all gate inputs in a gate list """
+        for gate in gate_list:
+            gate.inputs = FanoutNormalizer.remove_trailing_stars(gate.inputs)
+        return gate_list
