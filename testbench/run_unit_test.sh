@@ -32,7 +32,7 @@ VALID_BIT_SERIAL_ISA=(
 
 # Define a list of valid benchmark names
 VALID_BENCHMARKS=(
-  "aes_sbox"
+  "aes_sbox" "aes_inverse_sbox" "add_sub_int32"
 )
 
 # Define a list of valid PIM modes
@@ -151,7 +151,7 @@ if [ ! -f "$genlib_file" ]; then
 fi
 
 target="${bit_serial_isa}__${num_reg}__${pim_mode}__${benchmark_name}"
-golden_function_header_file="$SCRIPT_DIR/$GOLDEN_MODELS_DIR/${benchmark_name}_golden.hpp"
+golden_function_header_file="$SCRIPT_DIR/$GOLDEN_MODELS_DIR/${benchmark_name}.golden.hpp"
 outdir="$SCRIPT_DIR/outputs__$target"
 
 # Check if the golden model headr file exitst

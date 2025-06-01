@@ -440,7 +440,7 @@ int main() {{
                 params += f'{operand}_bit_out+{i}, '
 
         params = params[:-2] # remove last comma and space
-        funcCallStr += f'\tfunc({params});'
+        funcCallStr += f'\t{self.moduleName}({params});'
 
         for (operand, dataType) in self.outputOperands:
             dataWidth = self.getCDataWidth(dataType)
@@ -450,6 +450,8 @@ int main() {{
             {operand}_res |= {operand}_bit_out[i] << i;
         }}
             """
+        print(funcCallStr)
+        breakpoint()
         return funcCallStr
 
     def generatBitwiseTestFile(self):

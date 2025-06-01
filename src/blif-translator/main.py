@@ -119,6 +119,8 @@ class BlifTranslator:
             code = generator.generateCode()
         elif self.output_format == 'bitwise':
             print("Info: Generating bitwise IR for PIM")
+            print(self.module_name)
+            breakpoint()
             generator = generator_bitwise.GeneratorBitwise(dag, self.num_regs, self.module_name, self.pim_mode)
             code = generator.generateCode()
         else:
