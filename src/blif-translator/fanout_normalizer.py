@@ -4,6 +4,7 @@
 File: fanout_normalizer.py
 Description: Eliminates multi-fanout wires by inserting dedicated copy gates for all but one consumer.
 Author: Mohammadhosein Gholamrezaei <uab9qt@virginia.edu>
+Author: Deyuan Guo <guodeyuan@gmail.com>
 Date: 2025-05-08
 """
 
@@ -60,17 +61,21 @@ class FanoutNormalizer(DagTransformer):
         for idx in range(num_replace):
             reuse_wire = reusable_inputs[idx]
             to_gate_id = to_gate_ids[idx]
-            if dag.graph.has_edge(from_gate_id, to_gate_id):
-                dag.graph.remove_edge(from_gate_id, to_gate_id)
-            else:
-                raise Exception(f"Error: Edge from {from_gate_id} to {to_gate_id} does not exist.")
-
-            # Create a fake edge to maintain topological order
-            dag.graph.add_edge(from_gate_id, to_gate_id, label='Fake')
-
             to_gate = dag.gate_info[to_gate_id]
+
+            # Update DAG
+            if not dag.graph.has_edge(from_gate_id, to_gate_id):
+                raise Exception(f"Error: Edge from {from_gate_id} to {to_gate_id} does not exist.")
+            dag.graph.remove_edge(from_gate_id, to_gate_id)
+            from_gate.has_deps = True
+            to_gate.has_deps = True
+
+            # Create a dependency edge to maintain topological order
+            # The from-gate needs to be done before the to-gate
+            dag.graph.add_edge(from_gate_id, to_gate_id, label='dep')
+
+            # Update gate inputs
             to_gate.inputs = [reuse_wire + "*" if wire == target_wire else wire for wire in to_gate.inputs]
-            #dag.gate_info[to_gate_id] = to_gate
 
         remaining_to_gate_ids = to_gate_ids[num_replace:]
         return remaining_to_gate_ids
@@ -93,17 +98,15 @@ class FanoutNormalizer(DagTransformer):
                 wire_fanin[wire] = gate_id
         return wire_fanin
 
-    def insert_copy_nodes(self, dag, wire: str, from_gate_id: str, to_gate_ids: List[str], first_to_gate_id: str):
+    def insert_copy_nodes(self, dag, target_wire: str, orig_from_gate_id: str, to_gate_ids: List[str], first_to_gate_id: str):
         """ Insert copy nodes to handle input-destroying gates """
-        prev_wire = wire
-        prev_from_gate_id = from_gate_id
+        prev_wire = target_wire
+        prev_from_gate_id = orig_from_gate_id
         prev_to_gate_id = first_to_gate_id
+        orig_from_gate = dag.gate_info[orig_from_gate_id]
 
         for to_gate_id in to_gate_ids:
-            if dag.graph.has_edge(from_gate_id, to_gate_id):
-                dag.graph.remove_edge(from_gate_id, to_gate_id)
-
-            new_wire = f"{wire}_copy_{self.copy_count}"
+            new_wire = f"{target_wire}_copy_{self.copy_count}"
             copy_gate_id = f"copy_{self.copy_count}"
             copy_gate = GateNode(
                 gate_id=copy_gate_id,
@@ -113,16 +116,24 @@ class FanoutNormalizer(DagTransformer):
             )
             self.copy_count += 1
 
+            # Update DAG
+            if not dag.graph.has_edge(orig_from_gate_id, to_gate_id):
+                raise Exception(f"Error: Edge from {orig_from_gate_id} to {to_gate_id} does not exist.")
+            dag.graph.remove_edge(orig_from_gate_id, to_gate_id)
+            orig_from_gate.has_deps = True
+            copy_gate.has_deps = True
+
             dag.add_gate(copy_gate)
             dag.graph.add_edge(prev_from_gate_id, copy_gate_id)
             dag.graph.add_edge(copy_gate_id, to_gate_id)
-            # Create a fake edge to maintain topological order
-            # TODO: Double check dependency
-            dag.graph.add_edge(copy_gate_id, prev_to_gate_id, label='Fake')
 
+            # Create a dependency edge to maintain topological order
+            # The copy needs to be done before the previous to-gate
+            dag.graph.add_edge(copy_gate_id, prev_to_gate_id, label='dep')
+
+            # Update gate inputs
             to_gate = dag.gate_info[to_gate_id]
-            to_gate.inputs = [new_wire if s == wire else s for s in to_gate.inputs]
-            #dag.gate_info[to_gate_id] = to_gate
+            to_gate.inputs = [new_wire if wire == target_wire else wire for wire in to_gate.inputs]
 
             prev_wire = new_wire
             prev_from_gate_id = copy_gate_id

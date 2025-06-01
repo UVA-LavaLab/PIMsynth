@@ -29,14 +29,12 @@ class InputCopyInserter(DagTransformer):
         wire_copy_count: Dict[str, int] = {}
         for gate_id in list(dag.graph.nodes):
             gate = dag.gate_info[gate_id]
-
             for i, wire in enumerate(gate.inputs):
                 if dag.is_in_port(wire):
                     count = wire_copy_count.get(wire, 0)
                     wire_copy_count[wire] = count + 1
                     new_wire = f"{self.rename_input(wire)}_copy_{count}"
                     copy_gate_id = f"input_copy_{self.rename_input(wire)}_{count}"
-
                     copy_gate = GateNode(
                         gate_id=copy_gate_id,
                         gate_func="copy",
@@ -44,7 +42,8 @@ class InputCopyInserter(DagTransformer):
                         outputs=[new_wire]
                     )
 
+                    # Update DAG
                     dag.add_gate(copy_gate)
                     dag.graph.add_edge(copy_gate.gate_id, gate_id)
-
+                    # Update gate inputs
                     gate.inputs[i] = new_wire

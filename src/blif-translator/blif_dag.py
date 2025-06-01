@@ -23,6 +23,7 @@ class GateNode:
         self.gate_func = gate_func
         self.inputs = inputs
         self.outputs = outputs
+        self.has_deps = False  # for scheduling
 
     def __repr__(self):
         """ String representation of GateNode """

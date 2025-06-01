@@ -256,10 +256,12 @@ class GeneratorAsm():
         """ Generate a single assembly statement based on the logic gate type """
         inputs = self.sanitize_token_list(gate.inputs)
         output = self.sanitize_token(gate.outputs[0])
+        # Temporary solution to make scheduling result correct
+        volatile = " volatile " if gate.has_deps else ""
 
         for gate_func, asm_func in asm_instructions.items():
             if gate.gate_func.startswith(gate_func):
-                return f'\tasm({asm_func(output, inputs)});\n'
+                return f'\tasm{volatile}({asm_func(output, inputs)});\n'
 
         raise ValueError(f"Error: Unhandled gate type {gate.gate_func}")
 
