@@ -1,15 +1,17 @@
 #!/bin/bash
 #===============================================================================
-# FILE: run_benchmark.sh
-# DESCRIPTION: Script to run bit-serial benchmarks
+# FILE: run_unit_test.sh
+# DESCRIPTION: Script to run unit tests
 # AUTHOR: Deyuan Guo <guodeyuan@gmail.com>
-# CREATED: 03/28/2025
+# AUTHOR: Mohammadhosein Gholamrezaei <uab9qt@virginia.edu>
+# CREATED: 05/31/2025
 #===============================================================================
 
 # NOTE: Use apptainer to run this script. Do not call apptainer in this script.
 
 SCRIPT_DIR="$(dirname "${BASH_SOURCE[0]}")"
 PROJ_ROOT=$(git rev-parse --show-toplevel)
+GOLDEN_MODELS_DIR="golden-model"
 
 # Note: This script finds verilog inputs from below locations
 VERILOG_DIR1=.
@@ -30,29 +32,7 @@ VALID_BIT_SERIAL_ISA=(
 
 # Define a list of valid benchmark names
 VALID_BENCHMARKS=(
-    "add_int8" "add_int16" "add_int32" "add_int64"
-    "sub_int8" "sub_int16" "sub_int32" "sub_int64"
-    "mul_int8" "mul_int16" "mul_int32" "mul_int64"
-    "abs_int8" "abs_int16" "abs_int32" "abs_int64"
-    "not_int1" "not_int8" "not_int16" "not_int32" "not_int64"
-    "and_int1" "and_int8" "and_int16" "and_int32" "and_int64"
-    "or_int1" "or_int8" "or_int16" "or_int32" "or_int64"
-    "xor_int1" "xor_int8" "xor_int16" "xor_int32" "xor_int64"
-    "xnor_int1" "xnor_int8" "xnor_int16" "xnor_int32" "xnor_int64"
-    "gt_uint8" "gt_uint16" "gt_uint32" "gt_uint64"
-    "gt_int8" "gt_int16" "gt_int32" "gt_int64"
-    "lt_uint8" "lt_uint16" "lt_uint32" "lt_uint64"
-    "lt_int8" "lt_int16" "lt_int32" "lt_int64"
-    "eq_int8" "eq_int16" "eq_int32" "eq_int64"
-    "ne_int8" "ne_int16" "ne_int32" "ne_int64"
-    "min_int8" "min_int16" "min_int32" "min_int64"
-    "min_uint8" "min_uint16" "min_uint32" "min_uint64"
-    "max_int8" "max_int16" "max_int32" "max_int64"
-    "max_uint8" "max_uint16" "max_uint32" "max_uint64"
-    "popcount_int8" "popcount_int16" "popcount_int32" "popcount_int64"
-    "add_sub_int32"
-    "aes_sbox" "aes_inverse_sbox" "aes_sbox_usuba"
-    "full_adder_1bit"
+  "aes_sbox"
 )
 
 # Define a list of valid PIM modes
@@ -171,7 +151,14 @@ if [ ! -f "$genlib_file" ]; then
 fi
 
 target="${bit_serial_isa}__${num_reg}__${pim_mode}__${benchmark_name}"
+golden_function_header_file="$SCRIPT_DIR/$GOLDEN_MODELS_DIR/${benchmark_name}_golden.hpp"
 outdir="$SCRIPT_DIR/outputs__$target"
+
+# Check if the golden model headr file exitst
+if [ ! -f "$golden_function_header_file" ]; then
+    echo "Error: Header file '$golden_function_header_file' not found."
+    exit 1
+fi
 
 # Delete the output directory if it already exists
 if [ -d "$outdir" ]; then
@@ -223,6 +210,10 @@ else
     exit 1
 fi
 
+# Copy the golden function header file to the output directory
+local_golden_function_header_file="$outdir/$target.golden.hpp"
+cp $golden_function_header_file $local_golden_function_header_file
+
 # Call the bit-serial compiler
 $PROJ_ROOT/bit_serial_compiler.py \
     --verilog "${verilog_files[@]}" \
@@ -232,6 +223,7 @@ $PROJ_ROOT/bit_serial_compiler.py \
     --outdir "$outdir" \
     --num-tests 10 \
     --pim-mode "$pim_mode" \
+    --golden-function-name "$local_golden_function_header_file" \
     2>&1 | tee "$outdir/$target.log"
 
 # Make the test

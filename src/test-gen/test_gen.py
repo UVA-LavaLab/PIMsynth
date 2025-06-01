@@ -41,7 +41,7 @@ class OperandsListGenerator():
         return self.getInputsList(), self.getOutputsList()
 
 class TestGenerator:
-    def __init__(self, moduleName, outputPath, numTests, inputOperands, outputOperands, operator, pimMode = "digital", goldenFunctionPath=None):
+    def __init__(self, moduleName, outputPath, numTests, inputOperands, outputOperands, operator, pimMode = "digital", goldenFunctionFilePath=None, goldenFunctionName=None):
         self.moduleName = moduleName
         self.outputPath = outputPath
         self.numTests = numTests
@@ -49,7 +49,8 @@ class TestGenerator:
         self.outputOperands = outputOperands
         self.operator = operator
         self.pimMode = pimMode
-        self.goldenFunctionPath = goldenFunctionPath
+        self.goldenFunctionFilePath = goldenFunctionFilePath
+        self.goldenFunctionName = goldenFunctionName
 
 
     def generateMakeFile(self):
@@ -117,16 +118,22 @@ clean:
     def getCDatatype(self, dataType):
         if dataType in {"int1", "int2", "int3", "int4"}:
             return "int8_t"
+        elif dataType in {"uint1", "uint2", "uint3", "uint4"}:
+            return "uint8_t"
         return f"{dataType}_t"
 
     def getCDataWidth(self, dataType):
-        if dataType.startswith(("int", "uint")) and dataType[3:].isdigit():
+        if dataType.startswith("int") and dataType[3:].isdigit():
             return int(dataType[3:])
-        raise ValueError(f"Unknown data type: {dataType}")
+        elif dataType.startswith("uint") and dataType[4:].isdigit():
+            return int(dataType[4:])
+        raise Exception(f"Unknown data type: {dataType}")
 
     def getPimEvalDataType(self, dataType):
         if dataType in {"int1", "int2", "int3", "int4", "int8"}:
             return "PIM_INT8"
+        elif dataType in {"uint1", "uint2", "uint3", "uint4", "uint8"}:
+            return "PIM_UINT8"
         if dataType.startswith("int") or dataType.startswith("uint"):
             return f"PIM_{dataType.upper()}"
         raise ValueError(f"Unknown data type: {dataType}")
@@ -174,10 +181,12 @@ clean:
         ) + ("\n\t" if self.outputOperands else "")
 
     def getGoldenFunctionName(self):
-        return f"{self.moduleName}_golden"
+        if self.goldenFunctionName is None:
+            return f"{self.moduleName}_golden"
+        return self.goldenFunctionName
 
     def generateGoldenFunctionFile(self):
-        if not self.goldenFunctionPath is None:
+        if not self.goldenFunctionFilePath is None:
             code = getContent(self.goldenModelHeaderFile)
         else:
             outputOperandType = self.outputOperands[0][1]
@@ -300,7 +309,7 @@ clean:
 
     def resolveGoldenFunctionPath(self):
         goldenFunctionFilePath = f"{self.moduleName}.golden.hpp"
-        if not self.goldenFunctionPath is None:
+        if not self.goldenFunctionFilePath is None:
             goldenFunctionFilePath = self.goldenFunctionFilePath
         return goldenFunctionFilePath
 
