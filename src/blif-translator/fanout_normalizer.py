@@ -18,7 +18,6 @@ class FanoutNormalizer(DagTransformer):
     def __init__(self):
         """ Initialize the FanoutNormalizer """
         self.copy_count = 0
-        self.new_wires = []
 
     def apply(self, dag):
         """ Apply the fanout normalizer transformation to the DAG """
@@ -47,9 +46,6 @@ class FanoutNormalizer(DagTransformer):
                 self.insert_copy_nodes(dag, wire, from_gate_id, remaining_to_gate_ids, first_to_gate_id)
             else:
                 raise Exception("Error: Unexpected behaivior happened.")
-
-        # Temp: Track wire list separately for now
-        dag.wire_list.extend(self.new_wires)
 
 
     def replace_with_inputs(self, dag, target_wire: str, from_gate_id: str, to_gate_ids: List[str]):
@@ -116,7 +112,6 @@ class FanoutNormalizer(DagTransformer):
                 outputs=[new_wire]
             )
             self.copy_count += 1
-            self.new_wires.append(new_wire)
 
             dag.add_gate(copy_gate)
             dag.graph.add_edge(prev_from_gate_id, copy_gate_id)
@@ -140,8 +135,7 @@ class FanoutNormalizer(DagTransformer):
         return [w[:-1] if w.endswith('*') else w for w in wire_list]
 
     @staticmethod
-    def remove_trailing_stars_from_gate_list(gate_list):
+    def remove_trailing_stars_from_gate_list(dag):
         """ Remove trailing stars from all gate inputs in a gate list """
-        for gate in gate_list:
+        for gate in dag.get_gate_list():
             gate.inputs = FanoutNormalizer.remove_trailing_stars(gate.inputs)
-        return gate_list

@@ -57,9 +57,9 @@ class GeneratorAsm():
 
     def generate_function_args(self):
         """ Generate function args passed by pointers """
-        inputs = self.sanitize_token_list(self.dag.in_ports)
+        inputs = self.sanitize_token_list(self.dag.get_in_ports())
         in_items = [f"{self.data_type} *{item}_pi" for item in inputs]
-        outputs = self.sanitize_token_list(self.dag.out_ports)
+        outputs = self.sanitize_token_list(self.dag.get_out_ports())
         out_items = [f"{self.data_type} *{item}_po" for item in outputs]
         return f"\t{',\n\t'.join(in_items + out_items)}\n"
 
@@ -78,7 +78,7 @@ class GeneratorAsm():
 
     def generate_temporary_variables(self):
         """ Generate temporary variables for wires """
-        wire_list = self.dag.wire_list
+        wire_list = self.dag.get_wire_list()
         if len(wire_list) == 0:
             return ""
         variables = ', '.join(wire_list)
@@ -86,12 +86,12 @@ class GeneratorAsm():
 
     def generate_temporary_variables_in(self):
         """ Generate temp variables that dereference input pointers """
-        inputs = self.sanitize_token_list(self.dag.in_ports)
+        inputs = self.sanitize_token_list(self.dag.get_in_ports())
         return f"\t{self.data_type} {', '.join([f'{item} = *{item}_pi' for item in inputs])};\n"
 
     def generate_temporary_variables_out(self):
         """ Generate temp variables for storing outputs """
-        outputs = self.sanitize_token_list(self.dag.out_ports)
+        outputs = self.sanitize_token_list(self.dag.get_out_ports())
         return f"\t{self.data_type} {', '.join(outputs)};\n"
 
     def generate_clobber_list(self):
@@ -273,7 +273,7 @@ class GeneratorAsm():
         code = '\tasm("########## BEGIN ##########");\n'
 
         # Generate assembly statements for each item in the statement list
-        for gate in self.dag.gate_list:
+        for gate in self.dag.get_gate_list():
             code += self.generate_single_asm_statement(gate, asm_instructions)
 
         code += '\tasm("########## END ##########");\n'
@@ -282,7 +282,7 @@ class GeneratorAsm():
     def generate_statements_output(self):
         """ Generate statements to store output temp vars to pointers """
         code = ""
-        outputs = [port.replace("[", "_").replace("]", "_") for port in self.dag.out_ports]
+        outputs = [port.replace("[", "_").replace("]", "_") for port in self.dag.get_out_ports()]
         for port in outputs:
             code += "\t*" + port + '_po = ' + port + ";\n"
         return code

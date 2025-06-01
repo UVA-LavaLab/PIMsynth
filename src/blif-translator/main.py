@@ -99,9 +99,6 @@ class BlifTranslator:
             print(dag)
             breakpoint()
 
-        # Temp: Update the gate list in DAG object
-        dag.gate_list = dag.get_gate_list()
-
         if self.visualize:
             dag_pre_pass = blif_dag.load_dag_from_json("dag_pre_pass.json")
             dag_post_pass = blif_dag.load_dag_from_json("dag_post_pass.json")
@@ -109,7 +106,7 @@ class BlifTranslator:
             blif_dag.draw_interactive_circuit(dag_post_pass, "G_post_pass.html")
 
         # Temp: Remove trailing stars from gates list
-        dag.gate_list = fanout_normalizer.remove_trailing_stars_from_gate_list(dag.gate_list)
+        fanout_normalizer.remove_trailing_stars_from_gate_list(dag)
 
 
     def run_code_generation(self, dag):

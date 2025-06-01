@@ -116,9 +116,11 @@ class BlifParser:
         # Handle in/out ports
         for item in self.parse_tree.children:
             if 'inputs' in item.keys():
-                dag.in_ports = list(itertools.chain(*item['inputs']))
+                in_ports = list(itertools.chain(*item['inputs']))
+                dag.set_in_ports(in_ports)
             if 'outputs' in item.keys():
-                dag.out_ports = list(itertools.chain(*item['outputs']))
+                out_ports = list(itertools.chain(*item['outputs']))
+                dag.set_out_ports(out_ports)
 
         # Handle gates
         gate_count = 0

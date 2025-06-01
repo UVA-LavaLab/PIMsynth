@@ -38,10 +38,11 @@ class Dag:
         self.module_name = ''
         self.gate_info = {}
         self.wire_to_gate_id = {}
-        self.in_ports = []
-        self.out_ports = []
-        self.gate_list = []
-        self.wire_list = []
+        # Access internal properties through methods
+        self.__in_ports = []
+        self.__out_ports = []
+        self.__in_ports_set = set()
+        self.__out_ports_set = set()
 
     def add_gate(self, gate: GateNode):
         """ Add a gate to the DAG """
@@ -52,7 +53,7 @@ class Dag:
         # Add edges
         for input_wire in gate.inputs:
             if input_wire not in self.wire_to_gate_id:
-                if input_wire not in self.in_ports:
+                if not self.is_in_port(input_wire):
                     raise ValueError(f"Input wire '{input_wire}' not found in wire_to_gate_id mapping.")
                 else:
                     continue
@@ -71,17 +72,44 @@ class Dag:
             repr_str += gate.__repr__() + "\n"
         return repr_str
 
+    def set_in_ports(self, in_ports):
+        """ Set the input ports of the DAG """
+        self.__in_ports = in_ports
+        self.__in_ports_set = set(in_ports)
+
+    def get_in_ports(self):
+        """ Get the input ports of the DAG """
+        return self.__in_ports
+
+    def is_in_port(self, wire):
+        """ Check if a wire is an input port """
+        return wire in self.__in_ports_set
+
+    def set_out_ports(self, out_ports):
+        """ Set the output ports of the DAG """
+        self.__out_ports = out_ports
+        self.__out_ports_set = set(out_ports)
+
+    def get_out_ports(self):
+        """ Get the output ports of the DAG """
+        return self.__out_ports
+
+    def is_out_port(self, wire):
+        """ Check if a wire is an output port """
+        return wire in self.__out_ports_set
+
     def get_gate_list(self):
         """ Get a list of all gates in topological order """
         return [self.gate_info[gate_id] for gate_id in nx.topological_sort(self.graph)]
 
     def get_wire_list(self):
-        """ Get a list of all wires that are outputs of gates with 'new' in their name """
+        """ Get a list of all wires """
         wire_list = []
         gate_list = self.get_gate_list()
         for gate in gate_list:
-            if 'new' in gate.outputs[0]:
-                wire_list.append(gate.outputs[0])
+            wire = gate.outputs[0]
+            if not self.is_out_port(wire):
+                wire_list.append(wire)
         return wire_list
 
 
