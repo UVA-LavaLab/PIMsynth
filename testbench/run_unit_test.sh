@@ -223,7 +223,7 @@ $PROJ_ROOT/bit_serial_compiler.py \
     --outdir "$outdir" \
     --num-tests 10 \
     --pim-mode "$pim_mode" \
-    --golden-function-name "$local_golden_function_header_file" \
+    --golden-function-path "$local_golden_function_header_file" \
     2>&1 | tee "$outdir/$target.log"
 
 # Make the test

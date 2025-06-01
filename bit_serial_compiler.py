@@ -133,7 +133,7 @@ class bitSerialCompiler:
         parser.add_argument('--gen-run-sh', action='store_false', help='Generate intermediate run scripts, default true')
         parser.add_argument('--gen-bitwise', action='store_false', help='Generate bit-wise C code, default true')
         parser.add_argument('--pim-mode', type=str, default='digital', help='The PIM architecture mode (analog/digital).')
-        parser.add_argument('--golden-function-name', '-g', type=str, default=None, help='The path to the golden function file hpp file.')
+        parser.add_argument('--golden-function-path', '-g', type=str, default=None, help='The path to the golden function file hpp file.')
         return parser
 
     def parse_args(self):
@@ -177,7 +177,7 @@ class bitSerialCompiler:
         self.gen_run_sh = args.gen_run_sh
         self.gen_bitwise = args.gen_bitwise
         self.pim_mode = args.pim_mode
-        self.golden_function_name = args.golden_function_name
+        self.golden_function_path = args.golden_function_path
         return True
 
     def sanity_check_input_file(self, input_file, tag):
@@ -491,8 +491,8 @@ class bitSerialCompiler:
         script_location = os.path.dirname(os.path.abspath(__file__))
         test_gen = os.path.join(script_location, 'src/test-gen/main.py')
         cmd = ['python3', test_gen, '-m', self.output, '-o', self.outdir, '-n', str(self.num_tests), '-p', self.pim_mode]
-        if not self.golden_function_name is None:
-            cmd.extend(['-g', self.golden_function_name])
+        if not self.golden_function_path is None:
+            cmd.extend(['-g', self.golden_function_path])
         self.generate_run_script(cmd, self.output + '.run_test_gen.sh')
         result = subprocess.run(cmd)
         if result.returncode != 0:

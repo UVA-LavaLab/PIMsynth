@@ -2,7 +2,7 @@
 #define ADD_SUB_INT32_GOLDEN 
 #include <stdlib.h>
 // SIGNATURE_START
-void add_sub_int32_golden(uint32_t  a, uint32_t b, uint32_t c, uint8_t* y) 
+void add_sub_int32_golden(int32_t  a, int32_t b, int32_t c, int32_t* y)
 // SIGNATURE_END
 {
     *y = a + b - c;
