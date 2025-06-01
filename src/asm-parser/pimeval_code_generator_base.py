@@ -23,6 +23,7 @@ def findTempVarIndex(inputString):
 
 class PimEvalAPICodeGeneratorBase:
     def __init__(self, instructionSequence, functionName, ports):
+        breakpoint()
         self.instructionSequence = instructionSequence
         self.numberOfTempVarObjs = -1
         self.functionName = functionName
