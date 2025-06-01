@@ -74,9 +74,10 @@ class GeneratorAsm():
         return code
 
     def generateTemporaryVariables(self):
-        if len(self.dag.wireList) == 0:
+        wireList = self.dag.wireList
+        if len(wireList) == 0:
             return ""
-        variables = ', '.join(self.dag.wireList)
+        variables = ', '.join(wireList)
         return f"\t{self.dataType} {variables};\n"
 
     def generateTemporaryVariablesIn(self):

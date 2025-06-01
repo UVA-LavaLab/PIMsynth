@@ -33,8 +33,6 @@ class BlifTranslator:
         self.visualize = False
         self.debug = False
 
-        self.parser = None
-
 
     def parse_args(self, input_args):
         """ Parse command line arguments """
@@ -79,22 +77,22 @@ class BlifTranslator:
 
         # Analog PIM: Copy external inputs to register rows
         inputCopyInserter = input_copy_inserter.InputCopyInserter()
-        dag = inputCopyInserter.apply(dag)
+        inputCopyInserter.apply(dag)
         dag.wireList.extend(inputCopyInserter.newWires)
 
         # Analog PIM: Replicate gate inputs due to input-destroying TRA
         fanoutNormalizer = fanout_normalizer.FanoutNormalizer()
-        dag = fanoutNormalizer.apply(dag)
+        fanoutNormalizer.apply(dag)
         dag.wireList.extend(fanoutNormalizer.newWires)
 
         if self.visualize:
             blif_dag.saveDagAsJson(dag, "dag_post_pass.json")
 
         if self.debug:
-            print("DEBUG: Module name = ", self.module_name)
-            print("DEBUG: Inputs = ", self.parser.inputsList)
-            print("DEBUG: Outputs = ", self.parser.outputsList)
-            print("DEBUG: Wires = ", self.parser.wireList)
+            print("DEBUG: Module Name = ", self.module_name)
+            print("DEBUG: Input Ports = ", dag.inPortList)
+            print("DEBUG: Output Ports = ", dag.outPortList)
+            print("DEBUG: Wires = ", dag.wireList)
             print(dag)
             breakpoint()
 
@@ -123,6 +121,8 @@ class BlifTranslator:
             print("Info: Generating bitwise IR for PIM")
             generator = generator_bitwise.GeneratorBitwise(dag, self.num_regs, self.module_name, self.pim_mode)
             code = generator.generateCode()
+        else:
+            raise Exception(f"Error: Unknown output format '{self.output_format}'")
 
         # Write the generated C++ code into a file
         util.writeToFile(self.output_file, code)
@@ -136,10 +136,10 @@ class BlifTranslator:
             return False
 
         # Run BLIF parser
-        self.parser = blif_parser.BlifParser(self.module_name)
+        parser = blif_parser.BlifParser(self.module_name)
         if success:
             fileContent = util.getContent(self.input_file)
-            success, dag = self.parser.parse(fileContent)
+            success, dag = parser.parse(fileContent)
 
         # Run ananlog optimizations if needed
         if success and self.pim_mode == "analog":

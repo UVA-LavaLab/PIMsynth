@@ -10,7 +10,7 @@ Date: 2025-05-08
 from blif_dag import Dag
 
 class DagTransformer:
-    def apply(self, dag: Dag) -> Dag:
-        """Apply a transformation to the input DAG and return the modified DAG."""
+    def apply(self, dag: Dag):
+        """ Apply a transformation to the input DAG """
         raise NotImplementedError("Subclasses must implement the apply() method.")
 

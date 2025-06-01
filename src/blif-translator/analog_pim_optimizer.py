@@ -13,5 +13,5 @@ from dag_transformer_base import DagTransformer
 class AnalogPimOptimizer(DagTransformer):
     def apply(self, dag):
         """ Apply optimizations for analog PIM  """
-        return
+        pass
 
