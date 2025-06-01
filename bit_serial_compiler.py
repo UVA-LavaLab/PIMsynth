@@ -422,7 +422,7 @@ class bitSerialCompiler:
         blif_parser = os.path.join(script_location, 'src/blif-translator/main.py')
         blif_file = self.blif if self.blif else os.path.join(self.outdir, self.output + '.blif')
         c_file = os.path.join(self.outdir, self.output + '.c')
-        cmd = ['python3', blif_parser, '-f', 'asm', '-i', blif_file, '-m', self.output, '-o', c_file, '-r', str(self.num_regs), '-p', self.pim_mode]
+        cmd = ['python3', blif_parser, '-f', 'asm', '-i', blif_file, '-m', 'func', '-o', c_file, '-r', str(self.num_regs), '-p', self.pim_mode]
         self.generate_run_script(cmd, self.output + '.run_blif2c.sh')
         result = subprocess.run(cmd)
         if result.returncode != 0:

@@ -450,8 +450,6 @@ int main() {{
             {operand}_res |= {operand}_bit_out[i] << i;
         }}
             """
-        print(funcCallStr)
-        breakpoint()
         return funcCallStr
 
     def generatBitwiseTestFile(self):
