@@ -52,7 +52,6 @@ class FanoutNormalizer(DagTransformer):
             else:
                 raise Exception("Error: Unexpected behaivior happened.")
 
-        return dag
 
     def replaceWithInputs(self, dag, signal: str, producerId: str, consumerIds: List[str]):
         producerGate = dag.gateInfo[producerId]

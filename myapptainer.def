@@ -44,6 +44,7 @@ From: ubuntu:24.04
     /opt/venv/bin/pip install lark 
     /opt/venv/bin/pip install networkx
     /opt/venv/bin/pip install pyvis==0.3.1
+    /opt/venv/bin/pip install pylint
 
 %environment
     export PATH="/opt/venv/bin:$PATH"

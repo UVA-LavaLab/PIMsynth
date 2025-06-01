@@ -33,8 +33,6 @@ class BlifTranslator:
         self.visualize = False
         self.debug = False
 
-        self.parser = None
-
 
     def parse_args(self, input_args):
         """ Parse command line arguments """
@@ -71,32 +69,35 @@ class BlifTranslator:
         return success
 
 
-    def run_analog_optimization(self):
+    def run_analog_optimization(self, dag):
         """ Run optimizations for analog PIM mode """
         print("Info: Optimizing DAG for analog PIM")
         if self.visualize:
-            util.saveDagAsJson(self.parser.dag, "dag_pre_pass.json")
+            util.saveDagAsJson(dag, "dag_pre_pass.json")
 
+        # Analog PIM: Copy external inputs to register rows
         inputCopyInserter = input_copy_inserter.InputCopyInserter()
-        self.parser.dag = inputCopyInserter.apply(self.parser.dag)
-        self.parser.wireList.extend(inputCopyInserter.newWires)
+        inputCopyInserter.apply(dag)
+        dag.wireList.extend(inputCopyInserter.newWires)
 
+        # Analog PIM: Replicate gate inputs due to input-destroying TRA
         fanoutNormalizer = fanout_normalizer.FanoutNormalizer()
-        self.parser.dag = fanoutNormalizer.apply(self.parser.dag)
-        self.parser.wireList.extend(fanoutNormalizer.newWires)
+        fanoutNormalizer.apply(dag)
+        dag.wireList.extend(fanoutNormalizer.newWires)
 
         if self.visualize:
-            blif_dag.saveDagAsJson(self.parser.dag, "dag_post_pass.json")
+            blif_dag.saveDagAsJson(dag, "dag_post_pass.json")
 
         if self.debug:
-            print("DEBUG: Module name = ", self.module_name)
-            print("DEBUG: Inputs = ", self.parser.inputsList)
-            print("DEBUG: Outputs = ", self.parser.outputsList)
-            print("DEBUG: Wires = ", self.parser.wireList)
-            print(self.parser.dag)
+            print("DEBUG: Module Name = ", self.module_name)
+            print("DEBUG: Input Ports = ", dag.inPortList)
+            print("DEBUG: Output Ports = ", dag.outPortList)
+            print("DEBUG: Wires = ", dag.wireList)
+            print(dag)
             breakpoint()
 
-        self.parser.gatesList = self.parser.dag.getTopologicallySortedGates()
+        # Temp: Update the gate list in DAG object
+        dag.gateList = dag.getTopologicallySortedGates()
 
         if self.visualize:
             G_pre_pass = blif_dag.loadDagFromJson("dag_pre_pass.json")
@@ -104,21 +105,24 @@ class BlifTranslator:
             blif_dag.drawInteractiveCircuit(G_pre_pass, "G_pre_pass.html")
             blif_dag.drawInteractiveCircuit(G_post_pass, "G_post_pass.html")
 
-        self.parser.gatesList = fanout_normalizer.removeTrailingStarsFromGatesList(self.parser.gatesList)
+        # Temp: Remove trailing stars from gates list
+        dag.gateList = fanout_normalizer.removeTrailingStarsFromGatesList(dag.gateList)
         return True
 
 
-    def run_code_generation(self):
+    def run_code_generation(self, dag):
         """ Run code generation based on the output format """
         code = ''
         if self.output_format == 'asm':
             print("Info: Generating inline assembly IR for PIM")
-            generator = generator_asm.GeneratorAsm(self.parser, self.num_regs, self.module_name, self.pim_mode)
+            generator = generator_asm.GeneratorAsm(dag, self.num_regs, self.module_name, self.pim_mode)
             code = generator.generateCode()
         elif self.output_format == 'bitwise':
             print("Info: Generating bitwise IR for PIM")
-            generator = generator_bitwise.GeneratorBitwise(self.parser, self.num_regs, self.module_name, self.pim_mode)
+            generator = generator_bitwise.GeneratorBitwise(dag, self.num_regs, self.module_name, self.pim_mode)
             code = generator.generateCode()
+        else:
+            raise Exception(f"Error: Unknown output format '{self.output_format}'")
 
         # Write the generated C++ code into a file
         util.writeToFile(self.output_file, code)
@@ -132,18 +136,18 @@ class BlifTranslator:
             return False
 
         # Run BLIF parser
-        self.parser = blif_parser.BlifParser(moduleName=self.module_name)
+        parser = blif_parser.BlifParser(self.module_name)
         if success:
             fileContent = util.getContent(self.input_file)
-            success = self.parser.parse(fileContent)
+            success, dag = parser.parse(fileContent)
 
         # Run ananlog optimizations if needed
         if success and self.pim_mode == "analog":
-            success = self.run_analog_optimization()
+            success = self.run_analog_optimization(dag)
 
         # Generate code into the output file
         if success:
-            success = self.run_code_generation()
+            success = self.run_code_generation(dag)
 
         return success
 

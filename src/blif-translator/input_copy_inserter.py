@@ -53,5 +53,3 @@ class InputCopyInserter(DagTransformer):
 
             gate.inputs = updatedInputs
 
-        return dag
-
