@@ -102,6 +102,13 @@ class TestFileGeneratorBase():
             return "uint8_t"
         return f"{data_type}_t"
 
+    def __get_c_data_type_for_print(self, data_type):
+        if data_type in {"int1", "int2", "int3", "int4", "int8"}:
+            return "int16_t"
+        elif data_type in {"uint1", "uint2", "uint3", "uint4", "uint8"}:
+            return "uint16_t"
+        return f"{data_type}_t"
+
     def _get_c_data_width(self, data_type):
         if data_type.startswith("int") and data_type[3:].isdigit():
             return int(data_type[3:])
@@ -180,18 +187,18 @@ class TestFileGeneratorBase():
         for (operand, data_type) in self.input_operands:
             if c_style:
                 fmt = get_print_format(data_type)
-                code += f'printf("{operand}: {fmt}\\n", ({self.__get_c_data_type(data_type)}) {operand});\n\t'
+                code += f'printf("{operand}: {fmt}\\n", ({self.__get_c_data_type_for_print(data_type)}) {operand});\n\t'
             else:
-                code += f'std::cerr << "{operand}: " << ({self.__get_c_data_type(data_type)}) {operand} << std::endl;\n\t'
+                code += f'std::cerr << "{operand}: " << ({self.__get_c_data_type_for_print(data_type)}) {operand} << std::endl;\n\t'
 
         for (operand, data_type) in self.output_operands:
             if c_style:
                 fmt = get_print_format(data_type)
-                code += f'printf("{operand}(expected): {fmt}\\n", ({self.__get_c_data_type(data_type)}) {operand});\n\t'
-                code += f'printf("{operand}(pim     ): {fmt}\\n", ({self.__get_c_data_type(data_type)}) {operand});\n\t'
+                code += f'printf("{operand}(expected): {fmt}\\n", ({self.__get_c_data_type_for_print(data_type)}) {operand});\n\t'
+                code += f'printf("{operand}(pim     ): {fmt}\\n", ({self.__get_c_data_type_for_print(data_type)}) {operand}_res);\n\t'
             else:
-                code += f'std::cerr << "{operand}(expected): " << ({self.__get_c_data_type(data_type)}) {operand} << std::endl;\n\t'
-                code += f'std::cerr << "{operand}(pim     ): " << ({self.__get_c_data_type(data_type)}) {operand} << std::endl;\n\t'
+                code += f'std::cerr << "{operand}(expected): " << ({self.__get_c_data_type_for_print(data_type)}) {operand} << std::endl;\n\t'
+                code += f'std::cerr << "{operand}(pim     ): " << ({self.__get_c_data_type_for_print(data_type)}) {operand}_res << std::endl;\n\t'
         return code
 
     def _get_verification_code_string(self, c_style=False):
