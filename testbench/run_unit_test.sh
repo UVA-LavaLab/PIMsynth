@@ -9,99 +9,10 @@
 
 # NOTE: Use apptainer to run this script. Do not call apptainer in this script.
 
+source ./common.sh
 SCRIPT_DIR="$(dirname "${BASH_SOURCE[0]}")"
 PROJ_ROOT=$(git rev-parse --show-toplevel)
 GOLDEN_MODELS_DIR="golden-model"
-
-# Note: This script finds verilog inputs from below locations
-VERILOG_DIR1=.
-VERILOG_DIR2=$PROJ_ROOT/src-verilog/benchmarks
-VERILOG_DIR3=$PROJ_ROOT/src-verilog/misc
-GENLIB_DIR=$PROJ_ROOT/src-genlib
-SUBMODULE_LIST=$PROJ_ROOT/src-verilog/submodule_list.txt
-SUBMODULE_DIR=$PROJ_ROOT/src-verilog/submodules
-
-# Define a list of valid bit-serial ISA
-VALID_BIT_SERIAL_ISA=(
-    "inv_nand"
-    "inv_maj_and"
-    "inv_maj_and_or"
-    "inv_and_xnor_mux"
-    "inv_and_xor"
-)
-
-# Define a list of valid benchmark names
-VALID_BENCHMARKS=(
-  "aes_sbox" "aes_inverse_sbox" "add_sub_int32"
-)
-
-# Define a list of valid PIM modes
-VALID_PIM_MODES=(
-    "digital" "analog"
-)
-
-# Function to display valid bit-serial ISA
-show_valid_bit_serial_isa() {
-    echo "Valid bit-serial ISA: ${VALID_BIT_SERIAL_ISA[*]}"
-}
-
-# Check if the provided bit-serial ISA name is valid
-is_valid_bit_serial_isa() {
-    for isa in "${VALID_BIT_SERIAL_ISA[@]}"; do
-        if [ "$1" == "$isa" ]; then
-            return 0
-        fi
-    done
-    # allow untracked bit-serial ISA
-    echo "Warning: Bit-serial ISA $1 is experimental."
-    return 0
-}
-
-# Function to display valid num_reg values
-show_valid_num_reg() {
-    echo "Valid num_reg values: 2 - 14"
-}
-
-# Check if the provided num_reg value is valid
-is_valid_num_reg() {
-    if [[ "$1" =~ ^[2-9]$|^1[0-4]$ ]]; then
-        return 0
-    else
-        return 1
-    fi
-}
-
-# Function to display valid benchmarks
-show_valid_benchmarks() {
-    echo "Valid benchmark names: ${VALID_BENCHMARKS[*]}"
-}
-
-# Check if the provided benchmark name is valid
-is_valid_benchmark() {
-    for benchmark in "${VALID_BENCHMARKS[@]}"; do
-        if [ "$1" == "$benchmark" ]; then
-            return 0
-        fi
-    done
-    # allow untracked verilog
-    echo "Warning: Input verilog $1 is experimental."
-    return 0
-}
-
-# Function to display valid PIM modes
-show_valid_pim_modes() {
-    echo "Valid PIM modes: ${VALID_PIM_MODES[*]}"
-}
-
-# Check if the provided PIM mode is valid
-is_valid_pim_mode() {
-    for benchmark in "${VALID_PIM_MODES[@]}"; do
-        if [ "$1" == "$pim_mode" ]; then
-            return 0
-        fi
-    done
-    return 1
-}
 
 if [ "$#" -ne 4 ]; then
     echo "Usage: $0 <bit_serial_isa> <num_reg> <digital|analog> <benchmark_name>"
