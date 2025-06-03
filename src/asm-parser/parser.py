@@ -20,7 +20,7 @@ class Directive(Statement):
         self.val = val
 
     def __str__(self):
-        return f"PortInfo(Value: {self.val}, Line: {self.line})"
+        return f"{self.val:<32} | Line {self.line:<5})"
 
 class Instruction(Statement):
     def __init__(self, opCode, operandsList, line):
@@ -30,7 +30,7 @@ class Instruction(Statement):
 
     def __str__(self):
         operandsListStr = ', '.join(self.operandsList)
-        return f"Instruction(Opcode: {self.opCode}, Operands List: [{operandsListStr}], Line: {self.line})"
+        return f"{self.opCode:<10} {operandsListStr:<32} | Line {self.line})"
 
     def isLoadInstruction(self):
         if "lw" in self.opCode:

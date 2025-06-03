@@ -82,8 +82,8 @@ class BlifTranslator:
             util.save_dag_as_json(dag, "dag_pre_pass.json")
 
         # Analog PIM: Normalize majority gates
-        #maj_normalizer = MajNormalizer()
-        #maj_normalizer.apply(dag)
+        maj_normalizer = MajNormalizer()
+        maj_normalizer.apply(dag)
 
         # Analog PIM: Copy external inputs to register rows
         input_copy_inserter = InputCopyInserter()

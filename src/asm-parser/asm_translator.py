@@ -18,12 +18,9 @@ class LinkedInstruction(Instruction):
 
     def __str__(self):
         operandsListStr = ', '.join(self.operandsList)
-        if self.sourceInstructionList == None:
-            sourceInstructionLinesStr = "X"
-        else:
-            sourceInstructionLines = [(str(instruction.line) if instruction != None else "-") for instruction in self.sourceInstructionList]
-            sourceInstructionLinesStr = ', '.join(sourceInstructionLines)
-        return f"LinkedInstruction(Opcode: {self.opCode}, Operands List: [{operandsListStr}], Source Instructions Line: {sourceInstructionLinesStr}, Line: {self.line}, suspended: {self.suspended})"
+        sourceInstructionLinesStr = "X" if self.sourceInstructionList is None else \
+            ', '.join(str(instr.line) if instr is not None else "-" for instr in self.sourceInstructionList)
+        return f"{self.opCode:<10} {operandsListStr:<32} | Line {self.line}, SrcLines [{sourceInstructionLinesStr}], Suspended: {self.suspended}"
 
     def unsuspend(self):
         self.suspended = False
@@ -46,15 +43,20 @@ class SymbolTable:
         # Add the key-value pair to the dictionary
         self.dictionary[key] = val
 
-    def printSymbols(self):
+    def __repr__(self):
+        string = ""
         if not self.dictionary:
-            print("Symbol table is empty.")
+            return "Symbol table is empty."
         else:
             for key, val in self.dictionary.items():
                 if isinstance(val, LinkedInstruction):
-                    print(f"{key}: L{val.line}")
+                    string += f"{key}: L{val.line}\n"
                 else:
-                    print(f"{key}: {val}")
+                    string += f"{key}: {val}\n"
+        return string
+
+    def print_symbols(self):
+        print(self.__repr__())
 
     def removeSymbol(self, key):
         # Remove the key from the dictionary if it exists, else raise KeyError
@@ -95,12 +97,27 @@ class AsmTranslator:
         self.bitSerialStatementList = []
         self.symbolTable = SymbolTable()
         self.resolvedInputList = []
+        self.LINE_STRING = 80 * "=" + "\n"
         self.tempManager = TempManager()
         self.ports = set(inputList + outputList)
         self.translate()
         tempVariablesShrinker = TempVariablesShrinker(self.bitSerialStatementList)
         tempVariablesShrinker.shrinkTempVariables()
         self.bitSerialStatementList = tempVariablesShrinker.newInstructionSequence
+
+    def __get_statement_list_as_string(self, statement_list):
+        return "\n".join([f"{statement}" for statement in statement_list])
+
+    def __get_bit_serial_statement_list_string(self):
+        return self.__get_statement_list_as_string(self.bitSerialStatementList)
+
+    def __repr__(self):
+        string = ""
+        string += self.symbolTable.__repr__()
+        string += self.LINE_STRING
+        string += self.__get_bit_serial_statement_list_string()
+        return string
+
 
     def translate(self):
         statementIndex = 0
@@ -129,7 +146,7 @@ class AsmTranslator:
             return instruction.operandsList[0]
 
     def getSourceOperandFromInstruction(self, instruction):
-        if instruction.opCode == "write":
+        if instruction.opCode in ["write", "one", "zero"]:
             return instruction.operandsList[0]
         else:
             return instruction.operandsList[1]
