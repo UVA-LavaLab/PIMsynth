@@ -10,11 +10,11 @@ Date: 2025-04-05
 
 from lark import Lark, Transformer
 
-class OperandExtractor(Transformer):
+class FunctionSignatureTransformer(Transformer):
     def __init__(self):
-        self.inputOperands = []
-        self.outputOperands = []
-        self.functionName = None
+        self.input_operands = []
+        self.output_operands = []
+        self.function_name = None
 
     def param(self, items):
         raw_type = items[0].children[0].value
@@ -25,21 +25,21 @@ class OperandExtractor(Transformer):
             base_type = base_type[:-2]
 
         if is_pointer:
-            self.outputOperands.append((var_name, base_type))
+            self.output_operands.append((var_name, base_type))
         else:
-            self.inputOperands.append((var_name, base_type))
+            self.input_operands.append((var_name, base_type))
 
     def start(self, _):
-        return self.inputOperands, self.outputOperands, self.functionName
+        return self.input_operands, self.output_operands, self.function_name
 
     def IDENTIFIER(self, token):
-        if not self.functionName:
-            self.functionName = str(token)
+        if not self.function_name:
+            self.function_name = str(token)
         return token
 
 
 class FunctionSignatureParser:
-    def __init__(self, signature=None):
+    def __init__(self):
         self.grammar = """
             start: "void" IDENTIFIER "(" [param_list] ")"
             param_list: param ("," param)*
@@ -51,9 +51,23 @@ class FunctionSignatureParser:
 
             %ignore " "
         """
+    def __extract_signature_block(self, golden_function_content):
+        start_token = "// SIGNATURE_START"
+        end_token = "// SIGNATURE_END"
 
-    def parse(self, signature):
-        parser = Lark(self.grammar, parser="lalr", transformer=OperandExtractor())
-        inputOperands, outputOperands, functionName = parser.parse(signature)
-        return inputOperands, outputOperands, functionName
+        start_index = golden_function_content.find(start_token)
+        end_index = golden_function_content.find(end_token)
+
+        if start_index == -1 or end_index == -1 or start_index >= end_index:
+            return None
+
+        start_index += len(start_token)
+        return golden_function_content[start_index:end_index].strip()
+
+
+    def parse(self, golden_function_content):
+        parser = Lark(self.grammar, parser="lalr", transformer=FunctionSignatureTransformer())
+        input_operands, output_operands, function_name = \
+            parser.parse(self.__extract_signature_block(golden_function_content))
+        return input_operands, output_operands, function_name
 
