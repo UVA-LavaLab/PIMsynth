@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-File: input_copy_inserter.py
+File: dag_input_copy_inserter.py
 Description: Inserts copy gates for each input wire to isolate primary inputs from internal logic to avoid the input from getting destructed in analog PIM.
 Author: Mohammadhosein Gholamrezaei <uab9qt@virginia.edu>
 Author: Deyuan Guo <guodeyuan@gmail.com>

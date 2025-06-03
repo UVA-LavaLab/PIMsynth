@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-File: fanout_normalizer.py
+File: dag_fanout_normalizer.py
 Description: Eliminates multi-fanout wires by inserting dedicated copy gates for all but one consumer.
 Author: Mohammadhosein Gholamrezaei <uab9qt@virginia.edu>
 Author: Deyuan Guo <guodeyuan@gmail.com>

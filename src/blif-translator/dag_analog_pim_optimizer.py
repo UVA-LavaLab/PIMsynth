@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-File: analog_pim_optimizer.py
+File: dag_analog_pim_optimizer.py
 Description: Apply optimizations for analog PIM
 Author: Deyuan Guo <guodeyuan@gmail.com>
 Author: Mohammadhosein Gholamrezaei <uab9qt@virginia.edu>
