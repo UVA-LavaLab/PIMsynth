@@ -15,10 +15,11 @@ import traceback
 
 import blif_parser
 import blif_dag
+from dag_maj_normalizer import MajNormalizer
+from dag_input_copy_inserter import InputCopyInserter
+from dag_fanout_normalizer import FanoutNormalizer
 from generator_asm import GeneratorAsm
 from generator_bitwise import GeneratorBitwise
-from dag_fanout_normalizer import FanoutNormalizer
-from dag_input_copy_inserter import InputCopyInserter
 
 # TODO: avoid importing util from parent directory
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
@@ -79,6 +80,10 @@ class BlifTranslator:
         print("Info: Optimizing DAG for analog PIM")
         if self.visualize:
             util.save_dag_as_json(dag, "dag_pre_pass.json")
+
+        # Analog PIM: Normalize majority gates
+        #maj_normalizer = MajNormalizer()
+        #maj_normalizer.apply(dag)
 
         # Analog PIM: Copy external inputs to register rows
         input_copy_inserter = InputCopyInserter()
