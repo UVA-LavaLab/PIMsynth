@@ -55,6 +55,8 @@ class PimEvalAPIDigitalCodeGenerator(PimEvalAPICodeGeneratorBase):
             "xnor": "pimOpXnor",
             "maj3": "pimOpMaj",
             "mux2": "pimOpSel",
+            "zero": "pimOpSet",
+            "one": "pimOpSet",
         }
         if pimOpCode in opCodeMap:
             return opCodeMap[pimOpCode]
@@ -90,21 +92,17 @@ class PimEvalAPIDigitalCodeGenerator(PimEvalAPICodeGeneratorBase):
         return code
 
     def handleOneInstruction(self, instruction):
-        if not (instruction.opCode == "xor"):
-            return None
-        if not (instruction.operandsList[0] == instruction.operandsList[1] and instruction.operandsList[1] == instruction.operandsList[2]):
+        if not (instruction.opCode == "one"):
             return None
         code = f"\t// one {instruction.operandsList[0]} (Line: {instruction.line})\n"
-        code += f"\tpimOpset({self.firstIoPort}, {self.mapPimAsmOpCodeToPimEvalAPI(self.operandsList[0])}, true);\n\n"
+        code += f"\tpimOpSet({self.firstIoPort}, {self.mapPimAsmRegToPimEvalAPI(self.operandsList[0])}, true);\n\n"
         return code
 
     def handleZeroInstruction(self, instruction):
-        if not (instruction.opCode == "xnor"):
-            return None
-        if not (instruction.operandsList[0] == instruction.operandsList[1] and instruction.operandsList[1] == instruction.operandsList[2]):
+        if not (instruction.opCode == "zero"):
             return None
         code = f"\t// one {instruction.operandsList[0]} (Line: {instruction.line})\n"
-        code += f"\tpimOpset({self.firstIoPort}, {self.mapPimAsmOpCodeToPimEvalAPI(self.operandsList[0])}, false);\n\n"
+        code += f"\tpimOpSet({self.firstIoPort}, {self.mapPimAsmRegToPimEvalAPI(self.operandsList[0])}, false);\n\n"
         return code
 
     def generateLogicInstruction(self, instruction):

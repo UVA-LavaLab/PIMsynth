@@ -67,6 +67,20 @@ class PimEvalAPIAnalogCodeGenerator(PimEvalAPICodeGeneratorBase):
         code += f"\tpimOpAAP(1, 1, {self.mapPimAsmRegToPimEvalAPI(sourceOperand)}, {destinationOperand});\n\n"
         return code
 
+    def handleZeroInstruction(self, instruction):
+        if not (instruction.opCode == "zero"):
+            return None
+        code = self.generateInstructionComment(instruction)
+        code += f"\tpimOpAAP(1, 1, {self.zero}, 0, {self.mapPimAsmRegToPimEvalAPI(instruction.operandsList[0])});\n\n"
+        return code
+
+    def handleOneInstruction(self, instruction):
+        if not (instruction.opCode == "one"):
+            return None
+        code = self.generateInstructionComment(instruction)
+        code += f"\tpimOpAAP(1, 1, {self.one}, 0, {self.mapPimAsmRegToPimEvalAPI(instruction.operandsList[0])});\n\n"
+        return code
+
     def handleAndInstruction(self, instruction):
         if not (instruction.opCode == "and_a"):
             return None
@@ -121,6 +135,12 @@ class PimEvalAPIAnalogCodeGenerator(PimEvalAPICodeGeneratorBase):
         return code
 
     def generateLogicInstruction(self, instruction):
+        code = self.handleZeroInstruction(instruction)
+        if code != None:
+            return code
+        code = self.handleOneInstruction(instruction)
+        if code != None:
+            return code
         code = self.handleAndInstruction(instruction)
         if code != None:
             return code

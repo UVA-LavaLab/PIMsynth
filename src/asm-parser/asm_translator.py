@@ -23,7 +23,7 @@ class LinkedInstruction(Instruction):
         else:
             sourceInstructionLines = [(str(instruction.line) if instruction != None else "-") for instruction in self.sourceInstructionList]
             sourceInstructionLinesStr = ', '.join(sourceInstructionLines)
-        return f"LinkedInstruction(Opcode: {self.opCode}, Operands List: [{operandsListStr}], Source Instrunctions Line: {sourceInstructionLinesStr}, Line: {self.line}, suspended: {self.suspended})"
+        return f"LinkedInstruction(Opcode: {self.opCode}, Operands List: [{operandsListStr}], Source Instructions Line: {sourceInstructionLinesStr}, Line: {self.line}, suspended: {self.suspended})"
 
     def unsuspend(self):
         self.suspended = False
@@ -349,7 +349,7 @@ class AsmTranslator:
 
     def getMappedOpCode(self, instructionSequence, line):
         """Get the opcode mapped to the inline assembly instruction sequence."""
-        newOpCode = self.getInstrunctionSequenceOpCode(instructionSequence)
+        newOpCode = self.getInstructionSequenceOpCode(instructionSequence)
         if newOpCode is None:
             # print(f"Info: No mapped opcode found for inline assembly at line {line}.")
             pass
@@ -367,6 +367,10 @@ class AsmTranslator:
         threeOpInstrcutions2 = ["mux2"] # case 3: three-operand instructions, for example mux2
         if len(instructionSequence) == 1 or newOpCode in ['and_a', 'or_a']:
             self.appendBitSerialInstruction(newOpCode, instructionSequence[0].operandsList, line)
+        elif newOpCode in ['zero', 'one']:
+            destinationOperand = instructionSequence[0].operandsList[0]
+            operandsList = [destinationOperand]
+            self.appendBitSerialInstruction(newOpCode, operandsList, line)
         elif newOpCode in twoOpInstrcutions:
             sourceOperandList = firstRiscvInstruction.operandsList[1:]
             lastRiscvInstruction = instructionSequence[-1]
@@ -430,7 +434,7 @@ class AsmTranslator:
             for i in range(len(sequence))
         )
 
-    def getInstrunctionSequenceOpCode(self, instructionSequence):
+    def getInstructionSequenceOpCode(self, instructionSequence):
         if self.pimMode == "digital":
             translationRules = {
                 ('xor', 'not'): 'xnor',
@@ -438,12 +442,16 @@ class AsmTranslator:
                 ('or', 'not'): 'nor',
                 ('and', 'and', 'and', 'or', 'or'): 'maj3',
                 ('not', 'and', 'and', 'or'): 'mux2',
+                ('li', 'mv'): 'zero',
+                ('li', 'not'): 'one',
             }
         elif self.pimMode == "analog":
             translationRules = {
                 ('and', 'mv', 'mv'): 'and_a',  # analog
                 ('or', 'mv', 'mv'): 'or_a',  # analog
                 ('and', 'and', 'and', 'or', 'or', 'mv', 'mv', 'mv'): 'maj3_a',  # analog
+                ('li', 'mv'): 'zero',
+                ('li', 'not'): 'one',
             }
         else:
             raise Exception("Error: unknown pim mode {self.pimMode}")
@@ -474,6 +482,8 @@ class AsmTranslator:
 
         if len(mappedOpcodes) == 1:
             return mappedOpcodes[0]
+        elif len(mappedOpcodes) > 1:
+            raise Exception(f"Error: Unrecognized instruction sequence {mappedOpcodes} at line {instructionSequence[0].line}.")
         else:
             return None
 
