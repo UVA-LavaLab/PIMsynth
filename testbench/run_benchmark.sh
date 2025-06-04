@@ -123,6 +123,12 @@ $PROJ_ROOT/bit_serial_compiler.py \
     --pim-mode "$pim_mode" \
     2>&1 | tee "$outdir/$target.log"
 
+# Check the return status of the Python script
+if [ "${PIPESTATUS[0]}" -ne 0 ]; then
+    echo "Error: bit_serial_compiler.py failed. Check the log file at '$outdir/$target.log' for details."
+    exit 1
+fi
+
 # Make the test
 cd $outdir
 make

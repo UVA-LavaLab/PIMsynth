@@ -54,23 +54,23 @@ class bitSerialCompiler:
         print(" ---------------------")
         if not self.args:
             print("No input. Run with -h or --help to see more options.")
-            return
+            return True
 
         success = self.parse_args()
         if not success:
-            return
+            return False
 
         if not self.locate_abc_path():
-            return
+            return False
         if not self.locate_yosys_path():
-            return
+            return False
         if not self.locate_clang_path():
-            return
+            return False
 
         self.report_params()
 
         if not self.create_outdir_if_needed():
-            return
+            return False
 
         if self.stages[self.from_stage] <= self.stages['verilog'] and self.stages[self.to_stage] >= self.stages['blif']:
             success = self.run_verilog_to_blif()
@@ -98,7 +98,7 @@ class bitSerialCompiler:
                 return False
 
 
-        print("Bit-serial compilation completed.")
+        print("INFO: Bit-serial compilation completed.")
         return True
 
     def create_argparse(self):
@@ -504,5 +504,8 @@ class bitSerialCompiler:
 if __name__ == '__main__':
     args = sys.argv[1:]
     compiler = bitSerialCompiler(args)
-    compiler.run()
+    success = compiler.run()
+    if not success:
+        print("Error: Bit-serial compilation failed.")
+        sys.exit(1)
 
