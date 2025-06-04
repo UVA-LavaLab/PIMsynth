@@ -16,9 +16,10 @@ from blif_parser import GateNode
 class FanoutNormalizer(DagTransformer):
     """ FanoutNormalizer class """
 
-    def __init__(self):
+    def __init__(self, enable_input_reuse: bool = False):
         """ Initialize the FanoutNormalizer """
         self.copy_count = 0
+        self.enable_input_reuse = enable_input_reuse
 
     def apply(self, dag):
         """ Apply the fanout normalizer transformation to the DAG """
@@ -37,11 +38,12 @@ class FanoutNormalizer(DagTransformer):
             from_gate = dag.gate_info[from_gate_id]
             is_inv_gate = from_gate.gate_func == "inv1"
             is_copy_gate = from_gate.gate_func == "copy"
-            has_reusable_inputs = not (is_inv_gate or is_copy_gate)
+            has_reusable_inputs = from_gate.gate_func in ['and2', 'or2', 'maj3']
             first_to_gate_id = to_gate_ids[0]
             remaining_to_gate_ids = to_gate_ids[1:]
             if has_reusable_inputs:
-                remaining_to_gate_ids = self.replace_with_inputs(dag, wire, from_gate_id, remaining_to_gate_ids)
+                if self.enable_input_reuse:
+                    remaining_to_gate_ids = self.replace_with_inputs(dag, wire, from_gate_id, remaining_to_gate_ids)
                 self.insert_copy_nodes(dag, wire, from_gate_id, remaining_to_gate_ids, first_to_gate_id)
             elif is_inv_gate:
                 self.insert_copy_nodes(dag, wire, from_gate_id, remaining_to_gate_ids, first_to_gate_id)
@@ -54,8 +56,10 @@ class FanoutNormalizer(DagTransformer):
         from_gate = dag.gate_info[from_gate_id]
         reusable_inputs = []
         for wire in from_gate.inputs:
-            if not "*" in wire:
-                reusable_inputs.append(wire)
+            # TODO: double check zero, one, and * wires
+            if "*" in wire:
+                continue  # Skip wires that are already reused
+            reusable_inputs.append(wire)
 
         num_replace = min(len(reusable_inputs), len(to_gate_ids))
         for idx in range(num_replace):
@@ -72,7 +76,7 @@ class FanoutNormalizer(DagTransformer):
 
             # Create a dependency edge to maintain topological order
             # The from-gate needs to be done before the to-gate
-            dag.graph.add_edge(from_gate_id, to_gate_id, label='dep')
+            dag.graph.add_edge(from_gate_id, to_gate_id, label='dep-reuse')
 
             # Update gate inputs
             to_gate.inputs = [reuse_wire + "*" if wire == target_wire else wire for wire in to_gate.inputs]
@@ -120,8 +124,9 @@ class FanoutNormalizer(DagTransformer):
             if not dag.graph.has_edge(orig_from_gate_id, to_gate_id):
                 raise Exception(f"Error: Edge from {orig_from_gate_id} to {to_gate_id} does not exist.")
             dag.graph.remove_edge(orig_from_gate_id, to_gate_id)
+            # TODO: check if the dependency edges can be removed
             orig_from_gate.has_deps = True
-            copy_gate.has_deps = True
+            #copy_gate.has_deps = True
 
             dag.add_gate(copy_gate)
             dag.graph.add_edge(prev_from_gate_id, copy_gate_id)
@@ -129,7 +134,7 @@ class FanoutNormalizer(DagTransformer):
 
             # Create a dependency edge to maintain topological order
             # The copy needs to be done before the previous to-gate
-            dag.graph.add_edge(copy_gate_id, prev_to_gate_id, label='dep')
+            dag.graph.add_edge(copy_gate_id, prev_to_gate_id, label='dep-copy')
 
             # Update gate inputs
             to_gate = dag.gate_info[to_gate_id]

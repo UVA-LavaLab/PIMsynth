@@ -205,12 +205,14 @@ class GeneratorAsm():
             "copy": lambda output, inputs: (
                 f'"#PIM_OP: copy1 %1 -> %0 \\n'
                 f' mv %0, %1'
-                f'" : "=&r" ({output}) : "r" ({inputs[0]}) : {clobber}'
+                f'" : "=r" ({output}), "+r" ({inputs[0]}) : : {clobber}'
             ),
             "inv1": lambda output, inputs: (
                 f'"#PIM_OP: inv1 %1 -> %0 \\n'
                 f' not %0, %1'
                 f'" : "=r" ({output}) : "0" ({inputs[0]}) : {clobber}'
+                #f'" : "=r" ({output}) : "r" ({inputs[0]}) : {clobber}'
+                #f'" : "=r" ({output}), "+r" ({inputs[0]}) : : {clobber}'
             ),
             "and2": lambda output, inputs: (
                 f'"#PIM_OP: and2 %1, %2 -> %0 \\n'
