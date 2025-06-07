@@ -95,14 +95,14 @@ class PimEvalAPIDigitalCodeGenerator(PimEvalAPICodeGeneratorBase):
         if not (instruction.opCode == "one"):
             return None
         code = f"\t// one {instruction.operandsList[0]} (Line: {instruction.line})\n"
-        code += f"\tpimOpSet({self.firstIoPort}, {self.mapPimAsmRegToPimEvalAPI(self.operandsList[0])}, true);\n\n"
+        code += f"\tpimOpSet({self.firstIoPort}, {self.mapPimAsmRegToPimEvalAPI(instruction.operandsList[0])}, true);\n\n"
         return code
 
     def handleZeroInstruction(self, instruction):
         if not (instruction.opCode == "zero"):
             return None
-        code = f"\t// one {instruction.operandsList[0]} (Line: {instruction.line})\n"
-        code += f"\tpimOpSet({self.firstIoPort}, {self.mapPimAsmRegToPimEvalAPI(self.operandsList[0])}, false);\n\n"
+        code = f"\t// zero {instruction.operandsList[0]} (Line: {instruction.line})\n"
+        code += f"\tpimOpSet({self.firstIoPort}, {self.mapPimAsmRegToPimEvalAPI(instruction.operandsList[0])}, false);\n\n"
         return code
 
     def generateLogicInstruction(self, instruction):
