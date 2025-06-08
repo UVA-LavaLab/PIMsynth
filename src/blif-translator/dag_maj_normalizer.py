@@ -24,7 +24,8 @@ class MajNormalizer(DagTransformer):
                 total_and += self.run_xform_and_to_maj(dag, gate_id)
             elif gate['gate_func'] == "or2":
                 total_or = self.run_xform_or_to_maj(dag, gate_id)
-        print(f'DAG-Transform Summary: Total {total_and} AND gates and {total_or} OR gates transformed to MAJ gates')
+        if self.debug_level >= 1:
+            print(f'DAG-Transform Summary: Total {total_and} AND gates and {total_or} OR gates transformed to MAJ gates')
         dag.sanity_check()
 
     def run_xform_and_to_maj(self, dag, gate_id):
@@ -32,7 +33,8 @@ class MajNormalizer(DagTransformer):
         orig_gate = dag.graph.nodes[gate_id]
         # Add a zero gate and a wire
         zero_gate_id = dag.uniqufy_gate_id("zero")
-        print(f'DAG-Transform: AND to MAJ: {gate_id} -> {zero_gate_id}, {gate_id}')
+        if self.debug_level >= 2:
+            print(f'DAG-Transform: AND to MAJ: {gate_id} -> {zero_gate_id}, {gate_id}')
         new_wire = dag.uniqufy_wire_name("zero")
         dag.add_gate(gate_id=zero_gate_id, gate_func="zero", inputs=[], outputs=[new_wire])
         dag.add_wire(new_wire, zero_gate_id, gate_id)
@@ -46,7 +48,8 @@ class MajNormalizer(DagTransformer):
         gate = dag.graph.nodes[gate_id]
         # Add a one gate and a wire
         one_gate_id = dag.uniqufy_gate_id("one")
-        print(f'DAG-Transform: OR to MAJ: {gate_id} -> {one_gate_id}, {gate_id}')
+        if self.debug_level >= 2:
+            print(f'DAG-Transform: OR to MAJ: {gate_id} -> {one_gate_id}, {gate_id}')
         new_wire = dag.uniqufy_wire_name("one")
         dag.add_gate(gate_id=one_gate_id, gate_func="one", inputs=[], outputs=[new_wire])
         dag.add_wire(new_wire, one_gate_id, gate_id)

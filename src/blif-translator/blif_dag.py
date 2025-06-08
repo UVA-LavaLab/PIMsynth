@@ -17,7 +17,7 @@ import networkx as nx
 class DAG:
     """ Directed Acyclic Graph (DAG) representation of a circuit """
 
-    def __init__(self, module_name='', in_ports=[], out_ports=[], gate_info_list=[]):
+    def __init__(self, module_name='', in_ports=[], out_ports=[], gate_info_list=[], debug_level=0):
         """
         DAG description:
         * Node
@@ -33,6 +33,7 @@ class DAG:
                 - graph.nodes[gate_id]: Access gate information dictionary by gate ID
         * Edge
             - Represents a wire in the circuit
+                - A wire may have multiple segaments because of in-out behavior of analog PIM
             - Attributes:
                 - wire_name: Name of the wire
                 - is_negated: False: not negated, True: negated (for analog PIM with dual-contact cells)
@@ -51,6 +52,7 @@ class DAG:
         self.__out_ports = []  # To preserve order of output ports
         self.__wire_fanins = {}  # Track fanin gate ids of each wire
         self.__wire_fanouts = {}  # Track fanout gate ids of each wire
+        self.debug_level = debug_level
         self.initialize(in_ports, out_ports, gate_info_list)
 
     def initialize(self, in_ports, out_ports, gate_info_list):
@@ -200,12 +202,13 @@ class DAG:
             suffix += 1
         return f"{new_wire_name}_{suffix}"
 
-    def debug_print(self):
+    def debug_print(self, enable_breakpoint=False):
         """ Print debug information about the DAG """
         print(f"DEBUG: Input Ports = {self.__in_ports}")
         print(f"DEBUG: Output Ports = {self.__out_ports}")
         print(self)
-        #breakpoint()
+        if enable_breakpoint:
+            breakpoint()
 
     def get_gate_info_str(self, gate_id):
         """ Get gate information as a string by gate ID """
@@ -303,7 +306,8 @@ class DAG:
         """ Perform sanity checks on the DAG """
         # Check if in_ports and out_ports are correct
         #print(self)
-        print("INFO: Input/output port sanity check...")
+        if self.debug_level >= 2:
+            print("INFO: Input/output port sanity check...")
         for in_port in self.__in_ports:
             gate_node = self.graph.nodes.get(in_port)
             assert gate_node['gate_func'] == 'in_port', f"Input port '{in_port}' is not correctly set as an input port."
@@ -320,7 +324,8 @@ class DAG:
                 assert gate_node['outputs'] == [], f"Output port '{gate_id}' should not have outputs."
                 assert gate_id in self.__out_ports, f"Output port '{gate_id}' is not in the output ports list."
         # Check if wire_fanins and wire_fanouts are in sync
-        print("INFO: Wire connection sanity check...")
+        if self.debug_level >= 2:
+            print("INFO: Wire connection sanity check...")
         for wire_name in set(self.__wire_fanins.keys()).union(self.__wire_fanouts.keys()):
             fanins = self.__wire_fanins.get(wire_name, set())
             fanouts = self.__wire_fanouts.get(wire_name, set())
@@ -343,7 +348,8 @@ class DAG:
                 assert from_gate_id in self.__wire_fanins[wire_name], f"Fanin gate '{from_gate_id}' for wire '{wire_name}' not found in __wire_fanins."
                 assert to_gate_id in self.__wire_fanouts[wire_name], f"Fanout gate '{to_gate_id}' for wire '{wire_name}' not found in __wire_fanouts."
         # Check if gate inputs and outputs are in sync
-        print("INFO: Gate input/output sanity check...")
+        if self.debug_level >= 2:
+            print("INFO: Gate input/output sanity check...")
         for gate_id in self.graph.nodes:
             gate_node = self.graph.nodes[gate_id]
             input_wires = gate_node['inputs']

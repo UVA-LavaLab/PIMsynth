@@ -26,7 +26,8 @@ class WireCopyInserter(DagTransformer):
                 new_wire = self.run_xform_copy_wire(dag, wire)
                 total_copy += 1
                 wire_queue.appendleft(new_wire)
-        print(f'DAG-Transform Summary: Total {total_copy} wire copies inserted for input-destroying gates')
+        if self.debug_level >= 1:
+            print(f'DAG-Transform Summary: Total {total_copy} wire copies inserted for input-destroying gates')
         dag.sanity_check()
 
     def is_target_wire(self, dag, wire):
@@ -63,7 +64,8 @@ class WireCopyInserter(DagTransformer):
         # Create a copy gate
         copy_gate_id = dag.uniqufy_gate_id("copy")
         new_wire = dag.uniqufy_wire_name("copy")
-        print(f'DAG-Transform: Copy wire: {target_wire} -> {copy_gate_id} (for {anchor_gate_id})')
+        if self.debug_level >= 2:
+            print(f'DAG-Transform: Copy wire: {target_wire} -> {copy_gate_id} (for {anchor_gate_id})')
         dag.add_gate(gate_id=copy_gate_id, gate_func="copy", inputs=[target_wire], outputs=[new_wire])
         # Update wires
         dag.add_wire(target_wire, fanin_gate_id, copy_gate_id)

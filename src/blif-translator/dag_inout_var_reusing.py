@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-File: dag_fanout_normalizer.py
-Description: Eliminates multi-fanout wires by inserting dedicated copy gates for all but one consumer.
+File: dag_inout_var_reusing.py
+Description: Reuse previous stage TRA inputs (inout) to reduce copies.
 Author: Mohammadhosein Gholamrezaei <uab9qt@virginia.edu>
 Author: Deyuan Guo <guodeyuan@gmail.com>
 Date: 2025-05-08
@@ -12,16 +12,11 @@ from typing import Dict, List
 from dag_transformer_base import DagTransformer
 
 
-class FanoutNormalizer(DagTransformer):
-    """ FanoutNormalizer class """
-
-    def __init__(self, enable_input_reuse: bool = False):
-        """ Initialize the FanoutNormalizer """
-        self.copy_count = 0
-        self.enable_input_reuse = enable_input_reuse
+class InoutVarReusing(DagTransformer):
+    """ InoutVarReusing class """
 
     def apply(self, dag):
-        """ Apply the fanout normalizer transformation to the DAG """
+        """ Apply the variable reuse transformation to the DAG """
         for wire in dag.get_wire_name_list():
             fanin_gate_ids = dag.get_wire_fanin_gate_ids(wire)
             fanout_gate_ids = dag.get_wire_fanout_gate_ids(wire)

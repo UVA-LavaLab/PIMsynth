@@ -19,7 +19,8 @@ class InvEliminator(DagTransformer):
         for gate_id in dag.get_topo_sorted_gate_id_list():
             if self.is_target_gate(dag, gate_id):
                 total_inv += self.run_xform_inv_elimination(dag, gate_id)
-        print(f'DAG-Transform Summary: Total {total_inv} inverter gates eliminated')
+        if self.debug_level >= 1:
+            print(f'DAG-Transform Summary: Total {total_inv} inverter gates eliminated')
         dag.sanity_check()
 
     def is_target_gate(self, dag, gate_id):
@@ -29,7 +30,8 @@ class InvEliminator(DagTransformer):
 
     def run_xform_inv_elimination(self, dag, inv_gate_id):
         """ Transform: Eliminate an inverter gate and negate the edges """
-        print(f'DAG-Transform: Remove INV gate: {inv_gate_id}')
+        if self.debug_level >= 2:
+            print(f'DAG-Transform: Remove INV gate: {inv_gate_id}')
         inv_gate = dag.graph.nodes[inv_gate_id]
         in_wire = inv_gate['inputs'][0]
         out_wire = inv_gate['outputs'][0]

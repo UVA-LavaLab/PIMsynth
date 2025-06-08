@@ -16,11 +16,14 @@ import networkx as nx
 
 import blif_parser
 from blif_dag import DAG
+
+from dag_transformer_base import DagTransformer
+from dag_input_port_isolation import InputPortIsolation
 from dag_maj_normalizer import MajNormalizer
 from dag_inv_eliminator import InvEliminator
-from dag_input_copy_inserter import InputCopyInserter
+from dag_inout_var_reusing import InoutVarReusing
 from dag_wire_copy_inserter import WireCopyInserter
-#from dag_fanout_normalizer import FanoutNormalizer
+
 from generator_asm import GeneratorAsm
 from generator_bitwise import GeneratorBitwise
 
@@ -41,7 +44,7 @@ class BlifTranslator:
         self.num_regs = 0
         self.pim_mode = ''
         self.visualize = False
-        self.debug = False
+        self.debug_level = 0
 
 
     def parse_args(self, input_args):
@@ -54,7 +57,7 @@ class BlifTranslator:
         arg_parser.add_argument('--num-regs', '-r', type=int, default=4, choices=range(2, 16), help='Number of registers 2~16')
         arg_parser.add_argument('--pim-mode', '-p', type=str, default='digital', choices=['digital', 'analog'], help='PIM architecture mode: digital, analog')
         arg_parser.add_argument('--visualize', action='store_true', default=False, help='Enable visualization of the DAG')
-        arg_parser.add_argument('--debug', action='store_true', default=False, help='Enable debug mode')
+        arg_parser.add_argument('--debug_level', type=int, default=1, help='Enable debug messages')
 
         args = arg_parser.parse_args(input_args)
 
@@ -65,12 +68,10 @@ class BlifTranslator:
         self.num_regs = args.num_regs
         self.pim_mode = args.pim_mode
         self.visualize = args.visualize
-        self.debug = args.debug
+        self.debug_level = args.debug_level
 
-        # Modify this to temporarily enable debug and visualization mode
-        if False and self.output_format == 'asm':
+        if self.debug_level >= 2 and self.output_format == 'asm':
             self.visualize = True
-            self.debug = True
 
         success = True
         if not os.path.isfile(self.input_file):
@@ -84,15 +85,17 @@ class BlifTranslator:
 
     def debug_checkpoint(self, dag, tag):
         """ Print or visualizer the DAG for debugging """
-        print("Info: BLIF translator DAG checkpoint", tag)
+        if self.debug_level >= 1:
+            print("Info: BLIF translator DAG checkpoint", tag)
 
         if self.visualize:
             DAG.save_dag_as_json(dag, f"dag_{tag}.json")
             DAG.draw_interactive_circuit(dag, f"G_{tag}.html")
 
-        if self.debug:
+        if self.debug_level >= 2:
             print(f"DEBUG: DAG {tag} - Module Name = {dag.module_name}")
-            dag.debug_print()
+            enable_breakpoint = self.debug_level >= 3
+            dag.debug_print(enable_breakpoint)
 
 
     def run_digital_optimization(self, dag):
@@ -113,9 +116,9 @@ class BlifTranslator:
         self.debug_checkpoint(dag, "pre_analog")
 
         # Analog PIM: Copy external inputs to register rows
-        input_copy_inserter = InputCopyInserter()
-        input_copy_inserter.apply(dag)
-        self.debug_checkpoint(dag, "post_input_copy")
+        input_port_isolation = InputPortIsolation()
+        input_port_isolation.apply(dag)
+        self.debug_checkpoint(dag, "post_input_port_iso")
 
         # Analog PIM: Normalize majority gates
         maj_normalizer = MajNormalizer()
@@ -127,10 +130,10 @@ class BlifTranslator:
         #inv_eliminator.apply(dag)
         #self.debug_checkpoint(dag, "post_inv_elim")
 
-        ## Analog PIM: Replicate gate inputs due to input-destroying TRA
-        #fanout_normalizer = FanoutNormalizer()
-        #fanout_normalizer.apply(dag)
-        #self.debug_checkpoint(dag, "post_fanout_norm")
+        ## Analog PIM: Reuse TRA inputs to drive next stage gates
+        #inout_var_reuse = TraVarReusing()
+        #inout_var_reuse.apply(dag)
+        #self.debug_checkpoint(dag, "post_inout_var_reuse")
 
         ## Analog PIM: Copy wires that drives multiple input-destroying gates
         wire_copy_inserter = WireCopyInserter()
@@ -140,7 +143,7 @@ class BlifTranslator:
         # Temp: Remove trailing stars from gates list
         #fanout_normalizer.remove_trailing_stars_from_gate_list(dag)
 
-        self.debug_checkpoint(dag, "post_analog")
+        #self.debug_checkpoint(dag, "post_analog")
 
 
     def run_code_generation(self, dag):
@@ -164,6 +167,7 @@ class BlifTranslator:
     def run(self, input_args):
         """ Run the BLIF parser """
         self.parse_args(input_args)
+        DagTransformer.debug_level = self.debug_level
 
         # Run BLIF parser
         parser = blif_parser.BlifParser(self.module_name)
@@ -178,7 +182,8 @@ class BlifTranslator:
             module_name=self.module_name,
             in_ports=in_ports,
             out_ports=out_ports,
-            gate_info_list=gate_info_list
+            gate_info_list=gate_info_list,
+            debug_level=self.debug_level
         )
 
         self.debug_checkpoint(dag, "initial")

@@ -12,6 +12,9 @@ from blif_dag import DAG
 class DagTransformer:
     """ Base class for DAG transformers """
 
+    # A common debug level for all transformers
+    debug_level = 0
+
     def apply(self, dag: DAG):
         """ Apply a transformation to the input DAG """
         raise NotImplementedError("Subclasses must implement the apply() method.")

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-File: dag_input_copy_inserter.py
+File: dag_input_port_isolation.py
 Description: Inserts copy gates for each input wire to isolate primary inputs from internal logic to avoid the input from getting destructed in analog PIM.
 Author: Mohammadhosein Gholamrezaei <uab9qt@virginia.edu>
 Author: Deyuan Guo <guodeyuan@gmail.com>
@@ -12,7 +12,7 @@ from typing import Dict
 from dag_transformer_base import DagTransformer
 
 
-class InputCopyInserter(DagTransformer):
+class InputPortIsolation(DagTransformer):
     """ Inserts copy gates for each input wire to isolate primary inputs from internal logic """
 
     def apply(self, dag):
@@ -21,7 +21,8 @@ class InputCopyInserter(DagTransformer):
         for gate_id in dag.get_topo_sorted_gate_id_list():
             if dag.is_in_port(gate_id):
                 total_copy += self.run_xform_copy_input_port(dag, gate_id)
-        print(f'DAG-Transform Summary: Total {total_copy} copy gates inserted for input ports')
+        if self.debug_level >= 1:
+            print(f'DAG-Transform Summary: Total {total_copy} copy gates inserted for input ports')
         dag.sanity_check()
 
     def sanitize_name(self, input_str: str) -> str:
@@ -37,7 +38,8 @@ class InputCopyInserter(DagTransformer):
         for fanout_gate_id in fanouts:
             # Add a new copy gate
             copy_gate_id = dag.uniqufy_gate_id(f"cp_{self.sanitize_name(in_port_gate_id)}")
-            print(f'DAG-Transform: Copy input port: {in_port_gate_id} -> {copy_gate_id} (fanout {fanout_gate_id})')
+            if self.debug_level >= 2:
+                print(f'DAG-Transform: Copy input port: {in_port_gate_id} -> {copy_gate_id} (fanout {fanout_gate_id})')
             new_wire = dag.uniqufy_wire_name(f"cp_{self.sanitize_name(in_port_gate_id)}")
             dag.add_gate(gate_id=copy_gate_id, gate_func="copy", inputs=[orig_wire], outputs=[new_wire])
             # Update wires
