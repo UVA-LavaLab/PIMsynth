@@ -419,10 +419,11 @@ class bitSerialCompiler:
         print("INFO: Compiling BLIF to C ...")
 
         script_location = os.path.dirname(os.path.abspath(__file__))
-        blif_parser = os.path.join(script_location, 'src/blif-translator/main.py')
+        blif_translator = os.path.join(script_location, 'src/blif-translator/main.py')
         blif_file = self.blif if self.blif else os.path.join(self.outdir, self.output + '.blif')
-        c_file = os.path.join(self.outdir, self.output + '.c')
-        cmd = ['python3', blif_parser, '-f', 'asm', '-i', blif_file, '-m', 'func', '-o', c_file, '-r', str(self.num_regs), '-p', self.pim_mode]
+        output_file_prefix = os.path.join(self.outdir, self.output)
+        output_formats = 'asm,bitwise' if self.gen_bitwise else 'asm'
+        cmd = ['python3', blif_translator, '-f', output_formats, '-i', blif_file, '-m', self.output, '-o', output_file_prefix, '-r', str(self.num_regs), '-p', self.pim_mode]
         self.generate_run_script(cmd, self.output + '.run_blif2c.sh')
         result = subprocess.run(cmd)
         if result.returncode != 0:
@@ -430,15 +431,7 @@ class bitSerialCompiler:
             return False
         print("INFO: Generated C file:", self.output + '.c')
         print("INFO: Allowed number of registers:", self.num_regs)
-
         if self.gen_bitwise:
-            bitwise_c_file = os.path.join(self.outdir, self.output + '.bitwise.c')
-            cmd = ['python3', blif_parser, '-f', 'bitwise', '-i', blif_file, '-m', self.output, '-o', bitwise_c_file, '-r', str(self.num_regs), '-p', self.pim_mode]
-            self.generate_run_script(cmd, self.output + '.run_blif2bitwise.sh')
-            result = subprocess.run(cmd)
-            if result.returncode != 0:
-                print('Error: BLIF to bit-wise C parser failed.')
-                return False
             print("INFO: Generated bit-wise C file:", self.output + '.bitwise.c')
 
         print(self.hbar)

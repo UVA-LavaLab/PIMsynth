@@ -38,9 +38,9 @@ class BlifTranslator:
     def __init__(self):
         """ Initialize the BLIF translator """
         self.input_file = ''
-        self.output_file = ''
         self.module_name = ''
-        self.output_format = ''
+        self.output_file_prefix = ''
+        self.output_formats = ''
         self.num_regs = 0
         self.pim_mode = ''
         self.visualize = False
@@ -51,9 +51,9 @@ class BlifTranslator:
         """ Parse command line arguments """
         arg_parser = argparse.ArgumentParser(description='BLIF Translator')
         arg_parser.add_argument('--input-file', '-i', type=str, required=True, help='Input circuit in BLIF format')
-        arg_parser.add_argument('--output-file', '-o', type=str, required=True, help='Bit-serial compiler output file')
         arg_parser.add_argument('--module-name', '-m', type=str, required=True, help='Bit-serial compiler module name')
-        arg_parser.add_argument('--output-format', '-f', type=str, required=True, choices=['asm', 'bitwise'], help='Output format: asm, bitwise')
+        arg_parser.add_argument('--output-file-prefix', '-o', type=str, required=True, help='Bit-serial compiler output file name prefix')
+        arg_parser.add_argument('--output-formats', '-f', type=str, required=True, help='Output formats: comma-separated: asm and/or bitwise')
         arg_parser.add_argument('--num-regs', '-r', type=int, default=4, choices=range(2, 16), help='Number of registers 2~16')
         arg_parser.add_argument('--pim-mode', '-p', type=str, default='digital', choices=['digital', 'analog'], help='PIM architecture mode: digital, analog')
         arg_parser.add_argument('--visualize', action='store_true', default=False, help='Enable visualization of the DAG')
@@ -62,9 +62,9 @@ class BlifTranslator:
         args = arg_parser.parse_args(input_args)
 
         self.input_file = args.input_file
-        self.output_file = args.output_file
         self.module_name = args.module_name
-        self.output_format = args.output_format
+        self.output_file_prefix = args.output_file_prefix
+        self.output_formats = args.output_formats
         self.num_regs = args.num_regs
         self.pim_mode = args.pim_mode
         self.visualize = args.visualize
@@ -77,8 +77,6 @@ class BlifTranslator:
         if not os.path.isfile(self.input_file):
             print(f"Error: Input file '{self.input_file}' does not exist.")
             success = False
-        if os.path.isfile(self.output_file):
-            print(f"Warning: Output file '{self.output_file}' already exists and will be overwritten.")
 
         if not success:
             raise ValueError("Invalid command line arguments")
@@ -149,19 +147,23 @@ class BlifTranslator:
     def run_code_generation(self, dag):
         """ Run code generation based on the output format """
         code = ''
-        if self.output_format == 'asm':
+        if 'asm' in self.output_formats:
             print("Info: Generating inline assembly IR for PIM")
-            generator = GeneratorAsm(dag, self.num_regs, self.module_name, self.pim_mode)
+            # TODO: use self.module_name instead of func here
+            generator = GeneratorAsm(dag, self.num_regs, 'func', self.pim_mode)
             code = generator.generate_code()
-        elif self.output_format == 'bitwise':
+            out_file = self.output_file_prefix + '.c'
+            if os.path.isfile(out_file):
+                print(f"Warning: Output file '{out_file}' already exists and will be overwritten.")
+            util.writeToFile(out_file, code)
+        if 'bitwise' in self.output_formats:
             print("Info: Generating bitwise IR for PIM")
             generator = GeneratorBitwise(dag, self.num_regs, self.module_name, self.pim_mode)
             code = generator.generate_code()
-        else:
-            raise ValueError(f"Error: Unknown output format '{self.output_format}'")
-
-        # Write the generated C++ code into a file
-        util.writeToFile(self.output_file, code)
+            out_file = self.output_file_prefix + '.bitwise.c'
+            if os.path.isfile(out_file):
+                print(f"Warning: Output file '{out_file}' already exists and will be overwritten.")
+            util.writeToFile(out_file, code)
 
 
     def run(self, input_args):
