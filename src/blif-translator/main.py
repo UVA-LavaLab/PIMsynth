@@ -12,12 +12,14 @@ import sys
 import argparse
 import os
 import traceback
+import networkx as nx
 
 import blif_parser
-import blif_dag
+from blif_dag import DAG
 from dag_maj_normalizer import MajNormalizer
 from dag_input_copy_inserter import InputCopyInserter
-from dag_fanout_normalizer import FanoutNormalizer
+from dag_wire_copy_inserter import WireCopyInserter
+#from dag_fanout_normalizer import FanoutNormalizer
 from generator_asm import GeneratorAsm
 from generator_bitwise import GeneratorBitwise
 
@@ -64,6 +66,11 @@ class BlifTranslator:
         self.visualize = args.visualize
         self.debug = args.debug
 
+        # Modify this to temporarily enable debug and visualization mode
+        if False and self.output_format == 'asm':
+            self.visualize = True
+            self.debug = True
+
         success = True
         if not os.path.isfile(self.input_file):
             print(f"Error: Input file '{self.input_file}' does not exist.")
@@ -74,44 +81,64 @@ class BlifTranslator:
         if not success:
             raise ValueError("Invalid command line arguments")
 
+    def debug_checkpoint(self, dag, tag):
+        """ Print or visualizer the DAG for debugging """
+        print("Info: BLIF translator DAG checkpoint", tag)
+
+        if self.visualize:
+            DAG.save_dag_as_json(dag, f"dag_{tag}.json")
+            DAG.draw_interactive_circuit(dag, f"G_{tag}.html")
+
+        if self.debug:
+            print(f"DEBUG: DAG {tag} - Module Name = {dag.module_name}")
+            dag.debug_print()
+
+
+    def run_digital_optimization(self, dag):
+        """ Run optimizations for digital PIM mode """
+        print("Info: Optimizing DAG for digital PIM")
+
+        # Digital PIM: Normalize majority gates
+        #maj_normalizer = MajNormalizer()
+        #maj_normalizer.apply(dag)
+
+        #self.debug_checkpoint(dag, "post_maj_norm")
+
 
     def run_analog_optimization(self, dag):
         """ Run optimizations for analog PIM mode """
         print("Info: Optimizing DAG for analog PIM")
-        if self.visualize:
-            util.save_dag_as_json(dag, "dag_pre_pass.json")
+
+        self.debug_checkpoint(dag, "pre_analog")
 
         # Analog PIM: Normalize majority gates
         maj_normalizer = MajNormalizer()
         maj_normalizer.apply(dag)
 
+        self.debug_checkpoint(dag, "post_maj_norm")
+
         # Analog PIM: Copy external inputs to register rows
         input_copy_inserter = InputCopyInserter()
         input_copy_inserter.apply(dag)
 
-        # Analog PIM: Replicate gate inputs due to input-destroying TRA
-        fanout_normalizer = FanoutNormalizer()
-        fanout_normalizer.apply(dag)
+        self.debug_checkpoint(dag, "post_input_copy")
 
-        if self.visualize:
-            blif_dag.save_dag_as_json(dag, "dag_post_pass.json")
+        ## Analog PIM: Replicate gate inputs due to input-destroying TRA
+        #fanout_normalizer = FanoutNormalizer()
+        #fanout_normalizer.apply(dag)
 
-        if self.debug:
-            print("DEBUG: Module Name = ", self.module_name)
-            print("DEBUG: Input Ports = ", dag.inPortList)
-            print("DEBUG: Output Ports = ", dag.outPortList)
-            print("DEBUG: Wires = ", dag.wireList)
-            print(dag)
-            breakpoint()
+        #self.debug_checkpoint(dag, "post_fanout_norm")
 
-        if self.visualize:
-            dag_pre_pass = blif_dag.load_dag_from_json("dag_pre_pass.json")
-            dag_post_pass = blif_dag.load_dag_from_json("dag_post_pass.json")
-            blif_dag.draw_interactive_circuit(dag_pre_pass, "G_pre_pass.html")
-            blif_dag.draw_interactive_circuit(dag_post_pass, "G_post_pass.html")
+        ## Analog PIM: Copy wires that drives multiple input-destroying gates
+        wire_copy_inserter = WireCopyInserter()
+        wire_copy_inserter.apply(dag)
+
+        self.debug_checkpoint(dag, "post_wire_copy")
 
         # Temp: Remove trailing stars from gates list
-        fanout_normalizer.remove_trailing_stars_from_gate_list(dag)
+        #fanout_normalizer.remove_trailing_stars_from_gate_list(dag)
+
+        self.debug_checkpoint(dag, "post_analog")
 
 
     def run_code_generation(self, dag):
@@ -139,11 +166,28 @@ class BlifTranslator:
         # Run BLIF parser
         parser = blif_parser.BlifParser(self.module_name)
         file_content = util.getContent(self.input_file)
-        dag = parser.parse(file_content)
+        parser.parse(file_content)
+        in_ports = parser.get_in_ports()
+        out_ports = parser.get_out_ports()
+        gate_info_list = parser.get_gate_info_list()
+
+        # Create the DAG
+        dag = DAG(
+            module_name=self.module_name,
+            in_ports=in_ports,
+            out_ports=out_ports,
+            gate_info_list=gate_info_list
+        )
+
+        self.debug_checkpoint(dag, "initial")
 
         # Run ananlog optimizations if needed
         if self.pim_mode == "analog":
             self.run_analog_optimization(dag)
+        elif self.pim_mode == "digital":
+            self.run_digital_optimization(dag)
+
+        self.debug_checkpoint(dag, "final")
 
         # Generate code into the output file
         self.run_code_generation(dag)

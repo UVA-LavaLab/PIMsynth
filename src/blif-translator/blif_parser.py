@@ -11,7 +11,6 @@ Date: 2024-09-03
 import itertools
 import pprint
 from lark import Lark, Transformer
-from blif_dag import Dag, GateNode
 
 
 class BlifTransformer(Transformer):
@@ -91,7 +90,7 @@ BLIF_GRAMMAR = r"""
 """
 
 class BlifParser:
-    """ BLIF parser class: Convert a BLIF file to a DAG representation """
+    """ BLIF parser class: Parse a BLIF file """
 
     def __init__(self, module_name):
         """ Initialize the BLIF parser """
@@ -102,40 +101,45 @@ class BlifParser:
     def parse(self, blif_content):
         """ Parse the input BLIF file content and create DAG """
         self.parse_tree = self.lark_parser.parse(blif_content)
-        return self.convert_tree_to_dag()
 
     def print_tree(self):
         """ Print the parse tree """
         pprint.pprint(self.parse_tree)
 
-    def convert_tree_to_dag(self):
-        """ Convert parse tree to DAG """
-        dag = Dag()
-        dag.module_name = self.module_name
-
-        # Handle in/out ports
+    def get_in_ports(self):
+        """ Get input ports from the parse tree """
+        assert self.parse_tree is not None
         for item in self.parse_tree.children:
             if 'inputs' in item.keys():
-                in_ports = list(itertools.chain(*item['inputs']))
-                dag.set_in_ports(in_ports)
-            if 'outputs' in item.keys():
-                out_ports = list(itertools.chain(*item['outputs']))
-                dag.set_out_ports(out_ports)
+                return list(itertools.chain(*item['inputs']))
+        return []
 
-        # Handle gates
+    def get_out_ports(self):
+        """ Get output ports from the parse tree """
+        assert self.parse_tree is not None
+        for item in self.parse_tree.children:
+            if 'outputs' in item.keys():
+                return list(itertools.chain(*item['outputs']))
+        return []
+
+    def get_gate_info_list(self):
+        """ Get gate info list from the parse tree """
+        assert self.parse_tree is not None
+        gate_info_list = []
         gate_count = 0
         for item in self.parse_tree.children:
             if isinstance(item, dict) and 'gate_name' in item:
-                gate_func = item['gate_name']
+                # Note: Revisit this part if any gate has multiple outputs in BLIF file
                 args = item['arguments']
-                inputs = [s for sub in args[:-1] for s in sub]
+                inputs = [s for sub in args[:-1] for s in sub]  # flatten
                 outputs = list(args[-1])
-                gate = GateNode(gate_id=gate_count, gate_func=gate_func, inputs=inputs, outputs=outputs)
-                dag.add_gate(gate)
+                gate_info = {
+                    'gate_id': str(gate_count),
+                    'gate_func': item['gate_name'],
+                    'inputs': inputs,
+                    'outputs': outputs
+                }
+                gate_info_list.append(gate_info)
                 gate_count += 1
+        return gate_info_list
 
-        # Temp: Track gate list and wire list separately for now
-        dag.gate_list = dag.get_gate_list()
-        dag.wire_list = dag.get_wire_list()
-
-        return dag

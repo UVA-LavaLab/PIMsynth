@@ -78,7 +78,7 @@ class GeneratorAsm():
 
     def generate_temporary_variables(self):
         """ Generate temporary variables for wires """
-        wire_list = self.dag.get_wire_list()
+        wire_list = self.dag.get_wire_name_list()
         if len(wire_list) == 0:
             return ""
         variables = ', '.join(wire_list)
@@ -126,45 +126,45 @@ class GeneratorAsm():
         # =r: output register, r: input register
         # return a single line assembly code. Be careful with " and \\n
         return {
-            "inv1": lambda output, inputs: (
+            "inv1": lambda output, inputs, info: (
                 f'"#PIM_OP: inv1 %1 -> %0 \\n'
                 f' not %0, %1'
                 f'" : "=r" ({output}) : "r" ({inputs[0]}) : {clobber}'
             ),
-            "and2": lambda output, inputs: (
+            "and2": lambda output, inputs, info: (
                 f'"#PIM_OP: and2 %1, %2 -> %0 \\n'
                 f' and %0, %1, %2'
                 f'" : "=r" ({output}) : "r" ({inputs[0]}), "r" ({inputs[1]}) : {clobber}'
             ),
-            "nand2": lambda output, inputs: (
+            "nand2": lambda output, inputs, info: (
                 f'"#PIM_OP: nand2 %1, %2 -> %0 \\n'
                 f' and %0, %1, %2 \\n'
                 f' not %0, %0'
                 f'" : "=r" ({output}) : "r" ({inputs[0]}), "r" ({inputs[1]}) : {clobber}'
             ),
-            "or2": lambda output, inputs: (
+            "or2": lambda output, inputs, info: (
                 f'"#PIM_OP: or2 %1, %2 -> %0 \\n'
                 f' or %0, %1, %2'
                 f'" : "=r" ({output}) : "r" ({inputs[0]}), "r" ({inputs[1]}) : {clobber}'
             ),
-            "nor2": lambda output, inputs: (
+            "nor2": lambda output, inputs, info: (
                 f'"#PIM_OP: nor2 %1, %2 -> %0 \\n'
                 f' or %0, %1, %2 \\n'
                 f' not %0, %0'
                 f'" : "=r" ({output}) : "r" ({inputs[0]}), "r" ({inputs[1]}) : {clobber}'
             ),
-            "xor2": lambda output, inputs: (
+            "xor2": lambda output, inputs, info: (
                 f'"#PIM_OP: xor2 %1, %2 -> %0\\n'
                 f' xor %0, %1, %2'
                 f'" : "=r" ({output}) : "r" ({inputs[0]}), "r" ({inputs[1]}) : {clobber}'
             ),
-            "xnor2": lambda output, inputs: (
+            "xnor2": lambda output, inputs, info: (
                 f'"#PIM_OP: xnor2 %1, %2 -> %0 \\n'
                 f' xor %0, %1, %2 \\n'
                 f' not %0, %0'
                 f'" : "=r" ({output}) : "r" ({inputs[0]}), "r" ({inputs[1]}) : {clobber}'
             ),
-            "mux2": lambda output, inputs: ( # %0 = %1 ? %3 : %2
+            "mux2": lambda output, inputs, info: ( # %0 = %1 ? %3 : %2
                 f'"#PIM_OP: mux2 %1, %2, %3 -> %0 \\n'
                 f' not s1, %1 \\n'
                 f' and s2, s1, %2 \\n'
@@ -172,7 +172,7 @@ class GeneratorAsm():
                 f' or %0, s2, s3'
                 f'" : "=r" ({output}) : "r" ({inputs[0]}), "r" ({inputs[1]}), "r" ({inputs[2]}) : {clobber}'
             ),
-            "maj3": lambda output, inputs: (
+            "maj3": lambda output, inputs, info: (
                 f'"#PIM_OP: maj3 %1, %2, %3 -> %0 \\n'
                 f' and s1, %1, %2 \\n'
                 f' and s2, %2, %3 \\n'
@@ -181,14 +181,16 @@ class GeneratorAsm():
                 f' or %0, s1, s3'
                 f'" : "=r" ({output}) : "r" ({inputs[0]}), "r" ({inputs[1]}), "r" ({inputs[2]}) : {clobber}'
             ),
-            "zero": lambda output, inputs: (
+            "zero": lambda output, inputs, info: (
                 f'"#PIM_OP: zero -> %0 \\n'
-                f' addi %0, x0, 0'
+                f' li %0, 0 \\n'
+                f' mv %0, %0'
                 f'" : "=r" ({output}) : : {clobber}'
             ),
-            "one": lambda output, inputs: (
+            "one": lambda output, inputs, info: (
                 f'"#PIM_OP: one -> %0 \\n'
-                f' addi %0, x0, 1'
+                f' li %0, 0 \\n'
+                f' not %0, %0'
                 f'" : "=r" ({output}) : : {clobber}'
             ),
         }
@@ -202,34 +204,34 @@ class GeneratorAsm():
         # =r: output register
         # =&r: output must be different from inputs using early clobber
         return {
-            "copy": lambda output, inputs: (
-                f'"#PIM_OP: copy1 %1 -> %0 \\n'
+            "copy": lambda output, inputs, info: (
+                f'"#PIM_OP {info}: copy1 %1 -> %0 \\n'
                 f' mv %0, %1'
                 f'" : "=r" ({output}), "+r" ({inputs[0]}) : : {clobber}'
             ),
-            "inv1": lambda output, inputs: (
-                f'"#PIM_OP: inv1 %1 -> %0 \\n'
+            "inv1": lambda output, inputs, info: (
+                f'"#PIM_OP {info}: inv1 %1 -> %0 \\n'
                 f' not %0, %1'
                 f'" : "=r" ({output}) : "0" ({inputs[0]}) : {clobber}'
                 #f'" : "=r" ({output}) : "r" ({inputs[0]}) : {clobber}'
                 #f'" : "=r" ({output}), "+r" ({inputs[0]}) : : {clobber}'
             ),
-            "and2": lambda output, inputs: (
-                f'"#PIM_OP: and2 %1, %2 -> %0 \\n'
+            "and2": lambda output, inputs, info: (
+                f'"#PIM_OP {info}: and2 %1, %2 -> %0 \\n'
                 f' and %0, %1, %2 \\n'
                 f' mv %1, %0 \\n'
                 f' mv %2, %0'
                 f'" : "=&r" ({output}), "+r" ({inputs[0]}), "+r" ({inputs[1]}) : : {clobber}'
             ),
-            "or2": lambda output, inputs: (
-                f'"#PIM_OP: or2 %1, %2 -> %0 \\n'
+            "or2": lambda output, inputs, info: (
+                f'"#PIM_OP {info}: or2 %1, %2 -> %0 \\n'
                 f' or %0, %1, %2 \\n'
                 f' mv %1, %0 \\n'
                 f' mv %2, %0'
                 f'" : "=&r" ({output}), "+r" ({inputs[0]}), "+r" ({inputs[1]}) : : {clobber}'
             ),
-            "maj3": lambda output, inputs: (
-                f'"#PIM_OP: maj3 %1, %2, %3 -> %0 \\n'
+            "maj3": lambda output, inputs, info: (
+                f'"#PIM_OP {info}: maj3 %1, %2, %3 -> %0 \\n'
                 f' and s1, %1, %2 \\n'
                 f' and s2, %2, %3 \\n'
                 f' and s3, %1, %3 \\n'
@@ -240,32 +242,37 @@ class GeneratorAsm():
                 f' mv %3, %0'
                 f'" : "=&r" ({output}), "+r" ({inputs[0]}), "+r" ({inputs[1]}), "+r" ({inputs[2]}) : : {clobber}'
             ),
-            "zero": lambda output, inputs: (
-                f'"#PIM_OP: zero -> %0 \\n'
+            "zero": lambda output, inputs, info: (
+                f'"#PIM_OP {info}: zero -> %0 \\n'
                 f' li %0, 0 \\n'
                 f' mv %0, %0'
                 f'" : "=r" ({output}) : : {clobber}'
             ),
-            "one": lambda output, inputs: (
-                f'"#PIM_OP: one -> %0 \\n'
+            "one": lambda output, inputs, info: (
+                f'"#PIM_OP {info}: one -> %0 \\n'
                 f' li %0, 0 \\n'
                 f' not %0, %0'
                 f'" : "=r" ({output}) : : {clobber}'
             ),
         }
 
-    def generate_single_asm_statement(self, gate, asm_instructions):
+    def generate_single_asm_statement(self, gate_id, asm_instructions, info):
         """ Generate a single assembly statement based on the logic gate type """
-        inputs = self.sanitize_token_list(gate.inputs)
-        output = self.sanitize_token(gate.outputs[0])
+        gate = self.dag.graph.nodes[gate_id]
+        if gate['gate_func'] in ['in_port', 'out_port']:
+            # Skip input and output ports
+            return ""
+        inputs = self.sanitize_token_list(gate['inputs'])
+        output = self.sanitize_token(gate['outputs'][0])
         # Temporary solution to make scheduling result correct
-        volatile = " volatile " if gate.has_deps else ""
+        volatile = " volatile " if gate['has_deps'] else ""
 
-        for gate_func, asm_func in asm_instructions.items():
-            if gate.gate_func.startswith(gate_func):
-                return f'\tasm{volatile}({asm_func(output, inputs)});\n'
+        gate_func = gate['gate_func']
+        if gate_func in asm_instructions:
+            asm_func = asm_instructions[gate_func]
+            return f'\tasm{volatile}({asm_func(output, inputs, info)});\n'
 
-        raise ValueError(f"Error: Unhandled gate type {gate.gate_func}")
+        raise ValueError(f"Error: Unhandled gate type {gate_func} for gate ID {gate_id}.")
 
     def generate_all_asm_statements(self):
         """ Generate C asm statement sequence """
@@ -277,8 +284,9 @@ class GeneratorAsm():
         code = '\tasm("########## BEGIN ##########");\n'
 
         # Generate assembly statements for each item in the statement list
-        for gate in self.dag.get_gate_list():
-            code += self.generate_single_asm_statement(gate, asm_instructions)
+        for i, gate_id in enumerate(self.dag.get_topo_sorted_gate_id_list()):
+            info = str(i)
+            code += self.generate_single_asm_statement(gate_id, asm_instructions, info)
 
         code += '\tasm("########## END ##########");\n'
         return code

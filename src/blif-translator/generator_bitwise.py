@@ -75,7 +75,7 @@ class GeneratorBitwise():
 
     def generate_temporary_variables(self):
         """ Generate temporary variables for wires """
-        wire_list = self.dag.get_wire_list()
+        wire_list = self.dag.get_wire_name_list()
         if len(wire_list) == 0:
             return ""
         variables = ', '.join(wire_list)
@@ -103,48 +103,48 @@ class GeneratorBitwise():
         """ Return a dictionary that maps logic gate names to bit-wise code generation functions for digital PIM """
         # Note: Use ! instead of ~ for bitwise NOT to make sure result is 0 or 1
         return {
-            "inv1": lambda output, inputs: (
-                f'\t// PIM_OP: inv1 %1 -> %0 \n'
+            "inv1": lambda output, inputs, info: (
+                f'\t// PIM_OP {info}: inv1 %1 -> %0 \n'
                 f'\t{output} = !{inputs[0]};\n'
             ),
-            "and2": lambda output, inputs: (
-                f'\t// PIM_OP: and2 %1, %2 -> %0 \n'
+            "and2": lambda output, inputs, info: (
+                f'\t// PIM_OP {info}: and2 %1, %2 -> %0 \n'
                 f'\t{output} = {inputs[0]} & {inputs[1]};\n'
             ),
-            "nand2": lambda output, inputs: (
-                f'\t// PIM_OP: nand2 %1, %2 -> %0 \n'
+            "nand2": lambda output, inputs, info: (
+                f'\t// PIM_OP {info}: nand2 %1, %2 -> %0 \n'
                 f'\t{output} = !({inputs[0]} & {inputs[1]});\n'
             ),
-            "or2": lambda output, inputs: (
-                f'\t// PIM_OP: or2 %1, %2 -> %0 \n'
+            "or2": lambda output, inputs, info: (
+                f'\t// PIM_OP {info}: or2 %1, %2 -> %0 \n'
                 f'\t{output} = {inputs[0]} | {inputs[1]};\n'
             ),
-            "nor2": lambda output, inputs: (
-                f'\t// PIM_OP: nor2 %1, %2 -> %0 \n'
+            "nor2": lambda output, inputs, info: (
+                f'\t// PIM_OP {info}: nor2 %1, %2 -> %0 \n'
                 f'\t{output} = !({inputs[0]} | {inputs[1]});\n'
             ),
-            "xor2": lambda output, inputs: (
-                f'\t// PIM_OP: xor2 %1, %2 -> %0 \n'
+            "xor2": lambda output, inputs, info: (
+                f'\t// PIM_OP {info}: xor2 %1, %2 -> %0 \n'
                 f'\t{output} = {inputs[0]} ^ {inputs[1]};\n'
             ),
-            "xnor2": lambda output, inputs: (
-                f'\t// PIM_OP: xnor2 %1, %2 -> %0 \n'
+            "xnor2": lambda output, inputs, info: (
+                f'\t// PIM_OP {info}: xnor2 %1, %2 -> %0 \n'
                 f'\t{output} = !({inputs[0]} ^ {inputs[1]});\n'
             ),
-            "mux2": lambda output, inputs: ( # %0 = %1 ? %3 : %2
-                f'\t// PIM_OP: mux2 %1, %2, %3 -> %0 \n'
+            "mux2": lambda output, inputs, info: ( # %0 = %1 ? %3 : %2
+                f'\t// PIM_OP {info}: mux2 %1, %2, %3 -> %0 \n'
                 f'\t{output} = {inputs[0]} ? {inputs[2]} : {inputs[1]};\n'
             ),
-            "maj3": lambda output, inputs: (
-                f'\t// PIM_OP: maj3 %1, %2, %3 -> %0 \n'
+            "maj3": lambda output, inputs, info: (
+                f'\t// PIM_OP {info}: maj3 %1, %2, %3 -> %0 \n'
                 f'\t{output} = ({inputs[0]} & {inputs[1]}) | ({inputs[0]} & {inputs[2]}) | ({inputs[1]} & {inputs[2]});\n'
             ),
-            "zero": lambda output, inputs: (
-                f'\t// PIM_OP: zero -> %0 \n'
+            "zero": lambda output, inputs, info: (
+                f'\t// PIM_OP {info}: zero -> %0 \n'
                 f'\t{output} = 0;\n'
             ),
-            "one": lambda output, inputs: (
-                f'\t// PIM_OP: one -> %0 \n'
+            "one": lambda output, inputs, info: (
+                f'\t// PIM_OP {info}: one -> %0 \n'
                 f'\t{output} = 1;\n'
             ),
         }
@@ -153,46 +153,51 @@ class GeneratorBitwise():
         """ Return a dictionary that maps logic gate names to bit-wise code generation functions for analog PIM """
         # Note: Use ! instead of ~ for bitwise NOT to make sure result is 0 or 1
         return {
-            "copy": lambda output, inputs: (
-                f'\t// PIM_OP: copy1 %1 -> %0 \n'
+            "copy": lambda output, inputs, info: (
+                f'\t// PIM_OP {info}: copy1 %1 -> %0 \n'
                 f'\t{output} = {inputs[0]};\n'
             ),
-            "inv1": lambda output, inputs: (
-                f'\t// PIM_OP: inv1 %1 -> %0 \n'
+            "inv1": lambda output, inputs, info: (
+                f'\t// PIM_OP {info}: inv1 %1 -> %0 \n'
                 f'\t{output} = !{inputs[0]};\n'
             ),
-            "and2": lambda output, inputs: (
-                f'\t// PIM_OP: and2 %1, %2 -> %0 \n'
+            "and2": lambda output, inputs, info: (
+                f'\t// PIM_OP {info}: and2 %1, %2 -> %0 \n'
                 f'\t{output} = {inputs[0]} = {inputs[1]} = {inputs[0]} & {inputs[1]};\n'
             ),
-            "or2": lambda output, inputs: (
-                f'\t// PIM_OP: or2 %1, %2 -> %0 \n'
+            "or2": lambda output, inputs, info: (
+                f'\t// PIM_OP {info}: or2 %1, %2 -> %0 \n'
                 f'\t{output} = {inputs[0]} = {inputs[1]} = {inputs[0]} | {inputs[1]};\n'
             ),
-            "maj3": lambda output, inputs: (
-                f'\t// PIM_OP: maj3 %1, %2, %3 -> %0 \n'
+            "maj3": lambda output, inputs, info: (
+                f'\t// PIM_OP {info}: maj3 %1, %2, %3 -> %0 \n'
                 f'\t{output} = {inputs[0]} = {inputs[1]} = {inputs[2]} = ({inputs[0]} & {inputs[1]}) | ({inputs[0]} & {inputs[2]}) | ({inputs[1]} & {inputs[2]});\n'
             ),
-            "zero": lambda output, inputs: (
-                f'\t// PIM_OP: zero -> %0 \n'
+            "zero": lambda output, inputs, info: (
+                f'\t// PIM_OP {info}: zero -> %0 \n'
                 f'\t{output} = 0;\n'
             ),
-            "one": lambda output, inputs: (
-                f'\t// PIM_OP: one -> %0 \n'
+            "one": lambda output, inputs, info: (
+                f'\t// PIM_OP {info}: one -> %0 \n'
                 f'\t{output} = 1;\n'
             ),
         }
 
-    def generate_single_bitwise_statement(self, gate, bitwise_instructions):
+    def generate_single_bitwise_statement(self, gate_id, bitwise_instructions, info):
         """ Generate a single bit-wise statement based on the logic gate type """
-        inputs = self.sanitize_token_list(gate.inputs)
-        output = self.sanitize_token(gate.outputs[0])
+        gate = self.dag.graph.nodes[gate_id]
+        if gate['gate_func'] in ['in_port', 'out_port']:
+            # Skip input and output ports
+            return ""
+        inputs = self.sanitize_token_list(gate['inputs'])
+        output = self.sanitize_token(gate['outputs'][0])
 
-        for key, bitwise_func in bitwise_instructions.items():
-            if gate.gate_func.startswith(key):
-                return bitwise_func(output, inputs)
+        gate_func = gate['gate_func']
+        if gate_func in bitwise_instructions:
+            bitwise_func = bitwise_instructions[gate_func]
+            return bitwise_func(output, inputs, info)
 
-        raise ValueError(f"Error: Unhandled gate type {gate.gate_func}")
+        raise ValueError(f"Error: Unhandled gate type {gate_func} for gate ID {gate_id}.")
 
     def generate_all_bitwise_statements(self):
         """ Generate C bit-wise statement sequence """
@@ -200,8 +205,9 @@ class GeneratorBitwise():
 
         code = '\t// ########## BEGIN ##########\n'
 
-        for gate in self.dag.get_gate_list():
-            code += self.generate_single_bitwise_statement(gate, bitwise_instructions)
+        for i, gate_id in enumerate(self.dag.get_topo_sorted_gate_id_list()):
+            info = str(i)
+            code += self.generate_single_bitwise_statement(gate_id, bitwise_instructions, info)
 
         code += '\t// ########## END ##########\n'
         return code

@@ -14,162 +14,375 @@ from pyvis.network import Network
 import networkx as nx
 
 
-class GateNode:
-    """ Represents a logic gate in the DAG """
-
-    def __init__(self, gate_id, gate_func, inputs, outputs):
-        """ Initialize GateNode """
-        self.gate_id = gate_id
-        self.gate_func = gate_func
-        self.inputs = inputs
-        self.outputs = outputs
-        self.has_deps = False  # for scheduling
-
-    def __repr__(self):
-        """ String representation of GateNode """
-        return f"{self.gate_func:<10} | outputs: {str(self.outputs):<30} | inputs: {str(self.inputs)}"
-
-
-class Dag:
+class DAG:
     """ Directed Acyclic Graph (DAG) representation of a circuit """
 
-    def __init__(self):
-        """ Initialize the DAG """
+    def __init__(self, module_name='', in_ports=[], out_ports=[], gate_info_list=[]):
+        """
+        DAG description:
+        * Node
+            - Represents a gate or an input/output port in the circuit
+            - Attributes:
+                - gate_id: Unique string identifier for the gate
+                - gate_func: Function of the gate (e.g., inv1, and2, maj3, copy, in_port, out_port)
+                - inputs: List of input wires with order preserved
+                - outputs: List of output wires with order preserved
+                - has_deps: Boolean indicating if the gate has dependencies (for scheduling)
+            - APIs:
+                - graph.add_node(gate_id): Add a gate node to the DAG
+                - graph.nodes[gate_id]: Access gate information dictionary by gate ID
+        * Edge
+            - Represents a wire in the circuit
+            - Attributes:
+                - wire_name: Name of the wire
+            - APIs:
+                - graph.add_edge(fanin_gate_id, gate_id): Add an edge from fanin gate to gate
+                - graph[fanin_gate_id][gate_id]: Access edge information dictionary by fanin and fanout gate IDs
+        * Input parameters:
+            - module_name: Name of the module
+            - in_ports: List of input ports. Each port has a gate and a wire of the same name
+            - out_ports: List of output ports. Each port has a gate and a wire of the same name
+            - gate_info_list: List of gate info from BlifParser to initialize the DAG
+        """
         self.graph = nx.DiGraph()
-        self.module_name = ''
-        self.gate_info = {}
-        self.wire_to_gate_id = {}
-        # Access internal properties through methods
-        self.__in_ports = []
-        self.__out_ports = []
-        self.__in_ports_set = set()
-        self.__out_ports_set = set()
+        self.module_name = module_name
+        self.__in_ports = []  # To preserve order of input ports
+        self.__out_ports = []  # To preserve order of output ports
+        self.__wire_fanins = {}  # Track fanin gate ids of each wire
+        self.__wire_fanouts = {}  # Track fanout gate ids of each wire
+        self.initialize(in_ports, out_ports, gate_info_list)
 
-    def add_gate(self, gate: GateNode):
+    def initialize(self, in_ports, out_ports, gate_info_list):
+        """ Initialize DAG nodes and edges """
+        # Add input ports
+        self.__in_ports = in_ports.copy()
+        for port in self.__in_ports:
+            self.add_gate(gate_id=port, gate_func='in_port')
+        # Add output ports
+        self.__out_ports = out_ports.copy()
+        for port in self.__out_ports:
+            self.add_gate(gate_id=port, gate_func='out_port')
+        # Add gates
+        for gate_info in gate_info_list:
+            gate_id = gate_info['gate_id']
+            gate_func = gate_info['gate_func']
+            gate_inputs = gate_info['inputs']
+            gate_outputs = gate_info['outputs']
+            self.add_gate(gate_id=gate_id, gate_func=gate_func, inputs=gate_inputs, outputs=gate_outputs)
+        # Connect wires
+        for gate_info in gate_info_list:
+            gate_id = gate_info['gate_id']
+            gate_inputs = gate_info['inputs']
+            gate_outputs = gate_info['outputs']
+            for wire in gate_inputs:
+                if wire not in self.__wire_fanouts:
+                    self.__wire_fanouts[wire] = set()
+                self.__wire_fanouts[wire].add(gate_id)
+            for wire in gate_outputs:
+                if wire not in self.__wire_fanins:
+                    self.__wire_fanins[wire] = set()
+                self.__wire_fanins[wire].add(gate_id)
+        for wire in set(self.__wire_fanins.keys()).union(self.__wire_fanouts.keys()):
+            fanins = self.__wire_fanins.get(wire, [])
+            fanouts = self.__wire_fanouts.get(wire, [])
+            if not fanins and not fanouts:
+                raise ValueError(f"Wire '{wire}' has no fanins and fanouts")
+            elif not fanins:  # input port
+                assert wire in self.__in_ports, f"Wire '{wire}' has no fanins and is not an input port."
+                self.graph.nodes[wire]['outputs'].append(wire)
+                for gate_id in fanouts:
+                    self.add_wire(wire_name=wire, fanin_gate_id=wire, fanout_gate_id=gate_id)
+            elif not fanouts:  # output port
+                assert wire in self.__out_ports, f"Wire '{wire}' has no fanouts and is not an output port."
+                self.graph.nodes[wire]['inputs'].append(wire)
+                for gate_id in fanins:
+                    self.add_wire(wire_name=wire, fanin_gate_id=gate_id, fanout_gate_id=wire)
+            else:
+                assert wire not in self.__in_ports and wire not in self.__out_ports
+                assert len(fanins) == 1, f"Wire '{wire}' has multiple fanins: {fanins}. Expected a single fanin."
+                fanin_gate_id = next(iter(fanins))
+                for gate_id in fanouts:
+                    self.add_wire(wire_name=wire, fanin_gate_id=fanin_gate_id, fanout_gate_id=gate_id)
+
+    def add_gate(self, gate_id='', gate_func='', inputs=[], outputs=[], has_deps=False):
         """ Add a gate to the DAG """
-        gate_id = gate.gate_id
-        self.graph.add_node(gate_id)
-        self.gate_info[gate_id] = gate
+        if gate_id in self.graph:
+            raise ValueError(f"Gate ID '{gate_id}' already exists in the DAG.")
+        self.graph.add_node(gate_id,
+                            gate_id=gate_id,
+                            gate_func=gate_func,
+                            inputs=inputs.copy(),
+                            outputs=outputs.copy(),
+                            has_deps=has_deps)
 
-        # Add edges
-        for input_wire in gate.inputs:
-            if input_wire not in self.wire_to_gate_id:
-                if not self.is_in_port(input_wire):
-                    raise ValueError(f"Input wire '{input_wire}' not found in wire_to_gate_id mapping.")
-                else:
-                    continue
-            fanin_gate_id = self.wire_to_gate_id[input_wire]
-            self.graph.add_edge(fanin_gate_id, gate_id)
+    def add_wire(self, wire_name, fanin_gate_id, fanout_gate_id):
+        """ Add a wire to the DAG """
+        if not self.graph.has_node(fanin_gate_id) or not self.graph.has_node(fanout_gate_id):
+            raise ValueError(f"Cannot add wire '{wire_name}': fanin or fanout gate does not exist.")
+        if self.graph.has_edge(fanin_gate_id, fanout_gate_id):
+            raise ValueError(f"Wire '{wire_name}' already exists between {fanin_gate_id} and {fanout_gate_id}.")
+        self.graph.add_edge(fanin_gate_id, fanout_gate_id, wire_name=wire_name)
+        if wire_name not in self.__wire_fanins:
+            self.__wire_fanins[wire_name] = set()
+        if wire_name not in self.__wire_fanouts:
+            self.__wire_fanouts[wire_name] = set()
+        self.__wire_fanins[wire_name].add(fanin_gate_id)
+        self.__wire_fanouts[wire_name].add(fanout_gate_id)
 
-        for output_wire in gate.outputs:
-            if output_wire in self.wire_to_gate_id:
-                raise ValueError(f"Output wire '{output_wire}' already exists in wire_to_gate_id mapping.")
-            self.wire_to_gate_id[output_wire] = gate_id
+    def remove_wire(self, fanin_gate_id, fanout_gate_id):
+        """ Remove a wire from the DAG """
+        if not self.graph.has_edge(fanin_gate_id, fanout_gate_id):
+            raise ValueError(f"Wire '{wire_name}' does not exist between {fanin_gate_id} and {fanout_gate_id}.")
+        wire_name = self.graph[fanin_gate_id][fanout_gate_id]['wire_name']
+        self.graph.remove_edge(fanin_gate_id, fanout_gate_id)
+        # Do not discard the fanin unless it's the last wire from the fanin
+        self.__wire_fanouts[wire_name].discard(fanout_gate_id)
+        if not self.__wire_fanouts[wire_name]:
+            self.__wire_fanins[wire_name].discard(fanin_gate_id)
+
+    def replace_input_wire(self, gate_id, old_wire_name, new_wire_name):
+        """ Replace an input wire of a gate with a new wire name """
+        if not self.graph.has_node(gate_id):
+            raise ValueError(f"Gate ID '{gate_id}' does not exist in the DAG.")
+        if old_wire_name not in self.graph.nodes[gate_id]['inputs']:
+            raise ValueError(f"Old wire '{old_wire_name}' is not an input of gate '{gate_id}'.")
+        if new_wire_name in self.graph.nodes[gate_id]['inputs']:
+            raise ValueError(f"New wire '{new_wire_name}' already exists as an input of gate '{gate_id}'.")
+
+        # Update inputs
+        inputs = self.graph.nodes[gate_id]['inputs']
+        inputs[inputs.index(old_wire_name)] = new_wire_name
+        self.graph.nodes[gate_id]['inputs'] = inputs
+
+    def uniqufy_gate_id(self, new_gate_id):
+        """ Ensure the new gate ID is unique by appending a suffix if necessary """
+        if new_gate_id not in self.graph:
+            return new_gate_id
+        suffix = 1
+        while f"{new_gate_id}_{suffix}" in self.graph:
+            suffix += 1
+        return f"{new_gate_id}_{suffix}"
+
+    def uniqufy_wire_name(self, new_wire_name):
+        """ Ensure the new wire name is unique by appending a suffix if necessary """
+        if new_wire_name not in self.__wire_fanins and new_wire_name not in self.__wire_fanouts:
+            return new_wire_name
+        suffix = 1
+        while f"{new_wire_name}_{suffix}" in self.__wire_fanins or f"{new_wire_name}_{suffix}" in self.__wire_fanouts:
+            suffix += 1
+        return f"{new_wire_name}_{suffix}"
+
+    def debug_print(self):
+        """ Print debug information about the DAG """
+        print(f"DEBUG: Input Ports = {self.__in_ports}")
+        print(f"DEBUG: Output Ports = {self.__out_ports}")
+        print(self)
+        #breakpoint()
+
+    def get_gate_info_str(self, gate_id):
+        """ Get gate information as a string by gate ID """
+        node = self.graph.nodes.get(gate_id)
+        return f"{node['gate_func']:<10} {node['gate_id']:<10} | outputs: {str(node['outputs']):<20} | inputs: {str(node['inputs'])}"
 
     def __repr__(self):
         """ String representation of the DAG """
         repr_str = ""
-        for gate in self.get_gate_list():
-            repr_str += gate.__repr__() + "\n"
+        repr_str += "--------\n"
+        for from_gate_id, to_gate_id, edge_data in self.graph.edges(data=True):
+            is_fake = False
+            wire_name = edge_data.get('wire_name', None)
+            if wire_name is None:
+                wire_name = edge_data.get('label', None)
+                is_fake = True
+            if wire_name is None:
+                raise ValueError(f"Edge without wire name or label found between {from_gate_id} and {to_gate_id}.")
+            repr_str += f"Edge: {from_gate_id} -> {to_gate_id} | Wire: {wire_name}"
+            repr_str += " >>>>>>>>>>>>>>>> (fake)\n" if is_fake else "\n"
+        repr_str += "--------\n"
+        for wire in set(self.__wire_fanins.keys()).union(self.__wire_fanouts.keys()):
+            repr_str += f"Wire: {wire} | Fanins: {self.__wire_fanins.get(wire, [])} | Fanouts: {self.__wire_fanouts.get(wire, [])}\n"
+        repr_str += "--------\n"
+        for gate_id in self.get_topo_sorted_gate_id_list():
+            repr_str += self.get_gate_info_str(gate_id) + "\n"
+        repr_str += "--------\n"
         return repr_str
-
-    def set_in_ports(self, in_ports):
-        """ Set the input ports of the DAG """
-        self.__in_ports = in_ports
-        self.__in_ports_set = set(in_ports)
 
     def get_in_ports(self):
         """ Get the input ports of the DAG """
-        return self.__in_ports
-
-    def is_in_port(self, wire):
-        """ Check if a wire is an input port """
-        return wire in self.__in_ports_set
-
-    def set_out_ports(self, out_ports):
-        """ Set the output ports of the DAG """
-        self.__out_ports = out_ports
-        self.__out_ports_set = set(out_ports)
+        return self.__in_ports.copy()
 
     def get_out_ports(self):
         """ Get the output ports of the DAG """
-        return self.__out_ports
+        return self.__out_ports.copy()
 
-    def is_out_port(self, wire):
-        """ Check if a wire is an output port """
-        return wire in self.__out_ports_set
+    def is_in_port(self, wire_name_or_gate_id):
+        """ Check if a wire name or gate id is an input port """
+        return self.graph.has_node(wire_name_or_gate_id) and \
+               self.graph.nodes[wire_name_or_gate_id]['gate_func'] == 'in_port'
 
-    def get_gate_list(self):
+    def is_out_port(self, wire_name_or_gate_id):
+        """ Check if a wire name or gate id is an output port """
+        return self.graph.has_node(wire_name_or_gate_id) and \
+               self.graph.nodes[wire_name_or_gate_id]['gate_func'] == 'out_port'
+
+    def get_wire_fanin_gate_ids(self, wire_name):
+        """ Get the fanin gate IDs for a given wire name """
+        if wire_name not in self.__wire_fanins:
+            raise ValueError(f"Wire '{wire_name}' not found in wire fanins.")
+        return sorted(list(self.__wire_fanins[wire_name]))
+
+    def get_wire_fanout_gate_ids(self, wire_name):
+        """ Get the fanout gate IDs for a given wire name """
+        if wire_name not in self.__wire_fanouts:
+            raise ValueError(f"Wire '{wire_name}' not found in wire fanouts.")
+        return sorted(list(self.__wire_fanouts[wire_name]))
+
+    def get_wire_name(self, from_gate_id, to_gate_id):
+        """ Get the wire name connecting two gates """
+        if not self.graph.has_edge(from_gate_id, to_gate_id):
+            raise ValueError(f"No wire exists between {from_gate_id} and {to_gate_id}.")
+        return self.graph[from_gate_id][to_gate_id]['wire_name']
+
+    def get_topo_sorted_gate_id_list(self):
         """ Get a list of all gates in topological order """
-        return [self.gate_info[gate_id] for gate_id in nx.topological_sort(self.graph)]
+        return [gate_id for gate_id in nx.topological_sort(self.graph)]
 
-    def get_wire_list(self):
-        """ Get a list of all wires """
-        wire_list = []
-        gate_list = self.get_gate_list()
-        for gate in gate_list:
-            wire = gate.outputs[0]
-            if not self.is_out_port(wire):
-                wire_list.append(wire)
-        return wire_list
+    def get_wire_name_list(self, skip_port = True):
+        """ Get a list of internal wires in sorted gate order """
+        wire_names = set()
+        for from_gate_id, to_gate_id, edge_data in self.graph.edges(data=True):
+            wire_name = edge_data.get('wire_name', None)
+            if wire_name is None:
+                if edge_data.get('label') not in ['dep-reuse', 'dep-copy']:
+                    raise ValueError("Edge without wire name or label found between {from_gate_id} and {to_gate_id}.")
+                continue
+            if skip_port and (self.is_in_port(wire_name) or self.is_out_port(wire_name)):
+                continue
+            wire_names.add(wire_name)
+        wire_names2 = set()
+        gate_ids = self.get_topo_sorted_gate_id_list()
+        for gate_id in gate_ids:
+            outputs = self.graph.nodes[gate_id]['outputs']
+            for output in outputs:
+                if skip_port and (self.is_in_port(output) or self.is_out_port(output)):
+                    continue
+                wire_names2.add(output)
+        #return sorted(list(wire_names))
+        return list(wire_names2)
 
+    def sanity_check(self):
+        """ Perform sanity checks on the DAG """
+        # Check if in_ports and out_ports are correct
+        #print(self)
+        print("INFO: Input/output port sanity check...")
+        for in_port in self.__in_ports:
+            gate_node = self.graph.nodes.get(in_port)
+            assert gate_node['gate_func'] == 'in_port', f"Input port '{in_port}' is not correctly set as an input port."
+        for out_port in self.__out_ports:
+            gate_node = self.graph.nodes.get(out_port)
+            assert gate_node['gate_func'] == 'out_port', f"Output port '{out_port}' is not correctly set as an output port."
+        for gate_id in self.graph.nodes:
+            gate_node = self.graph.nodes[gate_id]
+            if gate_node['gate_func'] in ['in_port', 'zero', 'one']:
+                assert gate_node['inputs'] == [], f"Gate '{gate_id}' should not have inputs."
+            if gate_node['gate_func'] == 'in_port':
+                assert gate_id in self.__in_ports, f"Input port '{gate_id}' is not in the input ports list."
+            if gate_node['gate_func'] == 'out_port':
+                assert gate_node['outputs'] == [], f"Output port '{gate_id}' should not have outputs."
+                assert gate_id in self.__out_ports, f"Output port '{gate_id}' is not in the output ports list."
+        # Check if wire_fanins and wire_fanouts are in sync
+        print("INFO: Wire connection sanity check...")
+        for wire_name in set(self.__wire_fanins.keys()).union(self.__wire_fanouts.keys()):
+            fanins = self.__wire_fanins.get(wire_name, set())
+            fanouts = self.__wire_fanouts.get(wire_name, set())
+            assert len(fanins) == 1, f"Wire '{wire_name}' has multiple fanins: {fanins}. Expected a single fanin."
+            assert len(fanouts) > 0, f"Wire '{wire_name}' has no fanouts: {fanouts}. Expected at least one fanout."
+            fanin_gate_id = next(iter(fanins))
+            assert self.graph.has_node(fanin_gate_id), f"Fanin gate '{next(iter(fanins))}' for wire '{wire_name}' does not exist."
+            for fanout_gate_id in fanouts:
+                assert self.graph.has_node(fanout_gate_id), f"Fanout gate '{fanout_gate_id}' for wire '{wire_name}' does not exist."
+                dag_wire_name = self.graph[fanin_gate_id][fanout_gate_id].get('wire_name', None)
+                assert dag_wire_name == wire_name, f"Wire name '{dag_wire_name}' does not match expected wire name '{wire_name}' between {fanin_gate_id} and {fanout_gate_id}."
+            for from_gate_id, to_gate_id, edge_data in self.graph.edges(data=True):
+                wire_name = edge_data.get('wire_name', None)
+                if wire_name is None:
+                    if edge_data.get('label') not in ['dep-reuse', 'dep-copy']:
+                        raise ValueError(f"Edge without wire name or label found between {from_gate_id} and {to_gate_id}.")
+                    continue
+                assert wire_name in self.__wire_fanins, f"Wire '{wire_name}' not found in __wire_fanins."
+                assert wire_name in self.__wire_fanouts, f"Wire '{wire_name}' not found in __wire_fanouts."
+                assert from_gate_id in self.__wire_fanins[wire_name], f"Fanin gate '{from_gate_id}' for wire '{wire_name}' not found in __wire_fanins."
+                assert to_gate_id in self.__wire_fanouts[wire_name], f"Fanout gate '{to_gate_id}' for wire '{wire_name}' not found in __wire_fanouts."
+        # Check if gate inputs and outputs are in sync
+        print("INFO: Gate input/output sanity check...")
+        for gate_id in self.graph.nodes:
+            gate_node = self.graph.nodes[gate_id]
+            input_wires = gate_node['inputs']
+            output_wires = gate_node['outputs']
+            for input_wire in input_wires:
+                assert gate_id in self.__wire_fanouts[input_wire], f"Gate '{gate_id}' not found in fanouts of input wire '{input_wire}'."
+            for output_wire in output_wires:
+                assert gate_id in self.__wire_fanins[output_wire], f"Gate '{gate_id}' not found in fanins of output wire '{output_wire}'."
+            if gate_node['gate_func'] == 'in_port':
+                assert len(input_wires) == 0, f"Input port '{gate_id}' should not have any input wires."
+                assert len(output_wires) == 1, f"Input port '{gate_id}' should have exactly one output wire."
+                assert output_wires[0] == gate_id, f"Output wire '{output_wires[0]}' of input port '{gate_id}' should match the gate ID."
+            if gate_node['gate_func'] == 'out_port':
+                assert len(output_wires) == 0, f"Output port '{gate_id}' should not have any output wires."
+                assert len(input_wires) == 1, f"Output port '{gate_id}' should have exactly one input wire."
+                assert input_wires[0] == gate_id, f"Input wire '{input_wires[0]}' of output port '{gate_id}' should match the gate ID."
 
-def save_dag_as_json(dag, file_path):
-    """ Save the DAG as a JSON file """
-    # Embed gate_info into node attributes
-    for gate_id, gate in dag.gate_info.items():
-        dag.graph.nodes[gate_id]["gate_func"] = gate.gate_func
-        dag.graph.nodes[gate_id]["inputs"] = gate.inputs
-        dag.graph.nodes[gate_id]["outputs"] = gate.outputs
+    @staticmethod
+    def save_dag_as_json(dag, file_path):
+        """ Save the DAG as a JSON file """
+        # Export graph with embedded attributes
+        data = json_graph.node_link_data(dag.graph, edges="links")
+        with open(file_path, "w") as f:
+            json.dump(data, f, indent=2)
 
-    # Export graph with embedded attributes
-    data = json_graph.node_link_data(dag.graph, edges="links")
+    @staticmethod
+    def load_dag_from_json(file_path):
+        """ Load a DAG from a JSON file """
+        with open(file_path) as f:
+            data = json.load(f)
+        dag = DAG()
+        dag.graph = json_graph.node_link_graph(data, edges="links")
 
-    with open(file_path, "w") as f:
-        json.dump(data, f, indent=2)
+        # Note: in_ports and out_port are not in exact order as in the original DAG
+        for node, data in dag.graph.nodes(data=True):
+            if data.get('gate_func') == 'in_port':
+                dag.__in_ports.append(node)
+            elif data.get('gate_func') == 'out_port':
+                dag.__out_ports.append(node)
 
+        return dag
 
-def load_dag_from_json(file_path):
-    """ Load a DAG from a JSON file """
-    with open(file_path) as f:
-        data = json.load(f)
+    @staticmethod
+    def draw_interactive_circuit(dag, output_file="circuit.html"):
+        """ Draw an interactive circuit using PyVis """
+        network = Network(height='800px', width='100%', directed=True, notebook=False, filter_menu=True, cdn_resources='remote')
 
-    dag = Dag()
-    dag.graph = json_graph.node_link_graph(data, edges="links")
+        for gate_id, data in dag.graph.nodes(data=True):
+            gate_func = data.get('gate_func', 'unknown')
+            if gate_func == 'in_port':
+                label = f"{gate_id} ({gate_func[:-5]})"
+                color = "#F9E79F"
+            elif gate_func == 'out_port':
+                label = f"{gate_id} ({gate_func[:-5]})"
+                color = "#F5B7B1"
+            elif gate_func == 'copy':
+                label = f"{gate_id} ({gate_func})"
+                color = "#A9DFBF"
+            else:
+                label = f"{gate_id} ({gate_func})"
+                color = "#AED6F1"
+            network.add_node(gate_id, label=label, shape="box", color=color)
 
-    # Rebuild gate_info and wire_to_gate_id
-    for gate_id, attrs in dag.graph.nodes(data=True):
-        gate = GateNode(
-            gate_id=gate_id,
-            gate_func=attrs.get("gate_func", "unknown"),
-            inputs=attrs.get("inputs", []),
-            outputs=attrs.get("outputs", [])
-        )
-        dag.gate_info[gate_id] = gate
-        for output in gate.outputs:
-            dag.wire_to_gate_id[output] = gate_id
+        for u, v, edge_data in dag.graph.edges(data=True):
+            label = edge_data.get('wire_name', '<dep>')
+            network.add_edge(u, v, label=label)
 
-    return dag
-
-def draw_interactive_circuit(dag, output_file="circuit.html"):
-    """ Draw an interactive circuit using PyVis """
-    network = Network(height='800px', width='100%', directed=True, notebook=False, filter_menu=True, cdn_resources='remote')
-
-    for gate_id, data in dag.graph.nodes(data=True):
-        gate_func = data.get('gate_func', 'unknown')
-        outputs = ', '.join(data.get('outputs', []))
-        label = f"{gate_func}\n{outputs}"
-        network.add_node(gate_id, label=label, shape="box", color="#AED6F1")
-
-    for u, v, edge_data in dag.graph.edges(data=True):
-        label = edge_data.get('label')
-        if label is None:
-            from_wires = set(dag.graph.nodes[u].get('outputs', []))
-            to_wires = set(dag.graph.nodes[v].get('inputs', []))
-            common = from_wires & to_wires
-            label = ', '.join(common) if common else ''
-        network.add_edge(u, v, label=label)
-
-    network.show_buttons(filter_=['physics'])
-    network.show(output_file)
-    print(f"Interactive graph saved to: {output_file}")
+        network.show_buttons(filter_=['physics'])
+        # Save to html file instead of popup with show()
+        network.save_graph(output_file)
+        print(f"Interactive graph saved to: {output_file}")

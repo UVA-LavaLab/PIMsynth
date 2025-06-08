@@ -10,40 +10,37 @@ Date: 2025-05-24
 
 from typing import Dict
 from dag_transformer_base import DagTransformer
-from blif_dag import GateNode
 
 
 class InputCopyInserter(DagTransformer):
     """ Inserts copy gates for each input wire to isolate primary inputs from internal logic """
 
-    def __init__(self):
-        """ Initialize the InputCopyInserter """
-        pass
-
-    def rename_input(self, input_str: str) -> str:
-        """ Sanitize bus wire name """
-        return input_str.replace('[', '_').replace(']', '_')
-
     def apply(self, dag):
         """ Apply the input copy inserter transformation to the DAG """
-        wire_copy_count: Dict[str, int] = {}
-        for gate_id in list(dag.graph.nodes):
-            gate = dag.gate_info[gate_id]
-            for i, wire in enumerate(gate.inputs):
-                if dag.is_in_port(wire):
-                    count = wire_copy_count.get(wire, 0)
-                    wire_copy_count[wire] = count + 1
-                    new_wire = f"{self.rename_input(wire)}_copy_{count}"
-                    copy_gate_id = f"input_copy_{self.rename_input(wire)}_{count}"
-                    copy_gate = GateNode(
-                        gate_id=copy_gate_id,
-                        gate_func="copy",
-                        inputs=[wire],
-                        outputs=[new_wire]
-                    )
+        for gate_id in dag.get_topo_sorted_gate_id_list():
+            if dag.is_in_port(gate_id):
+                self.run_xform_copy_input_port(dag, gate_id)
+        dag.sanity_check()
 
-                    # Update DAG
-                    dag.add_gate(copy_gate)
-                    dag.graph.add_edge(copy_gate.gate_id, gate_id)
-                    # Update gate inputs
-                    gate.inputs[i] = new_wire
+    def sanitize_name(self, input_str: str) -> str:
+        """ Sanitize bus port or wire name """
+        return input_str.replace('[', '').replace(']', '')
+
+    def run_xform_copy_input_port(self, dag, in_port_gate_id):
+        """ Transform: Insert copy gates for an input port """
+        orig_gate = dag.graph.nodes[in_port_gate_id]
+        orig_wire = orig_gate['outputs'][0]
+        # Handle all fanouts of the input port
+        fanouts = dag.get_wire_fanout_gate_ids(orig_wire)
+        for fanout_gate_id in fanouts:
+            # Add a new copy gate
+            copy_gate_id = dag.uniqufy_gate_id(f"cp_{self.sanitize_name(in_port_gate_id)}")
+            print(f'DAG-Transform: Copy input port: {in_port_gate_id} -> {copy_gate_id} (fanout {fanout_gate_id})')
+            new_wire = dag.uniqufy_wire_name(f"cp_{self.sanitize_name(in_port_gate_id)}")
+            dag.add_gate(gate_id=copy_gate_id, gate_func="copy", inputs=[orig_wire], outputs=[new_wire])
+            # Update wires
+            dag.remove_wire(in_port_gate_id, fanout_gate_id)
+            dag.add_wire(orig_wire, in_port_gate_id, copy_gate_id)
+            dag.add_wire(new_wire, copy_gate_id, fanout_gate_id)
+            dag.replace_input_wire(fanout_gate_id, orig_wire, new_wire)
+
