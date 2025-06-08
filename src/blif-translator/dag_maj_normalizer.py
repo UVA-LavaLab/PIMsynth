@@ -16,12 +16,15 @@ class MajNormalizer(DagTransformer):
 
     def apply(self, dag):
         """ Apply the majority normalization transformation to the DAG """
+        total_and = 0
+        total_or = 0
         for gate_id in dag.get_topo_sorted_gate_id_list():
             gate = dag.graph.nodes[gate_id]
             if gate['gate_func'] == "and2":
-                self.run_xform_and_to_maj(dag, gate_id)
+                total_and += self.run_xform_and_to_maj(dag, gate_id)
             elif gate['gate_func'] == "or2":
-                self.run_xform_or_to_maj(dag, gate_id)
+                total_or = self.run_xform_or_to_maj(dag, gate_id)
+        print(f'DAG-Transform Summary: Total {total_and} AND gates and {total_or} OR gates transformed to MAJ gates')
         dag.sanity_check()
 
     def run_xform_and_to_maj(self, dag, gate_id):
@@ -36,6 +39,7 @@ class MajNormalizer(DagTransformer):
         # Update the original gate
         orig_gate['gate_func'] = "maj3"
         orig_gate['inputs'].append(new_wire)
+        return 1
 
     def run_xform_or_to_maj(self, dag, gate_id):
         """ Transform: OR gate to MAJ gate """
@@ -49,4 +53,5 @@ class MajNormalizer(DagTransformer):
         # Update the original gate
         gate['gate_func'] = "maj3"
         gate['inputs'].append(new_wire)
+        return 1
 

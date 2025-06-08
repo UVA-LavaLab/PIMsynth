@@ -18,12 +18,15 @@ class WireCopyInserter(DagTransformer):
 
     def apply(self, dag):
         """ Apply the wire copy insertion transformation to the DAG """
+        total_copy = 0
         wire_queue = deque(dag.get_wire_name_list())
         while wire_queue:
             wire = wire_queue.popleft()
             if self.is_target_wire(dag, wire):
                 new_wire = self.run_xform_copy_wire(dag, wire)
+                total_copy += 1
                 wire_queue.appendleft(new_wire)
+        print(f'DAG-Transform Summary: Total {total_copy} wire copies inserted for input-destroying gates')
         dag.sanity_check()
 
     def is_target_wire(self, dag, wire):
@@ -65,8 +68,10 @@ class WireCopyInserter(DagTransformer):
         # Update wires
         dag.add_wire(target_wire, fanin_gate_id, copy_gate_id)
         for fanout_gate_id in rest_gate_ids:
+            is_negated = dag.is_wire_negated(fanin_gate_id, fanout_gate_id)
             dag.remove_wire(fanin_gate_id, fanout_gate_id)
             dag.add_wire(new_wire, copy_gate_id, fanout_gate_id)
+            dag.set_wire_negated(copy_gate_id, fanout_gate_id, is_negated)
             dag.replace_input_wire(fanout_gate_id, target_wire, new_wire)
         # Handle implicit dependency with a hidden edge for topological sorting
         # The copy gate needs to be done before the target gate

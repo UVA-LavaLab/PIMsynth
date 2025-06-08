@@ -17,9 +17,11 @@ class InputCopyInserter(DagTransformer):
 
     def apply(self, dag):
         """ Apply the input copy inserter transformation to the DAG """
+        total_copy = 0
         for gate_id in dag.get_topo_sorted_gate_id_list():
             if dag.is_in_port(gate_id):
-                self.run_xform_copy_input_port(dag, gate_id)
+                total_copy += self.run_xform_copy_input_port(dag, gate_id)
+        print(f'DAG-Transform Summary: Total {total_copy} copy gates inserted for input ports')
         dag.sanity_check()
 
     def sanitize_name(self, input_str: str) -> str:
@@ -43,4 +45,5 @@ class InputCopyInserter(DagTransformer):
             dag.add_wire(orig_wire, in_port_gate_id, copy_gate_id)
             dag.add_wire(new_wire, copy_gate_id, fanout_gate_id)
             dag.replace_input_wire(fanout_gate_id, orig_wire, new_wire)
+        return len(fanouts)
 

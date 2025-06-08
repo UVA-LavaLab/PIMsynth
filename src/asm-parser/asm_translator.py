@@ -389,7 +389,7 @@ class AsmTranslator:
             return None, []  # Ignore BEGIN/END markers
         newOpCode = pimOpInfo[2]
         operandsList = pimOpInfo[3:]
-        print(f"DEBUG PIM_OP: {newOpCode}, {operandsList} at line {pimOpDirective.line}")
+        #print(f"DEBUG PIM_OP: {newOpCode}, {operandsList} at line {pimOpDirective.line}")
         return newOpCode, operandsList
 
     def translateInlineAssembly(self, statementIndex):

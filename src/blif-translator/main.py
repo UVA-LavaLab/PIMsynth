@@ -17,6 +17,7 @@ import networkx as nx
 import blif_parser
 from blif_dag import DAG
 from dag_maj_normalizer import MajNormalizer
+from dag_inv_eliminator import InvEliminator
 from dag_input_copy_inserter import InputCopyInserter
 from dag_wire_copy_inserter import WireCopyInserter
 #from dag_fanout_normalizer import FanoutNormalizer
@@ -111,28 +112,29 @@ class BlifTranslator:
 
         self.debug_checkpoint(dag, "pre_analog")
 
-        # Analog PIM: Normalize majority gates
-        maj_normalizer = MajNormalizer()
-        maj_normalizer.apply(dag)
-
-        self.debug_checkpoint(dag, "post_maj_norm")
-
         # Analog PIM: Copy external inputs to register rows
         input_copy_inserter = InputCopyInserter()
         input_copy_inserter.apply(dag)
-
         self.debug_checkpoint(dag, "post_input_copy")
+
+        # Analog PIM: Normalize majority gates
+        maj_normalizer = MajNormalizer()
+        maj_normalizer.apply(dag)
+        self.debug_checkpoint(dag, "post_maj_norm")
+
+        # Analog PIM: Eliminate inverters
+        #inv_eliminator = InvEliminator()
+        #inv_eliminator.apply(dag)
+        #self.debug_checkpoint(dag, "post_inv_elim")
 
         ## Analog PIM: Replicate gate inputs due to input-destroying TRA
         #fanout_normalizer = FanoutNormalizer()
         #fanout_normalizer.apply(dag)
-
         #self.debug_checkpoint(dag, "post_fanout_norm")
 
         ## Analog PIM: Copy wires that drives multiple input-destroying gates
         wire_copy_inserter = WireCopyInserter()
         wire_copy_inserter.apply(dag)
-
         self.debug_checkpoint(dag, "post_wire_copy")
 
         # Temp: Remove trailing stars from gates list

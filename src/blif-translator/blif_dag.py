@@ -116,6 +116,18 @@ class DAG:
                             outputs=outputs.copy(),
                             has_deps=has_deps)
 
+    def remove_gate(self, gate_id):
+        """ Remove a gate from the DAG """
+        if not self.graph.has_node(gate_id):
+            raise ValueError(f"Gate ID '{gate_id}' does not exist in the DAG.")
+        if self.graph.in_degree(gate_id) > 0 or self.graph.out_degree(gate_id) > 0:
+            for u, v, edge_data in self.graph.in_edges(gate_id, data=True):
+                print(f'Edge: {u} -> {v} | Attr: {edge_data}')
+            for u, v, edge_data in self.graph.out_edges(gate_id, data=True):
+                print(f'Edge: {u} -> {v} | Attr: {edge_data}')
+            raise ValueError(f"Cannot remove gate '{gate_id}': it has connected wires.")
+        self.graph.remove_node(gate_id)
+
     def add_wire(self, wire_name, fanin_gate_id, fanout_gate_id):
         """ Add a wire to the DAG """
         if not self.graph.has_node(fanin_gate_id) or not self.graph.has_node(fanout_gate_id):
@@ -140,6 +152,9 @@ class DAG:
         self.__wire_fanouts[wire_name].discard(fanout_gate_id)
         if not self.__wire_fanouts[wire_name]:
             self.__wire_fanins[wire_name].discard(fanin_gate_id)
+        if not self.__wire_fanins[wire_name]:
+            del self.__wire_fanins[wire_name]
+            del self.__wire_fanouts[wire_name]
 
     def set_wire_negated(self, fanin_gate_id, fanout_gate_id, is_negated):
         """ Set a wire (single edge only) as negated or not """
@@ -204,7 +219,9 @@ class DAG:
         for from_gate_id, to_gate_id, edge_data in self.graph.edges(data=True):
             wire_name = edge_data.get('wire_name', None)
             if wire_name is not None:
-                repr_str += f"Edge: {from_gate_id} -> {to_gate_id} | Wire: {wire_name}\n"
+                is_negated = edge_data.get('is_negated', False)
+                repr_str += f"Edge: {from_gate_id} -> {to_gate_id} | Wire: {wire_name}"
+                repr_str += " | >>>>>>>>>> Negated\n" if is_negated else "\n"
             else:
                 wire_label = edge_data.get('wire_label', None)
                 if wire_label is None:
