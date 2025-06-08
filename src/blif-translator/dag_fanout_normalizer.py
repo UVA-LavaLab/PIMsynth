@@ -67,7 +67,7 @@ class FanoutNormalizer(DagTransformer):
 
             # Create a dependency edge to maintain topological order
             # The from-gate needs to be done before the to-gate
-            dag.graph.add_edge(from_gate_id, to_gate_id, label='dep-reuse')
+            dag.graph.add_edge(from_gate_id, to_gate_id, wire_label='dep-reuse')
 
             # Update gate inputs
             to_gate.inputs = [reuse_wire + "*" if wire == target_wire else wire for wire in to_gate.inputs]

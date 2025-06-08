@@ -35,6 +35,7 @@ class DAG:
             - Represents a wire in the circuit
             - Attributes:
                 - wire_name: Name of the wire
+                - is_negated: False: not negated, True: negated (for analog PIM with dual-contact cells)
             - APIs:
                 - graph.add_edge(fanin_gate_id, gate_id): Add an edge from fanin gate to gate
                 - graph[fanin_gate_id][gate_id]: Access edge information dictionary by fanin and fanout gate IDs
@@ -121,7 +122,7 @@ class DAG:
             raise ValueError(f"Cannot add wire '{wire_name}': fanin or fanout gate does not exist.")
         if self.graph.has_edge(fanin_gate_id, fanout_gate_id):
             raise ValueError(f"Wire '{wire_name}' already exists between {fanin_gate_id} and {fanout_gate_id}.")
-        self.graph.add_edge(fanin_gate_id, fanout_gate_id, wire_name=wire_name)
+        self.graph.add_edge(fanin_gate_id, fanout_gate_id, wire_name=wire_name, is_negated=False)
         if wire_name not in self.__wire_fanins:
             self.__wire_fanins[wire_name] = set()
         if wire_name not in self.__wire_fanouts:
@@ -130,15 +131,27 @@ class DAG:
         self.__wire_fanouts[wire_name].add(fanout_gate_id)
 
     def remove_wire(self, fanin_gate_id, fanout_gate_id):
-        """ Remove a wire from the DAG """
+        """ Remove a wire (single edge only) from the DAG """
         if not self.graph.has_edge(fanin_gate_id, fanout_gate_id):
-            raise ValueError(f"Wire '{wire_name}' does not exist between {fanin_gate_id} and {fanout_gate_id}.")
+            raise ValueError(f"Wire does not exist between {fanin_gate_id} and {fanout_gate_id}.")
         wire_name = self.graph[fanin_gate_id][fanout_gate_id]['wire_name']
         self.graph.remove_edge(fanin_gate_id, fanout_gate_id)
         # Do not discard the fanin unless it's the last wire from the fanin
         self.__wire_fanouts[wire_name].discard(fanout_gate_id)
         if not self.__wire_fanouts[wire_name]:
             self.__wire_fanins[wire_name].discard(fanin_gate_id)
+
+    def set_wire_negated(self, fanin_gate_id, fanout_gate_id, is_negated):
+        """ Set a wire (single edge only) as negated or not """
+        if not self.graph.has_edge(fanin_gate_id, fanout_gate_id):
+            raise ValueError(f"Wire does not exist between {fanin_gate_id} and {fanout_gate_id}.")
+        self.graph[fanin_gate_id][fanout_gate_id]['is_negated'] = is_negated
+
+    def is_wire_negated(self, fanin_gate_id, fanout_gate_id):
+        """ Check if a wire (single edge only) is negated """
+        if not self.graph.has_edge(fanin_gate_id, fanout_gate_id):
+            raise ValueError(f"Wire does not exist between {fanin_gate_id} and {fanout_gate_id}.")
+        return self.graph[fanin_gate_id][fanout_gate_id].get('is_negated', False)
 
     def replace_input_wire(self, gate_id, old_wire_name, new_wire_name):
         """ Replace an input wire of a gate with a new wire name """
@@ -189,15 +202,14 @@ class DAG:
         repr_str = ""
         repr_str += "--------\n"
         for from_gate_id, to_gate_id, edge_data in self.graph.edges(data=True):
-            is_fake = False
             wire_name = edge_data.get('wire_name', None)
-            if wire_name is None:
-                wire_name = edge_data.get('label', None)
-                is_fake = True
-            if wire_name is None:
-                raise ValueError(f"Edge without wire name or label found between {from_gate_id} and {to_gate_id}.")
-            repr_str += f"Edge: {from_gate_id} -> {to_gate_id} | Wire: {wire_name}"
-            repr_str += " >>>>>>>>>>>>>>>> (fake)\n" if is_fake else "\n"
+            if wire_name is not None:
+                repr_str += f"Edge: {from_gate_id} -> {to_gate_id} | Wire: {wire_name}\n"
+            else:
+                wire_label = edge_data.get('wire_label', None)
+                if wire_label is None:
+                    raise ValueError(f"Edge without wire_name or wire_label found between {from_gate_id} and {to_gate_id}.")
+                repr_str += f"Edge: {from_gate_id} -> {to_gate_id} | Label: {wire_label} >>>>>>>>>>>>>>> <dep> \n"
         repr_str += "--------\n"
         for wire in set(self.__wire_fanins.keys()).union(self.__wire_fanouts.keys()):
             repr_str += f"Wire: {wire} | Fanins: {self.__wire_fanins.get(wire, [])} | Fanouts: {self.__wire_fanouts.get(wire, [])}\n"
@@ -253,7 +265,7 @@ class DAG:
         for from_gate_id, to_gate_id, edge_data in self.graph.edges(data=True):
             wire_name = edge_data.get('wire_name', None)
             if wire_name is None:
-                if edge_data.get('label') not in ['dep-reuse', 'dep-copy']:
+                if edge_data.get('wire_label', None) not in ['dep-reuse', 'dep-copy']:
                     raise ValueError("Edge without wire name or label found between {from_gate_id} and {to_gate_id}.")
                 continue
             if skip_port and (self.is_in_port(wire_name) or self.is_out_port(wire_name)):
@@ -306,8 +318,8 @@ class DAG:
             for from_gate_id, to_gate_id, edge_data in self.graph.edges(data=True):
                 wire_name = edge_data.get('wire_name', None)
                 if wire_name is None:
-                    if edge_data.get('label') not in ['dep-reuse', 'dep-copy']:
-                        raise ValueError(f"Edge without wire name or label found between {from_gate_id} and {to_gate_id}.")
+                    if edge_data.get('wire_label', None) not in ['dep-reuse', 'dep-copy']:
+                        raise ValueError(f"Edge without wire_name or wire_label found between {from_gate_id} and {to_gate_id}.")
                     continue
                 assert wire_name in self.__wire_fanins, f"Wire '{wire_name}' not found in __wire_fanins."
                 assert wire_name in self.__wire_fanouts, f"Wire '{wire_name}' not found in __wire_fanouts."
@@ -379,7 +391,9 @@ class DAG:
             network.add_node(gate_id, label=label, shape="box", color=color)
 
         for u, v, edge_data in dag.graph.edges(data=True):
-            label = edge_data.get('wire_name', '<dep>')
+            label = edge_data.get('wire_name', None)
+            if label is None:
+                label = edge_data.get('wire_label', 'unknown')
             network.add_edge(u, v, label=label)
 
         network.show_buttons(filter_=['physics'])

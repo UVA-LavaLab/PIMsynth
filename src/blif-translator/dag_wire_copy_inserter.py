@@ -71,7 +71,7 @@ class WireCopyInserter(DagTransformer):
         # Handle implicit dependency with a hidden edge for topological sorting
         # The copy gate needs to be done before the target gate
         # The copy gate uses '+r' for its input, so LLVM knows the dependency
-        dag.graph.add_edge(copy_gate_id, anchor_gate_id, label='dep-copy')
+        dag.graph.add_edge(copy_gate_id, anchor_gate_id, wire_label='dep-copy')
         # For recursive processing
         return new_wire
 
