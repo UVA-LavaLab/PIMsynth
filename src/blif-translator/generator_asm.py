@@ -212,9 +212,7 @@ class GeneratorAsm():
             "inv1": lambda output, inputs, info: (
                 f'"#PIM_OP {info}: inv1 %1 -> %0 \\n'
                 f' not %0, %1'
-                f'" : "=r" ({output}) : "0" ({inputs[0]}) : {clobber}'
-                #f'" : "=r" ({output}) : "r" ({inputs[0]}) : {clobber}'
-                #f'" : "=r" ({output}), "+r" ({inputs[0]}) : : {clobber}'
+                f'" : "=r" ({output}) : "r" ({inputs[0]}) : {clobber}'
             ),
             "and2": lambda output, inputs, info: (
                 f'"#PIM_OP {info}: and2 %1, %2 -> %0 \\n'
