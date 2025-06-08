@@ -104,47 +104,47 @@ class GeneratorBitwise():
         # Note: Use ! instead of ~ for bitwise NOT to make sure result is 0 or 1
         return {
             "inv1": lambda output, inputs, info: (
-                f'\t// PIM_OP {info}: inv1 %1 -> %0 \n'
+                f'\t// PIM_OP {info} %0 %1 \n'
                 f'\t{output} = !{inputs[0]};\n'
             ),
             "and2": lambda output, inputs, info: (
-                f'\t// PIM_OP {info}: and2 %1, %2 -> %0 \n'
+                f'\t// PIM_OP {info} %0 %1 %2 \n'
                 f'\t{output} = {inputs[0]} & {inputs[1]};\n'
             ),
             "nand2": lambda output, inputs, info: (
-                f'\t// PIM_OP {info}: nand2 %1, %2 -> %0 \n'
+                f'\t// PIM_OP {info} %0 %1 %2 \n'
                 f'\t{output} = !({inputs[0]} & {inputs[1]});\n'
             ),
             "or2": lambda output, inputs, info: (
-                f'\t// PIM_OP {info}: or2 %1, %2 -> %0 \n'
+                f'\t// PIM_OP {info} %0 %1 %2 \n'
                 f'\t{output} = {inputs[0]} | {inputs[1]};\n'
             ),
             "nor2": lambda output, inputs, info: (
-                f'\t// PIM_OP {info}: nor2 %1, %2 -> %0 \n'
+                f'\t// PIM_OP {info} %0 %1 %2 \n'
                 f'\t{output} = !({inputs[0]} | {inputs[1]});\n'
             ),
             "xor2": lambda output, inputs, info: (
-                f'\t// PIM_OP {info}: xor2 %1, %2 -> %0 \n'
+                f'\t// PIM_OP {info} %0 %1 %2 \n'
                 f'\t{output} = {inputs[0]} ^ {inputs[1]};\n'
             ),
             "xnor2": lambda output, inputs, info: (
-                f'\t// PIM_OP {info}: xnor2 %1, %2 -> %0 \n'
+                f'\t// PIM_OP {info} %0 %1 %2 \n'
                 f'\t{output} = !({inputs[0]} ^ {inputs[1]});\n'
             ),
             "mux2": lambda output, inputs, info: ( # %0 = %1 ? %3 : %2
-                f'\t// PIM_OP {info}: mux2 %1, %2, %3 -> %0 \n'
+                f'\t// PIM_OP {info} %0 %1 %2 \n'
                 f'\t{output} = {inputs[0]} ? {inputs[2]} : {inputs[1]};\n'
             ),
             "maj3": lambda output, inputs, info: (
-                f'\t// PIM_OP {info}: maj3 %1, %2, %3 -> %0 \n'
+                f'\t// PIM_OP {info} %0 %1 %2 %3 \n'
                 f'\t{output} = ({inputs[0]} & {inputs[1]}) | ({inputs[0]} & {inputs[2]}) | ({inputs[1]} & {inputs[2]});\n'
             ),
             "zero": lambda output, inputs, info: (
-                f'\t// PIM_OP {info}: zero -> %0 \n'
+                f'\t// PIM_OP {info} %0 \n'
                 f'\t{output} = 0;\n'
             ),
             "one": lambda output, inputs, info: (
-                f'\t// PIM_OP {info}: one -> %0 \n'
+                f'\t// PIM_OP {info} %0 \n'
                 f'\t{output} = 1;\n'
             ),
         }
@@ -154,31 +154,31 @@ class GeneratorBitwise():
         # Note: Use ! instead of ~ for bitwise NOT to make sure result is 0 or 1
         return {
             "copy": lambda output, inputs, info: (
-                f'\t// PIM_OP {info}: copy1 %1 -> %0 \n'
+                f'\t// PIM_OP {info} %0 %1 \n'
                 f'\t{output} = {inputs[0]};\n'
             ),
             "inv1": lambda output, inputs, info: (
-                f'\t// PIM_OP {info}: inv1 %1 -> %0 \n'
+                f'\t// PIM_OP {info} %0 %1 \n'
                 f'\t{output} = !{inputs[0]};\n'
             ),
             "and2": lambda output, inputs, info: (
-                f'\t// PIM_OP {info}: and2 %1, %2 -> %0 \n'
+                f'\t// PIM_OP {info} %0 %1 %2 \n'
                 f'\t{output} = {inputs[0]} = {inputs[1]} = {inputs[0]} & {inputs[1]};\n'
             ),
             "or2": lambda output, inputs, info: (
-                f'\t// PIM_OP {info}: or2 %1, %2 -> %0 \n'
+                f'\t// PIM_OP {info} %0 %1 %2 \n'
                 f'\t{output} = {inputs[0]} = {inputs[1]} = {inputs[0]} | {inputs[1]};\n'
             ),
             "maj3": lambda output, inputs, info: (
-                f'\t// PIM_OP {info}: maj3 %1, %2, %3 -> %0 \n'
+                f'\t// PIM_OP {info} %0 %1 %2 %3 \n'
                 f'\t{output} = {inputs[0]} = {inputs[1]} = {inputs[2]} = ({inputs[0]} & {inputs[1]}) | ({inputs[0]} & {inputs[2]}) | ({inputs[1]} & {inputs[2]});\n'
             ),
             "zero": lambda output, inputs, info: (
-                f'\t// PIM_OP {info}: zero -> %0 \n'
+                f'\t// PIM_OP {info} %0 \n'
                 f'\t{output} = 0;\n'
             ),
             "one": lambda output, inputs, info: (
-                f'\t// PIM_OP {info}: one -> %0 \n'
+                f'\t// PIM_OP {info} %0 \n'
                 f'\t{output} = 1;\n'
             ),
         }
@@ -193,6 +193,9 @@ class GeneratorBitwise():
         output = self.sanitize_token(gate['outputs'][0])
 
         gate_func = gate['gate_func']
+        # Show information in bitwise code to align with ASM generation
+        # Format: // PIM_OP <serial-number> <gate_func> operands
+        info += f" {gate_func}"
         if gate_func in bitwise_instructions:
             bitwise_func = bitwise_instructions[gate_func]
             return bitwise_func(output, inputs, info)
@@ -203,13 +206,13 @@ class GeneratorBitwise():
         """ Generate C bit-wise statement sequence """
         bitwise_instructions = self.get_bitwise_instructions()
 
-        code = '\t// ########## BEGIN ##########\n'
+        code = '\t// PIM_OP BEGIN ##########\n'
 
         for i, gate_id in enumerate(self.dag.get_topo_sorted_gate_id_list()):
             info = str(i)
             code += self.generate_single_bitwise_statement(gate_id, bitwise_instructions, info)
 
-        code += '\t// ########## END ##########\n'
+        code += '\t// PIM_OP END ##########\n'
         return code
 
     def generate_statements_output(self):
