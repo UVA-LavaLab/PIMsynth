@@ -207,6 +207,11 @@ class GeneratorAsm():
             "copy": lambda output, inputs, info: (
                 f'"#PIM_OP {info} %0 %1 \\n'
                 f' mv %0, %1'
+                f'" : "=r" ({output}) : "r" ({inputs[0]}) : {clobber}'
+            ),
+            "copy_inout": lambda output, inputs, info: (
+                f'"#PIM_OP {info} %0 %1 \\n'
+                f' mv %0, %1'
                 f'" : "=r" ({output}), "+r" ({inputs[0]}) : : {clobber}'
             ),
             "inv1": lambda output, inputs, info: (

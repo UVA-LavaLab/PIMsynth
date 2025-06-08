@@ -157,6 +157,10 @@ class GeneratorBitwise():
                 f'\t// PIM_OP {info} %0 %1 \n'
                 f'\t{output} = {inputs[0]};\n'
             ),
+            "copy_inout": lambda output, inputs, info: (
+                f'\t// PIM_OP {info} %0 %1 \n'
+                f'\t{output} = {inputs[0]};\n'
+            ),
             "inv1": lambda output, inputs, info: (
                 f'\t// PIM_OP {info} %0 %1 \n'
                 f'\t{output} = !{inputs[0]};\n'

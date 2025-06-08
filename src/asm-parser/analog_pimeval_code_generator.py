@@ -126,7 +126,7 @@ class PimEvalAPIAnalogCodeGenerator(PimEvalAPICodeGeneratorBase):
 
     def handleMoveInstruction(self, instruction):
         # Note: copy is from inline assembly IR, while mv is from RISC-V assembly
-        if instruction.opCode not in ['mv', 'copy']:
+        if instruction.opCode not in ['mv', 'copy', 'copy_inout']:
             return None
         code = self.generateInstructionComment(instruction)
         if instruction.operandsList[0] == instruction.operandsList[1]:
