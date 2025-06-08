@@ -164,8 +164,8 @@ class GeneratorAsm():
                 f' not %0, %0'
                 f'" : "=r" ({output}) : "r" ({inputs[0]}), "r" ({inputs[1]}) : {clobber}'
             ),
-            "mux2": lambda output, inputs, info: ( # %0 = %1 ? %3 : %2
-                f'"#PIM_OP {info} %0 %1 %2 %3 \\n'
+            "mux2": lambda output, inputs, info: ( # %0 = %1 ? %3 : %2 -> need to swap %2/%3
+                f'"#PIM_OP {info} %0 %1 %3 %2 \\n'
                 f' not s1, %1 \\n'
                 f' and s2, s1, %2 \\n'
                 f' and s3, %1, %3 \\n'

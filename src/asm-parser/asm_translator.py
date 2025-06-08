@@ -364,52 +364,6 @@ class AsmTranslator:
             i += 1
         return instructionSequence
 
-    def getMappedOpCode(self, instructionSequence, line):
-        """Get the opcode mapped to the inline assembly instruction sequence."""
-        newOpCode = self.getInstructionSequenceOpCode(instructionSequence)
-        if newOpCode is None:
-            # print(f"Info: No mapped opcode found for inline assembly at line {line}.")
-            pass
-        else:
-            # print(f"Info: Mapped opcode for the line {line} is {newOpCode}.")
-            pass
-        return newOpCode
-
-    def handleBitSerialInstruction(self, instructionSequence, newOpCode, statementIndex):
-        """Handle the translation of the bit-serial instruction from inline assembly."""
-        firstRiscvInstruction = self.riscvStatementList[statementIndex + 1]
-        line = firstRiscvInstruction.line
-        twoOpInstrcutions = ["xnor", "nand", "nor"] # case 1: two-operand instructions, for example xnor
-        threeOpInstrcutions1 = ["maj3", 'maj3_a'] # case 2: three-operand instructions, for example maj3
-        threeOpInstrcutions2 = ["mux2"] # case 3: three-operand instructions, for example mux2
-        if len(instructionSequence) == 1 or newOpCode in ['and_a', 'or_a']:
-            self.appendBitSerialInstruction(newOpCode, instructionSequence[0].operandsList, line)
-        elif newOpCode in ['zero', 'one']:
-            destinationOperand = instructionSequence[0].operandsList[0]
-            operandsList = [destinationOperand]
-            self.appendBitSerialInstruction(newOpCode, operandsList, line)
-        elif newOpCode in twoOpInstrcutions:
-            sourceOperandList = firstRiscvInstruction.operandsList[1:]
-            lastRiscvInstruction = instructionSequence[-1]
-            destinationOperand = lastRiscvInstruction.operandsList[0]
-            operandsList = [destinationOperand] + sourceOperandList
-            self.appendBitSerialInstruction(newOpCode, operandsList, line)
-        elif newOpCode in threeOpInstrcutions1:
-            secondRiscvInstruction = self.riscvStatementList[statementIndex + 2]
-            lastRiscvInstruction = instructionSequence[4]
-            destinationOperand = lastRiscvInstruction.operandsList[0]
-            operandsList = [destinationOperand] + firstRiscvInstruction.operandsList[1:] + [secondRiscvInstruction.operandsList[2]]
-            self.appendBitSerialInstruction(newOpCode, operandsList, line)
-        elif newOpCode in threeOpInstrcutions2:
-            secondRiscvInstruction = self.riscvStatementList[statementIndex + 2]
-            thirdRiscvInstruction = self.riscvStatementList[statementIndex + 3]
-            lastRiscvInstruction = instructionSequence[-1]
-            destinationOperand = lastRiscvInstruction.operandsList[0]
-            operandsList =[destinationOperand] + [firstRiscvInstruction.operandsList[-1]] + [thirdRiscvInstruction.operandsList[-1]] + [secondRiscvInstruction.operandsList[-1]]
-            self.appendBitSerialInstruction(newOpCode, operandsList, line)
-        else:
-            raise Exception(f"Error: Unhandled mapping for {newOpCode} op code at line {line}.")
-
     def handleWriteToOutputPort(self, statementIndex, instructionSequence, line):
         """Handle writing to an output port after inline assembly."""
         portInfoIndex = statementIndex + len(instructionSequence) + 2
@@ -424,85 +378,37 @@ class AsmTranslator:
             self.appendBitSerialInstruction("write", writeOperandsList, line)
             self.symbolTable.addSymbol(writeSourceOperand, writeDestinationOperand)
 
-    def translateInlineAssembly(self, statementIndex):
-        instructionSequence = self.getInlineInstructionSequence(statementIndex)
-        firstRiscvInstruction = self.riscvStatementList[statementIndex + 1]
-        newOpCode = self.getMappedOpCode(instructionSequence, firstRiscvInstruction.line)
+    def parsePimOpDirective(self, statementIndex):
+        """ Parse the #PIM_OP directive in inline asm block and return the opcode and operands """
+        # Note: BLIF translator passes #PIM_OP info as inline assembly comments
+        pimOpDirective = self.riscvStatementList[statementIndex]
+        pimOpInfo = pimOpDirective.val.split()
+        if len(pimOpInfo) < 3 or pimOpInfo[0] != '#PIM_OP':
+            raise Exception(f"Error: Unexpected '#PIM_OP' directive at line {pimOpDirective.line}: '{pimOpInfo}'")
+        if pimOpInfo[1] in ['BEGIN', 'END']:
+            return None, []  # Ignore BEGIN/END markers
+        newOpCode = pimOpInfo[2]
+        operandsList = pimOpInfo[3:]
+        print(f"DEBUG PIM_OP: {newOpCode}, {operandsList} at line {pimOpDirective.line}")
+        return newOpCode, operandsList
 
+    def translateInlineAssembly(self, statementIndex):
+        """ Translate an inline assembly block between #APP and #NO_APP directives """
+        newOpCode, operandsList = self.parsePimOpDirective(statementIndex + 1)
         if newOpCode is None:
-            return 1
+            return 2
+
+        statementIndex += 1
+        instructionSequence = self.getInlineInstructionSequence(statementIndex)
+        firstRiscvInstruction = instructionSequence[0]
 
         # Handle the mapped bit-serial instruction
-        self.handleBitSerialInstruction(instructionSequence, newOpCode, statementIndex)
+        self.appendBitSerialInstruction(newOpCode, operandsList, firstRiscvInstruction.line)
 
         # Handle write to output port if necessary
         self.handleWriteToOutputPort(statementIndex, instructionSequence, firstRiscvInstruction.line)
 
-        return len(instructionSequence) + 1
-
-
-    def matchesSequence(self, instructionSequence, sequence):
-        """Check if a given sequence of opcodes matches the translation rule."""
-        if len(instructionSequence) < len(sequence):
-            return False
-
-        return all(
-            instructionSequence[i].opCode == sequence[i]
-            for i in range(len(sequence))
-        )
-
-    def getInstructionSequenceOpCode(self, instructionSequence):
-        if self.pimMode == "digital":
-            translationRules = {
-                ('xor', 'not'): 'xnor',
-                ('and', 'not'): 'nand',
-                ('or', 'not'): 'nor',
-                ('and', 'and', 'and', 'or', 'or'): 'maj3',
-                ('not', 'and', 'and', 'or'): 'mux2',
-                ('li', 'mv'): 'zero',
-                ('li', 'not'): 'one',
-            }
-        elif self.pimMode == "analog":
-            translationRules = {
-                ('and', 'mv', 'mv'): 'and_a',  # analog
-                ('or', 'mv', 'mv'): 'or_a',  # analog
-                ('and', 'and', 'and', 'or', 'or', 'mv', 'mv', 'mv'): 'maj3_a',  # analog
-                ('li', 'mv'): 'zero',
-                ('li', 'not'): 'one',
-            }
-        else:
-            raise Exception("Error: unknown pim mode {self.pimMode}")
-
-        mappedOpcodes = []  # To store the mapped opcodes
-        i = 0
-        while i < len(instructionSequence):
-            matched = False
-            currentOp = instructionSequence[i].opCode
-
-            # Try to match a sequence starting at the current position
-            for sequence, targetOpcode in translationRules.items():
-                seqLen = len(sequence)
-
-                # Check if we have enough instructions remaining and the sequence matches
-                if i + seqLen <= len(instructionSequence) and all(
-                    instructionSequence[i + j].opCode == sequence[j] for j in range(seqLen)
-                ):
-                    mappedOpcodes.append(targetOpcode)
-                    i += seqLen  # Skip the instructions that are part of the matched sequence
-                    matched = True
-                    break
-
-            # If no translation rule matched, just add the current opcode
-            if not matched:
-                mappedOpcodes.append(currentOp)
-                i += 1
-
-        if len(mappedOpcodes) == 1:
-            return mappedOpcodes[0]
-        elif len(mappedOpcodes) > 1:
-            raise Exception(f"Error: Unrecognized instruction sequence {mappedOpcodes} at line {instructionSequence[0].line}.")
-        else:
-            return None
+        return len(instructionSequence) + 2
 
     def getBitSerialAsm(self):
         return self.bitSerialStatementList

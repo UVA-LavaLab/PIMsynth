@@ -82,7 +82,7 @@ class PimEvalAPIAnalogCodeGenerator(PimEvalAPICodeGeneratorBase):
         return code
 
     def handleAndInstruction(self, instruction):
-        if not (instruction.opCode == "and_a"):
+        if not (instruction.opCode == "and2"):
             return None
         code = self.generateInstructionComment(instruction)
         code += f"\tpimOpAAP(1, 1, {self.zero}, 0, {self.regFile}, 14);\n"
@@ -93,7 +93,7 @@ class PimEvalAPIAnalogCodeGenerator(PimEvalAPICodeGeneratorBase):
         return code
 
     def handleOrInstruction(self, instruction):
-        if not (instruction.opCode == "or_a"):
+        if not (instruction.opCode == "or2"):
             return None
         code = self.generateInstructionComment(instruction)
         code += f"\tpimOpAAP(1, 1, {self.one}, 0, {self.regFile}, 14);\n"
@@ -104,7 +104,7 @@ class PimEvalAPIAnalogCodeGenerator(PimEvalAPICodeGeneratorBase):
         return code
 
     def handleMajInstruction(self, instruction):
-        if not (instruction.opCode == "maj3_a"):
+        if not (instruction.opCode == "maj3"):
             return None
         code = self.generateInstructionComment(instruction)
         if instruction.operandsList[0] in instruction.operandsList[1:]:
@@ -114,7 +114,7 @@ class PimEvalAPIAnalogCodeGenerator(PimEvalAPICodeGeneratorBase):
         return code
 
     def handleNotInstruction(self, instruction):
-        if not (instruction.opCode == "not"):
+        if not (instruction.opCode == "inv1"):
             return None
         code = self.generateInstructionComment(instruction)
         if instruction.operandsList[0] in instruction.operandsList[1:]:
@@ -125,7 +125,8 @@ class PimEvalAPIAnalogCodeGenerator(PimEvalAPICodeGeneratorBase):
         return code
 
     def handleMoveInstruction(self, instruction):
-        if not (instruction.opCode == "mv"):
+        # Note: copy is from inline assembly IR, while mv is from RISC-V assembly
+        if instruction.opCode not in ['mv', 'copy']:
             return None
         code = self.generateInstructionComment(instruction)
         if instruction.operandsList[0] == instruction.operandsList[1]:

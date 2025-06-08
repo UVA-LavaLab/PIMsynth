@@ -4,6 +4,7 @@
 File: main.py
 Description: bit-serial code generator in either assembly or PIMeval API
 Author: Mohammadhosein Gholamrezaei <uab9qt@virginia.edu> - RISCV-to-BITSERIAL parser generator code framework
+Author: Deyuan Guo <guodeyuan@gmail.com>
 Date: 2024-09-27
 """
 
@@ -50,7 +51,7 @@ if __name__ == "__main__":
     # for instruction in bitSerialAsm:
         # print(instruction)
 
-    # asmTranslator.symbolTable.printSymbols()
+    # asmTranslator.symbolTable.print_symbols()
 
     statsGenerator = StatsGenerator(bitSerialAsm)
     stats = statsGenerator.generateStats()

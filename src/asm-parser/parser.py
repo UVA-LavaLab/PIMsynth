@@ -136,7 +136,7 @@ class Parser():
                 self.statementList.append(instruction)
 
             # Find directive
-            if "APP" in line:
+            if 'APP' in line or 'PIM_OP' in line:
                 directive = Directive(line.strip(), lineNumber)
                 self.statementList.append(directive)
 

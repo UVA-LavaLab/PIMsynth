@@ -34,9 +34,6 @@ class PimEvalAPIDigitalCodeGenerator(PimEvalAPICodeGeneratorBase):
             "s6": "PIM_RREG_R14",
             "s7": "PIM_RREG_R15",
             "s8": "PIM_RREG_R16",
-            "s9": "PIM_RREG_R17",
-            "s10": "PIM_RREG_R18",
-            "s11": "PIM_RREG_R19",
         }
         if pimAsmReg in regMap:
             return regMap[pimAsmReg]
@@ -45,14 +42,14 @@ class PimEvalAPIDigitalCodeGenerator(PimEvalAPICodeGeneratorBase):
 
     def mapPimAsmOpCodeToPimEvalAPI(self, pimOpCode):
         opCodeMap = {
-            "not": "pimOpNot",
-            "mv": "pimOpMove",
-            "and": "pimOpAnd",
-            "or": "pimOpOr",
-            "xor": "pimOpXor",
-            "nand": "pimOpNand",
-            "nor": "pimOpNor",
-            "xnor": "pimOpXnor",
+            "inv1": "pimOpNot",
+            "mv": "pimOpMove",  # Note: from RISC-V assembly
+            "and2": "pimOpAnd",
+            "or2": "pimOpOr",
+            "xor2": "pimOpXor",
+            "nand2": "pimOpNand",
+            "nor2": "pimOpNor",
+            "xnor2": "pimOpXnor",
             "maj3": "pimOpMaj",
             "mux2": "pimOpSel",
             "zero": "pimOpSet",
