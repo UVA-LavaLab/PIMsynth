@@ -279,28 +279,21 @@ class DAG:
         """ Get a list of all gates in topological order """
         return [gate_id for gate_id in nx.topological_sort(self.graph)]
 
-    def get_wire_name_list(self, skip_port = True):
+    def get_wire_name_list(self, skip_port=True, merge_segments=False):
         """ Get a list of internal wires in sorted gate order """
         wire_names = set()
-        for from_gate_id, to_gate_id, edge_data in self.graph.edges(data=True):
-            wire_name = edge_data.get('wire_name', None)
-            if wire_name is None:
-                if edge_data.get('wire_label', None) not in ['dep-reuse', 'dep-copy']:
-                    raise ValueError("Edge without wire name or label found between {from_gate_id} and {to_gate_id}.")
-                continue
-            if skip_port and (self.is_in_port(wire_name) or self.is_out_port(wire_name)):
-                continue
-            wire_names.add(wire_name)
-        wire_names2 = set()
         gate_ids = self.get_topo_sorted_gate_id_list()
         for gate_id in gate_ids:
-            outputs = self.graph.nodes[gate_id]['outputs']
-            for output in outputs:
-                if skip_port and (self.is_in_port(output) or self.is_out_port(output)):
-                    continue
-                wire_names2.add(output)
-        #return sorted(list(wire_names))
-        return list(wire_names2)
+            for u, v, edge_data in self.graph.out_edges(gate_id, data=True):
+                wire_name = edge_data.get('wire_name', None)
+                if wire_name is None:
+                    continue  # skip dep edges
+                if skip_port and (self.is_in_port(wire_name) or self.is_out_port(wire_name)):
+                    continue  # skip ports
+                if merge_segments:
+                    wire_name = wire_name.split(' seg')[0]
+                wire_names.add(wire_name)
+        return list(wire_names)
 
     def sanity_check(self):
         """ Perform sanity checks on the DAG """

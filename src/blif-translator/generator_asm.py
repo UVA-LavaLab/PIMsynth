@@ -26,13 +26,13 @@ class GeneratorAsm():
         """ Sanitize token name to be used as a C variable name
             Bus name: a[0] -> a_0_
         """
-        return token.replace("[", "_").replace("]", "_")
+        return token.replace("[", "_").replace("]", "_").split(' seg')[0]
 
     def sanitize_token_list(self, token_list):
         """ Sanitize token names to be used as a C variable names
             Bus name: a[0] -> a_0_
         """
-        return [token.replace("[", "_").replace("]", "_") for token in token_list]
+        return [token.replace("[", "_").replace("]", "_").split(' seg')[0] for token in token_list]
 
     def generate_code(self):
         """ Generate C code """
@@ -78,7 +78,7 @@ class GeneratorAsm():
 
     def generate_temporary_variables(self):
         """ Generate temporary variables for wires """
-        wire_list = self.dag.get_wire_name_list()
+        wire_list = self.dag.get_wire_name_list(merge_segments=True)
         if len(wire_list) == 0:
             return ""
         variables = ', '.join(wire_list)

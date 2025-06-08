@@ -75,10 +75,19 @@ class WireCopyInserter(DagTransformer):
             dag.add_wire(new_wire, copy_gate_id, fanout_gate_id)
             dag.set_wire_negated(copy_gate_id, fanout_gate_id, is_negated)
             dag.replace_input_wire(fanout_gate_id, target_wire, new_wire)
-        # Handle implicit dependency with a hidden edge for topological sorting
-        # The copy gate needs to be done before the target gate
-        # The copy gate uses '+r' for its input, so LLVM knows the dependency
-        dag.graph.add_edge(copy_gate_id, anchor_gate_id, wire_label='dep-copy')
+        # Handle implicit dependency
+        # The copy_inout gate needs to be done before the anchor gate
+        # This is done by:
+        # 1. Let the new copy gate drive the anchor gate (new wire segment)
+        # 2. Use '+r' in ineline assembly IR so that LLVM knows the dependency
+        #dag.graph.add_edge(copy_gate_id, anchor_gate_id, wire_label='dep-copy')
+        is_negated = dag.is_wire_negated(fanin_gate_id, anchor_gate_id)
+        target_wire_segment = dag.uniqufy_wire_name(f"{target_wire} seg")
+        dag.remove_wire(fanin_gate_id, anchor_gate_id)
+        dag.add_wire(target_wire_segment, copy_gate_id, anchor_gate_id)
+        dag.set_wire_negated(copy_gate_id, anchor_gate_id, is_negated)
+        dag.replace_input_wire(anchor_gate_id, target_wire, target_wire_segment)
+
         # For recursive processing
         return new_wire
 
