@@ -17,67 +17,63 @@ class InoutVarReusing(DagTransformer):
 
     def apply(self, dag):
         """ Apply the variable reuse transformation to the DAG """
-        for wire in dag.get_wire_name_list():
-            fanin_gate_ids = dag.get_wire_fanin_gate_ids(wire)
-            fanout_gate_ids = dag.get_wire_fanout_gate_ids(wire)
-            if len(fanin_gate_ids) != 1:
-                raise Exception(f"Error: Wire {wire} has multiple fanin gates: {fanin_gate_ids}. This is unexpected.")
-            if len(fanout_gate_ids) <= 1:
+        total_reuse = 0
+        for gate_id in dag.get_topo_sorted_gate_id_list():
+            if self.is_target_gate(dag, gate_id):
+                total_reuse += self.run_xform_inout_var_reusing(dag, gate_id)
+        if self.debug_level >= 1:
+            print(f'DAG-Transform Summary: Reuse {total_reuse} inout wires')
+        dag.sanity_check()
+
+    def is_target_gate(self, dag, gate_id):
+        """ Check if the gate is a target for inout variable reuse """
+        gate = dag.graph.nodes[gate_id]
+        return gate['gate_func'] in ['and2', 'or2', 'maj3']
+
+    def find_first_input_destroying_gate(self, dag, fanout_gate_ids):
+        """ Find input-destroying gates in the given gate ID list """
+        target_gate_id = None
+        rest_gate_ids = fanout_gate_ids.copy()
+        for gate_id in fanout_gate_ids:
+            gate = dag.graph.nodes[gate_id]
+            if gate['gate_func'] in ['and2', 'or2', 'maj3']:
+                target_gate_id = gate_id
+                rest_gate_ids.remove(gate_id)
+                break
+        return target_gate_id, rest_gate_ids
+
+    def run_xform_inout_var_reusing(self, dag, gate_id):
+        """ Transform: Reuse inout variables from the previous stage """
+        gate = dag.graph.nodes[gate_id]
+        if self.debug_level >= 2:
+            print(f'DAG-Transform: Reuse inout variables of gate {gate_id} ({gate["gate_func"]})')
+
+        # Check if the gate has reusable inputs
+        reusable_inout_wires = dag.get_reusable_inout_wires(gate_id)
+        if not reusable_inout_wires:
+            return 0
+
+        output_wires = gate['outputs']
+        reuse_count = 0
+        for output_wire in output_wires:
+            output_gate_ids = dag.get_wire_fanout_gate_ids(output_wire)
+            if len(output_gate_ids) <= 1:
                 continue
-
-            from_gate_id = fanin_gate_ids[0]
-            from_gate = dag.graph.nodes[from_gate_id]
-            has_reusable_inputs = from_gate['gate_func'] in ['and2', 'or2', 'maj3']
-            to_gate_ids = fanout_gate_ids
-            remaining_to_gate_ids = to_gate_ids[1:]
-            if has_reusable_inputs:
-                if self.enable_input_reuse:
-                    remaining_to_gate_ids = self.replace_with_inputs(dag, wire, from_gate_id, remaining_to_gate_ids)
-            else:
-                raise Exception("Error: Unexpected behaivior happened.")
-
-
-    def replace_with_inputs(self, dag, target_wire: str, from_gate_id: str, to_gate_ids: List[str]):
-        """ Replace fanout inputs with reusable inputs from the previous stage """
-        from_gate = dag.get_gate_info(from_gate_id)
-        reusable_inputs = []
-        for wire in from_gate.inputs:
-            # TODO: double check zero, one, and * wires
-            if "*" in wire:
-                continue  # Skip wires that are already reused
-            reusable_inputs.append(wire)
-
-        num_replace = min(len(reusable_inputs), len(to_gate_ids))
-        for idx in range(num_replace):
-            reuse_wire = reusable_inputs[idx]
-            to_gate_id = to_gate_ids[idx]
-            to_gate = dag.get_gate_info(to_gate_id)
-
-            # Update DAG
-            if not dag.graph.has_edge(from_gate_id, to_gate_id):
-                raise Exception(f"Error: Edge from {from_gate_id} to {to_gate_id} does not exist.")
-            dag.graph.remove_edge(from_gate_id, to_gate_id)
-            from_gate.has_deps = True
-            to_gate.has_deps = True
-
-            # Create a dependency edge to maintain topological order
-            # The from-gate needs to be done before the to-gate
-            dag.graph.add_edge(from_gate_id, to_gate_id, wire_label='dep-reuse')
-
-            # Update gate inputs
-            to_gate.inputs = [reuse_wire + "*" if wire == target_wire else wire for wire in to_gate.inputs]
-
-        remaining_to_gate_ids = to_gate_ids[num_replace:]
-        return remaining_to_gate_ids
-
-    @staticmethod
-    def remove_trailing_stars(wire_list):
-        """ Remove trailing stars from a list of strings """
-        return [w[:-1] if w.endswith('*') else w for w in wire_list]
-
-    @staticmethod
-    def remove_trailing_stars_from_gate_list(dag):
-        """ Remove trailing stars from all gate inputs in a gate list """
-        for gate in dag.get_gate_list():
-            gate.inputs = FanoutNormalizer.remove_trailing_stars(gate.inputs)
+            target_gate_id, rest_gate_ids = self.find_first_input_destroying_gate(dag, output_gate_ids)
+            while target_gate_id is not None and reusable_inout_wires:
+                if self.debug_level >= 2:
+                    print(f'DAG-Transform: Reusing inout wire {reusable_inout_wires[0]} for gate {target_gate_id} (from {gate_id})')
+                is_negated = dag.is_wire_negated(gate_id, target_gate_id)
+                dag.remove_wire(gate_id, target_gate_id)
+                new_wire = dag.uniqufy_wire_name(f"{reusable_inout_wires[0]} seg")
+                dag.add_wire(new_wire, gate_id, target_gate_id)
+                dag.set_wire_negated(gate_id, target_gate_id, is_negated)
+                dag.replace_input_wire(target_gate_id, output_wire, new_wire)
+                reusable_inout_wires.pop(0)
+                reuse_count += 1
+                if len(rest_gate_ids) <= 1:
+                    break
+                target_gate_id, rest_gate_ids = self.find_first_input_destroying_gate(dag, rest_gate_ids)
+                #print(dag)
+        return reuse_count
 

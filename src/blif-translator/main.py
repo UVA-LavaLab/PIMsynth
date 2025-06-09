@@ -69,8 +69,9 @@ class BlifTranslator:
         self.pim_mode = args.pim_mode
         self.visualize = args.visualize
         self.debug_level = args.debug_level
+        #self.debug_level = 3
 
-        if self.debug_level >= 2 and self.output_format == 'asm':
+        if self.debug_level >= 2 and 'asm' in self.output_formats:
             self.visualize = True
 
         success = True
@@ -103,15 +104,12 @@ class BlifTranslator:
         # Digital PIM: Normalize majority gates
         #maj_normalizer = MajNormalizer()
         #maj_normalizer.apply(dag)
-
         #self.debug_checkpoint(dag, "post_maj_norm")
 
 
     def run_analog_optimization(self, dag):
         """ Run optimizations for analog PIM mode """
         print("Info: Optimizing DAG for analog PIM")
-
-        self.debug_checkpoint(dag, "pre_analog")
 
         # Analog PIM: Copy external inputs to register rows
         input_port_isolation = InputPortIsolation()
@@ -129,7 +127,7 @@ class BlifTranslator:
         #self.debug_checkpoint(dag, "post_inv_elim")
 
         ## Analog PIM: Reuse TRA inputs to drive next stage gates
-        #inout_var_reuse = TraVarReusing()
+        #inout_var_reuse = InoutVarReusing()
         #inout_var_reuse.apply(dag)
         #self.debug_checkpoint(dag, "post_inout_var_reuse")
 
@@ -137,11 +135,6 @@ class BlifTranslator:
         wire_copy_inserter = WireCopyInserter()
         wire_copy_inserter.apply(dag)
         self.debug_checkpoint(dag, "post_wire_copy")
-
-        # Temp: Remove trailing stars from gates list
-        #fanout_normalizer.remove_trailing_stars_from_gate_list(dag)
-
-        #self.debug_checkpoint(dag, "post_analog")
 
 
     def run_code_generation(self, dag):

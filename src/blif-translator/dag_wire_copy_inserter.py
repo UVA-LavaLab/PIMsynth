@@ -19,7 +19,7 @@ class WireCopyInserter(DagTransformer):
     def apply(self, dag):
         """ Apply the wire copy insertion transformation to the DAG """
         total_copy = 0
-        wire_queue = deque(dag.get_wire_name_list())
+        wire_queue = deque(dag.get_wire_name_list(merge_segments=False))
         while wire_queue:
             wire = wire_queue.popleft()
             if self.is_target_wire(dag, wire):

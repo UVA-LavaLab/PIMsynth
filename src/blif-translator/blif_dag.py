@@ -279,7 +279,7 @@ class DAG:
         """ Get a list of all gates in topological order """
         return [gate_id for gate_id in nx.topological_sort(self.graph)]
 
-    def get_wire_name_list(self, skip_port=True, merge_segments=False):
+    def get_wire_name_list(self, skip_port=True, merge_segments=True):
         """ Get a list of internal wires in sorted gate order """
         wire_names = set()
         gate_ids = self.get_topo_sorted_gate_id_list()
@@ -294,6 +294,30 @@ class DAG:
                     wire_name = wire_name.split(' seg')[0]
                 wire_names.add(wire_name)
         return list(wire_names)
+
+    def get_reusable_inout_wires(self, gate_id):
+        """ Get reusable inout wires for a given gate ID """
+        gate = self.graph.nodes[gate_id]
+        if gate['gate_func'] not in ['and2', 'or2', 'maj3']:
+            return []
+        segmented_wires = []
+        for u, v, edge_data in self.graph.out_edges(gate_id, data=True):
+            wire_name = edge_data.get('wire_name', None)
+            if wire_name is None:
+                continue
+            if ' seg' in wire_name:
+                segmented_wires.append(wire_name.split(' seg')[0])
+        reusable_inout_wires = []
+        for wire_name in gate['inputs']:
+            if wire_name in segmented_wires:
+                continue
+            reusable_inout_wires.append(wire_name)
+        return reusable_inout_wires
+
+    @staticmethod
+    def sanitize_name(wire_name):
+        """ Sanitize wire/port/gate name by removing segment suffix """
+        return wire_name.replace("[", "_").replace("]", "_").split(' seg')[0]
 
     def sanity_check(self):
         """ Perform sanity checks on the DAG """
@@ -348,9 +372,11 @@ class DAG:
             input_wires = gate_node['inputs']
             output_wires = gate_node['outputs']
             for input_wire in input_wires:
-                assert gate_id in self.__wire_fanouts[input_wire], f"Gate '{gate_id}' not found in fanouts of input wire '{input_wire}'."
+                if gate_id not in self.__wire_fanouts[input_wire]:
+                    raise ValueError(f"Gate '{gate_id}' not found in fanouts of input wire '{input_wire}'.")
             for output_wire in output_wires:
-                assert gate_id in self.__wire_fanins[output_wire], f"Gate '{gate_id}' not found in fanins of output wire '{output_wire}'."
+                if gate_id not in self.__wire_fanins[output_wire]:
+                    raise ValueError(f"Gate '{gate_id}' not found in fanins of output wire '{output_wire}'.")
             if gate_node['gate_func'] == 'in_port':
                 assert len(input_wires) == 0, f"Input port '{gate_id}' should not have any input wires."
                 assert len(output_wires) == 1, f"Input port '{gate_id}' should have exactly one output wire."
