@@ -267,8 +267,6 @@ class GeneratorAsm():
             return ""
         inputs = self.sanitize_token_list(gate['inputs'])
         output = self.sanitize_token(gate['outputs'][0])
-        # Temporary solution to make scheduling result correct
-        volatile = " volatile " if gate['has_deps'] else ""
 
         gate_func = gate['gate_func']
         # Pass information from BLIF translator to ASM translator
@@ -276,7 +274,7 @@ class GeneratorAsm():
         info += f" {gate_func}"
         if gate_func in asm_instructions:
             asm_func = asm_instructions[gate_func]
-            return f'\tasm{volatile}({asm_func(output, inputs, info)});\n'
+            return f'\tasm({asm_func(output, inputs, info)});\n'
 
         raise ValueError(f"Error: Unhandled gate type {gate_func} for gate ID {gate_id}.")
 

@@ -61,12 +61,14 @@ class WireCopyInserter(DagTransformer):
         anchor_gate_id, rest_gate_ids = self.find_first_input_destroying_gate(dag, fanout_gate_ids)
         assert anchor_gate_id is not None
         assert rest_gate_ids
+
         # Create a copy gate
         copy_gate_id = dag.uniqufy_gate_id("copy_inout")
         new_wire = dag.uniqufy_wire_name("copy_inout")
         if self.debug_level >= 2:
             print(f'DAG-Transform: Copy wire: {target_wire} -> {copy_gate_id} (for {anchor_gate_id})')
         dag.add_gate(gate_id=copy_gate_id, gate_func="copy_inout", inputs=[target_wire], outputs=[new_wire])
+
         # Update wires
         dag.add_wire(target_wire, fanin_gate_id, copy_gate_id)
         for fanout_gate_id in rest_gate_ids:
@@ -75,12 +77,12 @@ class WireCopyInserter(DagTransformer):
             dag.add_wire(new_wire, copy_gate_id, fanout_gate_id)
             dag.set_wire_negated(copy_gate_id, fanout_gate_id, is_negated)
             dag.replace_input_wire(fanout_gate_id, target_wire, new_wire)
+
         # Handle implicit dependency
         # The copy_inout gate needs to be done before the anchor gate
         # This is done by:
         # 1. Let the new copy gate drive the anchor gate (new wire segment)
         # 2. Use '+r' in ineline assembly IR so that LLVM knows the dependency
-        #dag.graph.add_edge(copy_gate_id, anchor_gate_id, wire_label='dep-copy')
         is_negated = dag.is_wire_negated(fanin_gate_id, anchor_gate_id)
         target_wire_segment = dag.uniqufy_wire_name(f"{target_wire} seg")
         dag.remove_wire(fanin_gate_id, anchor_gate_id)

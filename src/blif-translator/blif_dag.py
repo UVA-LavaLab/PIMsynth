@@ -27,7 +27,6 @@ class DAG:
                 - gate_func: Function of the gate (e.g., inv1, and2, maj3, copy, in_port, out_port)
                 - inputs: List of input wires with order preserved
                 - outputs: List of output wires with order preserved
-                - has_deps: Boolean indicating if the gate has dependencies (for scheduling)
             - APIs:
                 - graph.add_node(gate_id): Add a gate node to the DAG
                 - graph.nodes[gate_id]: Access gate information dictionary by gate ID
@@ -107,7 +106,7 @@ class DAG:
                 for gate_id in fanouts:
                     self.add_wire(wire_name=wire, fanin_gate_id=fanin_gate_id, fanout_gate_id=gate_id)
 
-    def add_gate(self, gate_id='', gate_func='', inputs=[], outputs=[], has_deps=False):
+    def add_gate(self, gate_id='', gate_func='', inputs=[], outputs=[]):
         """ Add a gate to the DAG """
         if gate_id in self.graph:
             raise ValueError(f"Gate ID '{gate_id}' already exists in the DAG.")
@@ -115,8 +114,7 @@ class DAG:
                             gate_id=gate_id,
                             gate_func=gate_func,
                             inputs=inputs.copy(),
-                            outputs=outputs.copy(),
-                            has_deps=has_deps)
+                            outputs=outputs.copy())
 
     def remove_gate(self, gate_id):
         """ Remove a gate from the DAG """
@@ -219,15 +217,11 @@ class DAG:
         repr_str += "--------\n"
         for from_gate_id, to_gate_id, edge_data in self.graph.edges(data=True):
             wire_name = edge_data.get('wire_name', None)
-            if wire_name is not None:
-                is_negated = edge_data.get('is_negated', False)
-                repr_str += f"Edge: {from_gate_id} -> {to_gate_id} | Wire: {wire_name}"
-                repr_str += " | >>>>>>>>>> Negated\n" if is_negated else "\n"
-            else:
-                wire_label = edge_data.get('wire_label', None)
-                if wire_label is None:
-                    raise ValueError(f"Edge without wire_name or wire_label found between {from_gate_id} and {to_gate_id}.")
-                repr_str += f"Edge: {from_gate_id} -> {to_gate_id} | Label: {wire_label} >>>>>>>>>>>>>>> <dep> \n"
+            if wire_name is None:
+                raise ValueError(f"Edge without wire_name found between {from_gate_id} and {to_gate_id}.")
+            is_negated = edge_data.get('is_negated', False)
+            repr_str += f"Edge: {from_gate_id} -> {to_gate_id} | Wire: {wire_name}"
+            repr_str += " | >>>>>>>>>> Negated\n" if is_negated else "\n"
         repr_str += "--------\n"
         for gate_id in self.get_topo_sorted_gate_id_list():
             repr_str += self.get_gate_info_str(gate_id) + "\n"
@@ -347,9 +341,7 @@ class DAG:
         for from_gate_id, to_gate_id, edge_data in self.graph.edges(data=True):
             wire_name = edge_data.get('wire_name', None)
             if wire_name is None:
-                if edge_data.get('wire_label', None) not in ['dep-reuse', 'dep-copy']:
-                    raise ValueError(f"Edge without wire_name or wire_label found between {from_gate_id} and {to_gate_id}.")
-                continue
+                raise ValueError(f"Edge without wire_name found between {from_gate_id} and {to_gate_id}.")
             wire_fanins.setdefault(wire_name, set()).add(from_gate_id)
             wire_fanouts.setdefault(wire_name, set()).add(to_gate_id)
         for wire_name in set(wire_fanins.keys()).union(wire_fanouts.keys()):
@@ -426,9 +418,7 @@ class DAG:
             network.add_node(gate_id, label=label, shape="box", color=color)
 
         for u, v, edge_data in dag.graph.edges(data=True):
-            label = edge_data.get('wire_name', None)
-            if label is None:
-                label = edge_data.get('wire_label', 'unknown')
+            label = edge_data.get('wire_name', 'unknown')
             network.add_edge(u, v, label=label)
 
         network.show_buttons(filter_=['physics'])
