@@ -171,6 +171,14 @@ class DAG:
         inputs[inputs.index(old_wire_name)] = new_wire_name
         self.graph.nodes[gate_id]['inputs'] = inputs
 
+        # Rename downstream wire segments recursively
+        for _, to_gate_id, edge_data in self.graph.out_edges(gate_id, data=True):
+            wire_name = edge_data.get('wire_name', '')
+            if wire_name.startswith(old_wire_name):
+                next_wire_name = new_wire_name + wire_name[len(old_wire_name):]
+                self.graph[gate_id][to_gate_id]['wire_name'] = next_wire_name
+                self.replace_input_wire(to_gate_id, wire_name, next_wire_name)
+
     def uniqufy_gate_id(self, new_gate_id):
         """ Ensure the new gate ID is unique by appending a suffix if necessary """
         if new_gate_id not in self.graph:

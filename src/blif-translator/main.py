@@ -69,7 +69,6 @@ class BlifTranslator:
         self.pim_mode = args.pim_mode
         self.visualize = args.visualize
         self.debug_level = args.debug_level
-        #self.debug_level = 3
 
         if self.debug_level >= 2 and 'asm' in self.output_formats:
             self.visualize = True
@@ -127,9 +126,9 @@ class BlifTranslator:
         #self.debug_checkpoint(dag, "post_inv_elim")
 
         ## Analog PIM: Reuse TRA inputs to drive next stage gates
-        #inout_var_reuse = InoutVarReusing()
-        #inout_var_reuse.apply(dag)
-        #self.debug_checkpoint(dag, "post_inout_var_reuse")
+        inout_var_reuse = InoutVarReusing()
+        inout_var_reuse.apply(dag)
+        self.debug_checkpoint(dag, "post_inout_var_reuse")
 
         ## Analog PIM: Copy wires that drives multiple input-destroying gates
         wire_copy_inserter = WireCopyInserter()
