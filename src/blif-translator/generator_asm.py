@@ -204,20 +204,23 @@ class GeneratorAsm():
         # =r: output register
         # =&r: output must be different from inputs using early clobber
         return {
+            # Note: This is regular wire copy
             "copy": lambda output, inputs, info: (
                 f'"#PIM_OP {info} %0 %1 \\n'
                 f' mv %0, %1'
                 f'" : "=r" ({output}) : "r" ({inputs[0]}) : {clobber}'
             ),
+            # Note: copy_inout is used by wire copy inserter, supporting dependency chain while copying
             "copy_inout": lambda output, inputs, info: (
                 f'"#PIM_OP {info} %0 %1 \\n'
                 f' mv %0, %1'
                 f'" : "=r" ({output}), "+r" ({inputs[0]}) : : {clobber}'
             ),
+            # Note: Enforce inverter input/output to be different, to reduce the number of copies in ASM translator
             "inv1": lambda output, inputs, info: (
                 f'"#PIM_OP {info} %0 %1 \\n'
                 f' not %0, %1'
-                f'" : "=r" ({output}) : "r" ({inputs[0]}) : {clobber}'
+                f'" : "=&r" ({output}) : "r" ({inputs[0]}) : {clobber}'
             ),
             "and2": lambda output, inputs, info: (
                 f'"#PIM_OP {info} %0 %1 %2 \\n'
