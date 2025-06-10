@@ -367,16 +367,20 @@ class AsmTranslator:
     def handleWriteToOutputPort(self, statementIndex, instructionSequence, line):
         """Handle writing to an output port after inline assembly."""
         portInfoIndex = statementIndex + len(instructionSequence) + 2
-        portInfo = self.riscvStatementList[portInfoIndex]
 
-        if self.isOutputPort(portInfo):
-            destinationOperand = instructionSequence[-1].operandsList[0]
-            writeSourceOperand = destinationOperand
-            writeDestinationOperand = portInfo.getPortName()
-            writeOpCode = "write"
-            writeOperandsList = [writeSourceOperand, writeDestinationOperand]
-            self.appendBitSerialInstruction("write", writeOperandsList, line)
-            self.symbolTable.addSymbol(writeSourceOperand, writeDestinationOperand)
+        # Search for output port in the debugging information
+        while isinstance(self.riscvStatementList[portInfoIndex], PortInfo):
+            portInfo = self.riscvStatementList[portInfoIndex]
+            if self.isOutputPort(portInfo):
+                destinationOperand = instructionSequence[-1].operandsList[0]
+                writeSourceOperand = destinationOperand
+                writeDestinationOperand = portInfo.getPortName()
+                writeOpCode = "write"
+                writeOperandsList = [writeSourceOperand, writeDestinationOperand]
+                self.appendBitSerialInstruction("write", writeOperandsList, line)
+                self.symbolTable.addSymbol(writeSourceOperand, writeDestinationOperand)
+                return
+            portInfoIndex += 1
 
     def parsePimOpDirective(self, statementIndex):
         """ Parse the #PIM_OP directive in inline asm block and return the opcode and operands """
