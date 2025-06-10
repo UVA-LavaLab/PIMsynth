@@ -12,6 +12,8 @@ subtractor_nbit.v
 abs_nbit.v
 
 multiplier_nbit.v
+mul_full_2bit.v
+mul_partial_2bit.v
 
 not_nbit.v
 and_nbit.v

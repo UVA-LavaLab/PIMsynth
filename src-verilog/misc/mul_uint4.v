@@ -1,3 +1,7 @@
+// 4-bit Unsigned Integer Multiplication
+// Dependencies: multiplier_nbit.v adder_1bit.v adder_nbit.v mul_full_2bit.v mul_partal_2bit.v
+// hosein, 06/10/2025
+
 module mul_uint4(
     input  [3:0] A,  // Multiplicand
     input  [3:0] B,  // Multiplier
@@ -10,34 +14,29 @@ module mul_uint4(
     wire [1:0] B_hi = B[3:2];
 
     wire [3:0] M0, M1, M2;
-    wire [4:0] M1_plus_M2;
-    wire [7:0] shifted_middle, extended_M0;
-    wire [7:0] full_sum;
+    wire [1:0] M1_plus_M2;
+    wire [1:0] sum_ms_bits;
 
-    // 2-bit multipliers using multiplier_nbit
-    multiplier_nbit #(2) u0 (.A(A_lo), .B(B_lo), .P(M0));
-    multiplier_nbit #(2) u1 (.A(A_hi), .B(B_lo), .P(M1));
-    multiplier_nbit #(2) u2 (.A(A_lo), .B(B_hi), .P(M2));
+    mul_full_2bit u0 (.A(A_lo), .B(B_lo), .P(M0));
+    mul_partial_2bit u1 (.A(A_hi), .B(B_lo), .P(M1));
+    mul_partial_2bit u2 (.A(A_lo), .B(B_hi), .P(M2));
 
-    // Add M1 + M2 using adder_nbit #(5)
-    adder_nbit #(5) u_adder_mid (
-        .A({1'b0, M1}), 
-        .B({1'b0, M2}), 
+    // Add M1 + M2 using adder_nbit 
+    adder_nbit #(2) u_adder_mid (
+        .A(M1[1:0]), 
+        .B(M2[1:0]), 
         .Sum(M1_plus_M2)
     );
 
-    // Shift (M1+M2)<<2 and zero-extend M0
-    assign shifted_middle = {M1_plus_M2, 2'b00};
-    assign extended_M0 = {4'b0000, M0};
 
-    // Final sum using adder_nbit #(8)
-    adder_nbit #(8) u_adder_final (
-        .A(shifted_middle),
-        .B(extended_M0),
-        .Sum(full_sum)
+    // Final sum using adder_nbit
+    adder_nbit #(2) u_adder_final (
+        .A(M1_plus_M2),
+        .B(M0[3:2]),
+        .Sum(sum_ms_bits)
     );
 
-    assign P = full_sum[3:0]; // Truncate to lower 4 bits
+    assign P = {sum_ms_bits, M0[1:0]};
 
 endmodule
 

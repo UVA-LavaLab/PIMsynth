@@ -1,6 +1,6 @@
 // n-bit Integer Multiplier Submodule
 // Dependencies: adder_1bit.v adder_nbit.v
-// deyuan, 03/28/2025
+// hosein, 10/06/2025
 
 module multiplier_nbit #(
     parameter WIDTH = 32
