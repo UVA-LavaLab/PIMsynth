@@ -116,9 +116,9 @@ class BlifTranslator:
         self.debug_checkpoint(dag, "post_input_port_iso")
 
         # Analog PIM: Normalize majority gates
-        #maj_normalizer = MajNormalizer()
-        #maj_normalizer.apply(dag)
-        #self.debug_checkpoint(dag, "post_maj_norm")
+        maj_normalizer = MajNormalizer()
+        maj_normalizer.apply(dag)
+        self.debug_checkpoint(dag, "post_maj_norm")
 
         # Analog PIM: Eliminate inverters
         #inv_eliminator = InvEliminator()
