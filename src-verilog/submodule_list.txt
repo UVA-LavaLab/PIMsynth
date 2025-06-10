@@ -13,7 +13,11 @@ abs_nbit.v
 
 multiplier_nbit.v
 mul_full_2bit.v
+mul_full_4bit.v
 mul_partial_2bit.v
+mul_partial_4bit.v
+mul_partial_8bit.v
+
 
 not_nbit.v
 and_nbit.v
