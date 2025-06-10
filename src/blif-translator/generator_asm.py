@@ -94,6 +94,10 @@ class GeneratorAsm():
         outputs = self.sanitize_token_list(self.dag.get_out_ports())
         return f"\t{self.data_type} {', '.join(outputs)};\n"
 
+    def raise_exception(self, message):
+        """ Helper function to raise an exception with a message """
+        raise ValueError(message)
+
     def generate_clobber_list(self):
         """ Generate the RISC-V register clobbering list """
         # risc-v register: ra, a0-a7, s0-s11, t0-t6
@@ -126,72 +130,94 @@ class GeneratorAsm():
         # =r: output register, r: input register
         # return a single line assembly code. Be careful with " and \\n
         return {
-            "inv1": lambda output, inputs, info: (
+            "inv1": lambda outputs, inputs, info: (
                 f'"#PIM_OP {info} %0 %1 \\n'
                 f' not %0, %1'
-                f'" : "=r" ({output}) : "r" ({inputs[0]}) : {clobber}'
+                f'" : "=r" ({outputs[0]}) : "r" ({inputs[0]}) : {clobber}'
+                if len(outputs) == 1 and len(inputs) == 1 else
+                self.raise_exception(f"Invalid inv1 operands: {len(outputs)} outputs and {len(inputs)} inputs.")
             ),
-            "and2": lambda output, inputs, info: (
+            "and2": lambda outputs, inputs, info: (
                 f'"#PIM_OP {info} %0 %1 %2 \\n'
                 f' and %0, %1, %2'
-                f'" : "=r" ({output}) : "r" ({inputs[0]}), "r" ({inputs[1]}) : {clobber}'
+                f'" : "=r" ({outputs[0]}) : "r" ({inputs[0]}), "r" ({inputs[1]}) : {clobber}'
+                if len(outputs) == 1 and len(inputs) == 2 else
+                self.raise_exception(f"Invalid and2 operands: {len(outputs)} outputs and {len(inputs)} inputs.")
             ),
-            "nand2": lambda output, inputs, info: (
+            "nand2": lambda outputs, inputs, info: (
                 f'"#PIM_OP {info} %0 %1 %2 \\n'
                 f' and %0, %1, %2 \\n'
                 f' not %0, %0'
-                f'" : "=r" ({output}) : "r" ({inputs[0]}), "r" ({inputs[1]}) : {clobber}'
+                f'" : "=r" ({outputs[0]}) : "r" ({inputs[0]}), "r" ({inputs[1]}) : {clobber}'
+                if len(outputs) == 1 and len(inputs) == 2 else
+                self.raise_exception(f"Invalid nand2 operands: {len(outputs)} outputs and {len(inputs)} inputs.")
             ),
-            "or2": lambda output, inputs, info: (
+            "or2": lambda outputs, inputs, info: (
                 f'"#PIM_OP {info} %0 %1 %2 \\n'
                 f' or %0, %1, %2'
-                f'" : "=r" ({output}) : "r" ({inputs[0]}), "r" ({inputs[1]}) : {clobber}'
+                f'" : "=r" ({outputs[0]}) : "r" ({inputs[0]}), "r" ({inputs[1]}) : {clobber}'
+                if len(outputs) == 1 and len(inputs) == 2 else
+                self.raise_exception(f"Invalid or2 operands: {len(outputs)} outputs and {len(inputs)} inputs.")
             ),
-            "nor2": lambda output, inputs, info: (
+            "nor2": lambda outputs, inputs, info: (
                 f'"#PIM_OP {info} %0 %1 %2 \\n'
                 f' or %0, %1, %2 \\n'
                 f' not %0, %0'
-                f'" : "=r" ({output}) : "r" ({inputs[0]}), "r" ({inputs[1]}) : {clobber}'
+                f'" : "=r" ({outputs[0]}) : "r" ({inputs[0]}), "r" ({inputs[1]}) : {clobber}'
+                if len(outputs) == 1 and len(inputs) == 2 else
+                self.raise_exception(f"Invalid nor2 operands: {len(outputs)} outputs and {len(inputs)} inputs.")
             ),
-            "xor2": lambda output, inputs, info: (
+            "xor2": lambda outputs, inputs, info: (
                 f'"#PIM_OP {info} %0 %1 %2 \\n'
                 f' xor %0, %1, %2'
-                f'" : "=r" ({output}) : "r" ({inputs[0]}), "r" ({inputs[1]}) : {clobber}'
+                f'" : "=r" ({outputs[0]}) : "r" ({inputs[0]}), "r" ({inputs[1]}) : {clobber}'
+                if len(outputs) == 1 and len(inputs) == 2 else
+                self.raise_exception(f"Invalid xor2 operands: {len(outputs)} outputs and {len(inputs)} inputs.")
             ),
-            "xnor2": lambda output, inputs, info: (
+            "xnor2": lambda outputs, inputs, info: (
                 f'"#PIM_OP {info} %0 %1 %2 \\n'
                 f' xor %0, %1, %2 \\n'
                 f' not %0, %0'
-                f'" : "=r" ({output}) : "r" ({inputs[0]}), "r" ({inputs[1]}) : {clobber}'
+                f'" : "=r" ({outputs[0]}) : "r" ({inputs[0]}), "r" ({inputs[1]}) : {clobber}'
+                if len(outputs) == 1 and len(inputs) == 2 else
+                self.raise_exception(f"Invalid xnor2 operands: {len(outputs)} outputs and {len(inputs)} inputs.")
             ),
-            "mux2": lambda output, inputs, info: ( # %0 = %1 ? %3 : %2 -> need to swap %2/%3
+            "mux2": lambda outputs, inputs, info: ( # %0 = %1 ? %3 : %2 -> need to swap %2/%3
                 f'"#PIM_OP {info} %0 %1 %3 %2 \\n'
                 f' not s1, %1 \\n'
                 f' and s2, s1, %2 \\n'
                 f' and s3, %1, %3 \\n'
                 f' or %0, s2, s3'
-                f'" : "=r" ({output}) : "r" ({inputs[0]}), "r" ({inputs[1]}), "r" ({inputs[2]}) : {clobber}'
+                f'" : "=r" ({outputs[0]}) : "r" ({inputs[0]}), "r" ({inputs[1]}), "r" ({inputs[2]}) : {clobber}'
+                if len(outputs) == 1 and len(inputs) == 3 else
+                self.raise_exception(f"Invalid mux2 operands: {len(outputs)} outputs and {len(inputs)} inputs.")
             ),
-            "maj3": lambda output, inputs, info: (
+            "maj3": lambda outputs, inputs, info: (
                 f'"#PIM_OP {info} %0 %1 %2 %3 \\n'
                 f' and s1, %1, %2 \\n'
                 f' and s2, %2, %3 \\n'
                 f' and s3, %1, %3 \\n'
                 f' or s1, s1, s2 \\n'
                 f' or %0, s1, s3'
-                f'" : "=r" ({output}) : "r" ({inputs[0]}), "r" ({inputs[1]}), "r" ({inputs[2]}) : {clobber}'
+                f'" : "=r" ({outputs[0]}) : "r" ({inputs[0]}), "r" ({inputs[1]}), "r" ({inputs[2]}) : {clobber}'
+                if len(outputs) == 1 and len(inputs) == 3 else
+                self.raise_exception(f"Invalid maj3 operands: {len(outputs)} outputs and {len(inputs)} inputs.")
             ),
-            "zero": lambda output, inputs, info: (
+            "zero": lambda outputs, inputs, info: (
                 f'"#PIM_OP {info} %0 \\n'
                 f' li %0, 0 \\n'
                 f' mv %0, %0'
-                f'" : "=r" ({output}) : : {clobber}'
+                f'" : "=r" ({outputs[0]}) : : {clobber}'
+                if len(outputs) == 1 and len(inputs) == 0 else
+                self.raise_exception(f"Invalid zero operands: {len(outputs)} outputs and {len(inputs)} inputs.")
             ),
-            "one": lambda output, inputs, info: (
+            "one": lambda outputs, inputs, info: (
                 f'"#PIM_OP {info} %0 \\n'
                 f' li %0, 0 \\n'
                 f' not %0, %0'
-                f'" : "=r" ({output}) : : {clobber}'
+                f'" : "=r" ({outputs[0]}) : : {clobber}'
+                if len(outputs) == 1 and len(inputs) == 0 else
+                self.raise_exception(f"Invalid one operands: {len(outputs)} outputs and {len(inputs)} inputs.")
             ),
         }
 
@@ -205,38 +231,48 @@ class GeneratorAsm():
         # =&r: output must be different from inputs using early clobber
         return {
             # Note: This is regular wire copy
-            "copy": lambda output, inputs, info: (
+            "copy": lambda outputs, inputs, info: (
                 f'"#PIM_OP {info} %0 %1 \\n'
                 f' mv %0, %1'
-                f'" : "=r" ({output}) : "r" ({inputs[0]}) : {clobber}'
+                f'" : "=r" ({outputs[0]}) : "r" ({inputs[0]}) : {clobber}'
+                if len(outputs) == 1 and len(inputs) == 1 else
+                self.raise_exception(f"Invalid copy operands: {len(outputs)} outputs and {len(inputs)} inputs.")
             ),
             # Note: copy_inout is used by wire copy inserter, supporting dependency chain while copying
-            "copy_inout": lambda output, inputs, info: (
+            "copy_inout": lambda outputs, inputs, info: (
                 f'"#PIM_OP {info} %0 %1 \\n'
                 f' mv %0, %1'
-                f'" : "=r" ({output}), "+r" ({inputs[0]}) : : {clobber}'
+                f'" : "=r" ({outputs[0]}), "+r" ({inputs[0]}) : : {clobber}'
+                if len(outputs) == 1 and len(inputs) == 1 else
+                self.raise_exception(f"Invalid copy_inout operands: {len(outputs)} outputs and {len(inputs)} inputs.")
             ),
             # Note: Enforce inverter input/output to be different, to reduce the number of copies in ASM translator
-            "inv1": lambda output, inputs, info: (
+            "inv1": lambda outputs, inputs, info: (
                 f'"#PIM_OP {info} %0 %1 \\n'
                 f' not %0, %1'
-                f'" : "=&r" ({output}) : "r" ({inputs[0]}) : {clobber}'
+                f'" : "=&r" ({outputs[0]}) : "r" ({inputs[0]}) : {clobber}'
+                if len(outputs) == 1 and len(inputs) == 1 else
+                self.raise_exception(f"Invalid inv1 operands: {len(outputs)} outputs and {len(inputs)} inputs.")
             ),
-            "and2": lambda output, inputs, info: (
+            "and2": lambda outputs, inputs, info: (
                 f'"#PIM_OP {info} %0 %1 %2 \\n'
                 f' and %0, %1, %2 \\n'
                 f' mv %1, %0 \\n'
                 f' mv %2, %0'
-                f'" : "=&r" ({output}), "+r" ({inputs[0]}), "+r" ({inputs[1]}) : : {clobber}'
+                f'" : "=&r" ({outputs[0]}), "+r" ({inputs[0]}), "+r" ({inputs[1]}) : : {clobber}'
+                if len(outputs) == 1 and len(inputs) == 2 else
+                self.raise_exception(f"Invalid and2 operands: {len(outputs)} outputs and {len(inputs)} inputs.")
             ),
-            "or2": lambda output, inputs, info: (
+            "or2": lambda outputs, inputs, info: (
                 f'"#PIM_OP {info} %0 %1 %2 \\n'
                 f' or %0, %1, %2 \\n'
                 f' mv %1, %0 \\n'
                 f' mv %2, %0'
-                f'" : "=&r" ({output}), "+r" ({inputs[0]}), "+r" ({inputs[1]}) : : {clobber}'
+                f'" : "=&r" ({outputs[0]}), "+r" ({inputs[0]}), "+r" ({inputs[1]}) : : {clobber}'
+                if len(outputs) == 1 and len(inputs) == 2 else
+                self.raise_exception(f"Invalid or2 operands: {len(outputs)} outputs and {len(inputs)} inputs.")
             ),
-            "maj3": lambda output, inputs, info: (
+            "maj3": lambda outputs, inputs, info: (
                 f'"#PIM_OP {info} %0 %1 %2 %3 \\n'
                 f' and s1, %1, %2 \\n'
                 f' and s2, %2, %3 \\n'
@@ -246,19 +282,25 @@ class GeneratorAsm():
                 f' mv %1, %0 \\n'
                 f' mv %2, %0 \\n'
                 f' mv %3, %0'
-                f'" : "=&r" ({output}), "+r" ({inputs[0]}), "+r" ({inputs[1]}), "+r" ({inputs[2]}) : : {clobber}'
+                f'" : "=&r" ({outputs[0]}), "+r" ({inputs[0]}), "+r" ({inputs[1]}), "+r" ({inputs[2]}) : : {clobber}'
+                if len(outputs) == 1 and len(inputs) == 3 else
+                self.raise_exception(f"Invalid maj3 operands: {len(outputs)} outputs and {len(inputs)} inputs.")
             ),
-            "zero": lambda output, inputs, info: (
+            "zero": lambda outputs, inputs, info: (
                 f'"#PIM_OP {info} %0 \\n'
                 f' li %0, 0 \\n'
                 f' mv %0, %0'
-                f'" : "=r" ({output}) : : {clobber}'
+                f'" : "=r" ({outputs[0]}) : : {clobber}'
+                if len(outputs) == 1 and len(inputs) == 0 else
+                self.raise_exception(f"Invalid zero operands: {len(outputs)} outputs and {len(inputs)} inputs.")
             ),
-            "one": lambda output, inputs, info: (
+            "one": lambda outputs, inputs, info: (
                 f'"#PIM_OP {info} %0 \\n'
                 f' li %0, 0 \\n'
                 f' not %0, %0'
-                f'" : "=r" ({output}) : : {clobber}'
+                f'" : "=r" ({outputs[0]}) : : {clobber}'
+                if len(outputs) == 1 and len(inputs) == 0 else
+                self.raise_exception(f"Invalid one operands: {len(outputs)} outputs and {len(inputs)} inputs.")
             ),
         }
 
@@ -269,7 +311,7 @@ class GeneratorAsm():
             # Skip input and output ports
             return ""
         inputs = self.sanitize_token_list(gate['inputs'])
-        output = self.sanitize_token(gate['outputs'][0])
+        outputs = self.sanitize_token_list(gate['outputs'])
 
         gate_func = gate['gate_func']
         # Pass information from BLIF translator to ASM translator
@@ -277,7 +319,7 @@ class GeneratorAsm():
         info += f" {gate_func}"
         if gate_func in asm_instructions:
             asm_func = asm_instructions[gate_func]
-            return f'\tasm({asm_func(output, inputs, info)});\n'
+            return f'\tasm({asm_func(outputs, inputs, info)});\n'
 
         raise ValueError(f"Error: Unhandled gate type {gate_func} for gate ID {gate_id}.")
 

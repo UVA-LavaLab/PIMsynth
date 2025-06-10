@@ -91,6 +91,10 @@ class GeneratorBitwise():
         outputs = self.sanitize_token_list(self.dag.get_out_ports())
         return f"\t{self.data_type} {', '.join(outputs)};\n"
 
+    def raise_exception(self, message):
+        """ Helper function to raise an exception with a message """
+        raise ValueError(message)
+
     def get_bitwise_instructions(self):
         """ Return a dictionary that maps logic gate names to bit-wise code generation functions """
         if self.pim_mode == "digital":
@@ -103,49 +107,71 @@ class GeneratorBitwise():
         """ Return a dictionary that maps logic gate names to bit-wise code generation functions for digital PIM """
         # Note: Use ! instead of ~ for bitwise NOT to make sure result is 0 or 1
         return {
-            "inv1": lambda output, inputs, info: (
+            "inv1": lambda outputs, inputs, info: (
                 f'\t// PIM_OP {info} %0 %1 \n'
-                f'\t{output} = !{inputs[0]};\n'
+                f'\t{outputs[0]} = !{inputs[0]};\n'
+                if len(outputs) == 1 and len(inputs) == 1 else
+                self.raise_exception(f"Invalid inv1 operands: {len(outputs)} outputs and {len(inputs)} inputs.")
             ),
-            "and2": lambda output, inputs, info: (
+            "and2": lambda outputs, inputs, info: (
                 f'\t// PIM_OP {info} %0 %1 %2 \n'
-                f'\t{output} = {inputs[0]} & {inputs[1]};\n'
+                f'\t{outputs[0]} = {inputs[0]} & {inputs[1]};\n'
+                if len(outputs) == 1 and len(inputs) == 2 else
+                self.raise_exception(f"Invalid and2 operands: {len(outputs)} outputs and {len(inputs)} inputs.")
             ),
-            "nand2": lambda output, inputs, info: (
+            "nand2": lambda outputs, inputs, info: (
                 f'\t// PIM_OP {info} %0 %1 %2 \n'
-                f'\t{output} = !({inputs[0]} & {inputs[1]});\n'
+                f'\t{outputs[0]} = !({inputs[0]} & {inputs[1]});\n'
+                if len(outputs) == 1 and len(inputs) == 2 else
+                self.raise_exception(f"Invalid nand2 operands: {len(outputs)} outputs and {len(inputs)} inputs.")
             ),
-            "or2": lambda output, inputs, info: (
+            "or2": lambda outputs, inputs, info: (
                 f'\t// PIM_OP {info} %0 %1 %2 \n'
-                f'\t{output} = {inputs[0]} | {inputs[1]};\n'
+                f'\t{outputs[0]} = {inputs[0]} | {inputs[1]};\n'
+                if len(outputs) == 1 and len(inputs) == 2 else
+                self.raise_exception(f"Invalid or2 operands: {len(outputs)} outputs and {len(inputs)} inputs.")
             ),
-            "nor2": lambda output, inputs, info: (
+            "nor2": lambda outputs, inputs, info: (
                 f'\t// PIM_OP {info} %0 %1 %2 \n'
-                f'\t{output} = !({inputs[0]} | {inputs[1]});\n'
+                f'\t{outputs[0]} = !({inputs[0]} | {inputs[1]});\n'
+                if len(outputs) == 1 and len(inputs) == 2 else
+                self.raise_exception(f"Invalid nor2 operands: {len(outputs)} outputs and {len(inputs)} inputs.")
             ),
-            "xor2": lambda output, inputs, info: (
+            "xor2": lambda outputs, inputs, info: (
                 f'\t// PIM_OP {info} %0 %1 %2 \n'
-                f'\t{output} = {inputs[0]} ^ {inputs[1]};\n'
+                f'\t{outputs[0]} = {inputs[0]} ^ {inputs[1]};\n'
+                if len(outputs) == 1 and len(inputs) == 2 else
+                self.raise_exception(f"Invalid xor2 operands: {len(outputs)} outputs and {len(inputs)} inputs.")
             ),
-            "xnor2": lambda output, inputs, info: (
+            "xnor2": lambda outputs, inputs, info: (
                 f'\t// PIM_OP {info} %0 %1 %2 \n'
-                f'\t{output} = !({inputs[0]} ^ {inputs[1]});\n'
+                f'\t{outputs[0]} = !({inputs[0]} ^ {inputs[1]});\n'
+                if len(outputs) == 1 and len(inputs) == 2 else
+                self.raise_exception(f"Invalid xnor2 operands: {len(outputs)} outputs and {len(inputs)} inputs.")
             ),
-            "mux2": lambda output, inputs, info: ( # %0 = %1 ? %3 : %2
+            "mux2": lambda outputs, inputs, info: ( # %0 = %1 ? %3 : %2
                 f'\t// PIM_OP {info} %0 %1 %2 \n'
-                f'\t{output} = {inputs[0]} ? {inputs[2]} : {inputs[1]};\n'
+                f'\t{outputs[0]} = {inputs[0]} ? {inputs[2]} : {inputs[1]};\n'
+                if len(outputs) == 1 and len(inputs) == 3 else
+                self.raise_exception(f"Invalid mux2 operands: {len(outputs)} outputs and {len(inputs)} inputs.")
             ),
-            "maj3": lambda output, inputs, info: (
+            "maj3": lambda outputs, inputs, info: (
                 f'\t// PIM_OP {info} %0 %1 %2 %3 \n'
-                f'\t{output} = ({inputs[0]} & {inputs[1]}) | ({inputs[0]} & {inputs[2]}) | ({inputs[1]} & {inputs[2]});\n'
+                f'\t{outputs[0]} = ({inputs[0]} & {inputs[1]}) | ({inputs[0]} & {inputs[2]}) | ({inputs[1]} & {inputs[2]});\n'
+                if len(outputs) == 1 and len(inputs) == 3 else
+                self.raise_exception(f"Invalid maj3 operands: {len(outputs)} outputs and {len(inputs)} inputs.")
             ),
-            "zero": lambda output, inputs, info: (
+            "zero": lambda outputs, inputs, info: (
                 f'\t// PIM_OP {info} %0 \n'
-                f'\t{output} = 0;\n'
+                f'\t{outputs[0]} = 0;\n'
+                if len(outputs) == 1 and len(inputs) == 0 else
+                self.raise_exception(f"Invalid zero operands: {len(outputs)} outputs and {len(inputs)} inputs.")
             ),
-            "one": lambda output, inputs, info: (
+            "one": lambda outputs, inputs, info: (
                 f'\t// PIM_OP {info} %0 \n'
-                f'\t{output} = 1;\n'
+                f'\t{outputs[0]} = 1;\n'
+                if len(outputs) == 1 and len(inputs) == 0 else
+                self.raise_exception(f"Invalid one operands: {len(outputs)} outputs and {len(inputs)} inputs.")
             ),
         }
 
@@ -153,37 +179,53 @@ class GeneratorBitwise():
         """ Return a dictionary that maps logic gate names to bit-wise code generation functions for analog PIM """
         # Note: Use ! instead of ~ for bitwise NOT to make sure result is 0 or 1
         return {
-            "copy": lambda output, inputs, info: (
+            "copy": lambda outputs, inputs, info: (
                 f'\t// PIM_OP {info} %0 %1 \n'
-                f'\t{output} = {inputs[0]};\n'
+                f'\t{outputs[0]} = {inputs[0]};\n'
+                if len(outputs) == 1 and len(inputs) == 1 else
+                self.raise_exception(f"Invalid copy operands: {len(outputs)} outputs and {len(inputs)} inputs.")
             ),
-            "copy_inout": lambda output, inputs, info: (
+            "copy_inout": lambda outputs, inputs, info: (
                 f'\t// PIM_OP {info} %0 %1 \n'
-                f'\t{output} = {inputs[0]};\n'
+                f'\t{outputs[0]} = {inputs[0]};\n'
+                if len(outputs) == 1 and len(inputs) == 1 else
+                self.raise_exception(f"Invalid copy_inout operands: {len(outputs)} outputs and {len(inputs)} inputs.")
             ),
-            "inv1": lambda output, inputs, info: (
+            "inv1": lambda outputs, inputs, info: (
                 f'\t// PIM_OP {info} %0 %1 \n'
-                f'\t{output} = !{inputs[0]};\n'
+                f'\t{outputs[0]} = !{inputs[0]};\n'
+                if len(outputs) == 1 and len(inputs) == 1 else
+                self.raise_exception(f"Invalid inv1 operands: {len(outputs)} outputs and {len(inputs)} inputs.")
             ),
-            "and2": lambda output, inputs, info: (
+            "and2": lambda outputs, inputs, info: (
                 f'\t// PIM_OP {info} %0 %1 %2 \n'
-                f'\t{output} = {inputs[0]} = {inputs[1]} = {inputs[0]} & {inputs[1]};\n'
+                f'\t{outputs[0]} = {inputs[0]} = {inputs[1]} = {inputs[0]} & {inputs[1]};\n'
+                if len(outputs) == 1 and len(inputs) == 2 else
+                self.raise_exception(f"Invalid and2 operands: {len(outputs)} outputs and {len(inputs)} inputs.")
             ),
-            "or2": lambda output, inputs, info: (
+            "or2": lambda outputs, inputs, info: (
                 f'\t// PIM_OP {info} %0 %1 %2 \n'
-                f'\t{output} = {inputs[0]} = {inputs[1]} = {inputs[0]} | {inputs[1]};\n'
+                f'\t{outputs[0]} = {inputs[0]} = {inputs[1]} = {inputs[0]} | {inputs[1]};\n'
+                if len(outputs) == 1 and len(inputs) == 2 else
+                self.raise_exception(f"Invalid or2 operands: {len(outputs)} outputs and {len(inputs)} inputs.")
             ),
-            "maj3": lambda output, inputs, info: (
+            "maj3": lambda outputs, inputs, info: (
                 f'\t// PIM_OP {info} %0 %1 %2 %3 \n'
-                f'\t{output} = {inputs[0]} = {inputs[1]} = {inputs[2]} = ({inputs[0]} & {inputs[1]}) | ({inputs[0]} & {inputs[2]}) | ({inputs[1]} & {inputs[2]});\n'
+                f'\t{outputs[0]} = {inputs[0]} = {inputs[1]} = {inputs[2]} = ({inputs[0]} & {inputs[1]}) | ({inputs[0]} & {inputs[2]}) | ({inputs[1]} & {inputs[2]});\n'
+                if len(outputs) == 1 and len(inputs) == 3 else
+                self.raise_exception(f"Invalid maj3 operands: {len(outputs)} outputs and {len(inputs)} inputs.")
             ),
-            "zero": lambda output, inputs, info: (
+            "zero": lambda outputs, inputs, info: (
                 f'\t// PIM_OP {info} %0 \n'
-                f'\t{output} = 0;\n'
+                f'\t{outputs[0]} = 0;\n'
+                if len(outputs) == 1 and len(inputs) == 0 else
+                self.raise_exception(f"Invalid zero operands: {len(outputs)} outputs and {len(inputs)} inputs.")
             ),
-            "one": lambda output, inputs, info: (
+            "one": lambda outputs, inputs, info: (
                 f'\t// PIM_OP {info} %0 \n'
-                f'\t{output} = 1;\n'
+                f'\t{outputs[0]} = 1;\n'
+                if len(outputs) == 1 and len(inputs) == 0 else
+                self.raise_exception(f"Invalid one operands: {len(outputs)} outputs and {len(inputs)} inputs.")
             ),
         }
 
@@ -194,7 +236,7 @@ class GeneratorBitwise():
             # Skip input and output ports
             return ""
         inputs = self.sanitize_token_list(gate['inputs'])
-        output = self.sanitize_token(gate['outputs'][0])
+        outputs = self.sanitize_token_list(gate['outputs'])
 
         gate_func = gate['gate_func']
         # Show information in bitwise code to align with ASM generation
@@ -202,7 +244,7 @@ class GeneratorBitwise():
         info += f" {gate_func}"
         if gate_func in bitwise_instructions:
             bitwise_func = bitwise_instructions[gate_func]
-            return bitwise_func(output, inputs, info)
+            return bitwise_func(outputs, inputs, info)
 
         raise ValueError(f"Error: Unhandled gate type {gate_func} for gate ID {gate_id}.")
 

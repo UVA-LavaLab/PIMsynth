@@ -23,7 +23,7 @@ class MajNormalizer(DagTransformer):
             if gate['gate_func'] == "and2":
                 total_and += self.run_xform_and_to_maj(dag, gate_id)
             elif gate['gate_func'] == "or2":
-                total_or = self.run_xform_or_to_maj(dag, gate_id)
+                total_or += self.run_xform_or_to_maj(dag, gate_id)
         if self.debug_level >= 1:
             print(f'DAG-Transform Summary: Total {total_and} AND gates and {total_or} OR gates transformed to MAJ gates')
         dag.sanity_check()
