@@ -117,37 +117,43 @@ class GeneratorAsm():
         regs_to_clobber = regs_special + regs_args + regs_saved[regs_saved_to_use:] + regs_temp[regs_temp_to_use:]
         return ','.join(regs_to_clobber)
 
-    def get_asm_instructions(self, gate_id, outputs, inputs, info, clobber):
+    def get_asm_instructions(self, gate_id, sn, clobber):
         """ Return a dictionary that maps logic gate names to assembly code generation functions """
         if self.pim_mode == "digital":
-            return self.get_asm_instructions_digital(gate_id, outputs, inputs, info, clobber)
+            return self.get_asm_instructions_digital(gate_id, sn, clobber)
         if self.pim_mode == "analog":
-            return self.get_asm_instructions_analog(gate_id, outputs, inputs, info, clobber)
+            return self.get_asm_instructions_analog(gate_id, sn, clobber)
         raise ValueError(f"Error: Unknown pim mode {self.pim_mode}")
 
-    def get_asm_instructions_digital(self, gate_id, outputs, inputs, info, clobber):
+    def get_asm_instructions_digital(self, gate_id, sn, clobber):
         """ Return a dictionary that maps logic gate names to assembly code generation functions for digital PIM """
         # =r: output register, r: input register
         # return a single line assembly code. Be careful with " and \\n
-        gate_func = self.dag.graph.nodes[gate_id]['gate_func']
+        gate = self.dag.graph.nodes[gate_id]
+        gate_func = gate['gate_func']
+        if gate_func in ['in_port', 'out_port']:
+            return ""  # Skip input and output ports
+        inputs = self.sanitize_token_list(gate['inputs'])
+        outputs = self.sanitize_token_list(gate['outputs'])
+        info = self.get_gate_func_encoding(gate_id)
         code = ''
         if gate_func == 'inv1':
             if len(outputs) == 1 and len(inputs) == 1:
-                code += f'"#PIM_OP {info} %0 %1 \\n'
+                code += f'"#PIM_OP {sn} {info} %0 %1 \\n'
                 code += f' not %0, %1'
                 code += f'" : "=r" ({outputs[0]}) : "r" ({inputs[0]}) : {clobber}'
             else:
                 self.raise_exception(f"Invalid inv1 operands: {len(outputs)} outputs and {len(inputs)} inputs.")
         elif gate_func == 'and2':
             if len(outputs) == 1 and len(inputs) == 2:
-                code += f'"#PIM_OP {info} %0 %1 %2 \\n'
+                code += f'"#PIM_OP {sn} {info} %0 %1 %2 \\n'
                 code += f' and %0, %1, %2'
                 code += f'" : "=r" ({outputs[0]}) : "r" ({inputs[0]}), "r" ({inputs[1]}) : {clobber}'
             else:
                 self.raise_exception(f"Invalid and2 operands: {len(outputs)} outputs and {len(inputs)} inputs.")
         elif gate_func == 'nand2':
             if len(outputs) == 1 and len(inputs) == 2:
-                code += f'"#PIM_OP {info} %0 %1 %2 \\n'
+                code += f'"#PIM_OP {sn} {info} %0 %1 %2 \\n'
                 code += f' and %0, %1, %2 \\n'
                 code += f' not %0, %0'
                 code += f'" : "=r" ({outputs[0]}) : "r" ({inputs[0]}), "r" ({inputs[1]}) : {clobber}'
@@ -155,14 +161,14 @@ class GeneratorAsm():
                 self.raise_exception(f"Invalid nand2 operands: {len(outputs)} outputs and {len(inputs)} inputs.")
         elif gate_func == 'or2':
             if len(outputs) == 1 and len(inputs) == 2:
-                code += f'"#PIM_OP {info} %0 %1 %2 \\n'
+                code += f'"#PIM_OP {sn} {info} %0 %1 %2 \\n'
                 code += f' or %0, %1, %2'
                 code += f'" : "=r" ({outputs[0]}) : "r" ({inputs[0]}), "r" ({inputs[1]}) : {clobber}'
             else:
                 self.raise_exception(f"Invalid or2 operands: {len(outputs)} outputs and {len(inputs)} inputs.")
         elif gate_func == 'nor2':
             if len(outputs) == 1 and len(inputs) == 2:
-                code += f'"#PIM_OP {info} %0 %1 %2 \\n'
+                code += f'"#PIM_OP {sn} {info} %0 %1 %2 \\n'
                 code += f' or %0, %1, %2 \\n'
                 code += f' not %0, %0'
                 code += f'" : "=r" ({outputs[0]}) : "r" ({inputs[0]}), "r" ({inputs[1]}) : {clobber}'
@@ -170,14 +176,14 @@ class GeneratorAsm():
                 self.raise_exception(f"Invalid nor2 operands: {len(outputs)} outputs and {len(inputs)} inputs.")
         elif gate_func == 'xor2':
             if len(outputs) == 1 and len(inputs) == 2:
-                code += f'"#PIM_OP {info} %0 %1 %2 \\n'
+                code += f'"#PIM_OP {sn} {info} %0 %1 %2 \\n'
                 code += f' xor %0, %1, %2'
                 code += f'" : "=r" ({outputs[0]}) : "r" ({inputs[0]}), "r" ({inputs[1]}) : {clobber}'
             else:
                 self.raise_exception(f"Invalid xor2 operands: {len(outputs)} outputs and {len(inputs)} inputs.")
         elif gate_func == 'xnor2':
             if len(outputs) == 1 and len(inputs) == 2:
-                code += f'"#PIM_OP {info} %0 %1 %2 \\n'
+                code += f'"#PIM_OP {sn} {info} %0 %1 %2 \\n'
                 code += f' xor %0, %1, %2 \\n'
                 code += f' not %0, %0'
                 code += f'" : "=r" ({outputs[0]}) : "r" ({inputs[0]}), "r" ({inputs[1]}) : {clobber}'
@@ -185,7 +191,7 @@ class GeneratorAsm():
                 self.raise_exception(f"Invalid xnor2 operands: {len(outputs)} outputs and {len(inputs)} inputs.")
         elif gate_func == 'mux2':
             if len(outputs) == 1 and len(inputs) == 3:
-                code += f'"#PIM_OP {info} %0 %1 %3 %2 \\n'
+                code += f'"#PIM_OP {sn} {info} %0 %1 %3 %2 \\n'
                 code += f' not s1, %1 \\n'
                 code += f' and s2, s1, %2 \\n'
                 code += f' and s3, %1, %3 \\n'
@@ -195,7 +201,7 @@ class GeneratorAsm():
                 self.raise_exception(f"Invalid mux2 operands: {len(outputs)} outputs and {len(inputs)} inputs.")
         elif gate_func == 'maj3':
             if len(outputs) == 1 and len(inputs) == 3:
-                code += f'"#PIM_OP {info} %0 %1 %2 %3 \\n'
+                code += f'"#PIM_OP {sn} {info} %0 %1 %2 %3 \\n'
                 code += f' and s1, %1, %2 \\n'
                 code += f' and s2, %2, %3 \\n'
                 code += f' and s3, %1, %3 \\n'
@@ -206,7 +212,7 @@ class GeneratorAsm():
                 self.raise_exception(f"Invalid maj3 operands: {len(outputs)} outputs and {len(inputs)} inputs.")
         elif gate_func == 'zero':
             if len(outputs) == 1 and len(inputs) == 0:
-                code += f'"#PIM_OP {info} %0 \\n'
+                code += f'"#PIM_OP {sn} {info} %0 \\n'
                 code += f' li %0, 0 \\n'
                 code += f' mv %0, %0'
                 code += f'" : "=r" ({outputs[0]}) : : {clobber}'
@@ -214,7 +220,7 @@ class GeneratorAsm():
                 self.raise_exception(f"Invalid zero operands: {len(outputs)} outputs and {len(inputs)} inputs.")
         elif gate_func == 'one':
             if len(outputs) == 1 and len(inputs) == 0:
-                code += f'"#PIM_OP {info} %0 \\n'
+                code += f'"#PIM_OP {sn} {info} %0 \\n'
                 code += f' li %0, 0 \\n'
                 code += f' not %0, %0'
                 code += f'" : "=r" ({outputs[0]}) : : {clobber}'
@@ -224,7 +230,7 @@ class GeneratorAsm():
             self.raise_exception(f"Error: Unknown gate function {gate_func} for gate {gate_id}")
         return f'\tasm({code});\n'
 
-    def get_asm_instructions_analog(self, gate_id, outputs, inputs, info, clobber):
+    def get_asm_instructions_analog(self, gate_id, sn, clobber):
         """ Return a dictionary that maps logic gate names to assembly code generation functions for analog PIM """
         # return a single line assembly code. Be careful with " and \\n
         # r: input register
@@ -232,12 +238,18 @@ class GeneratorAsm():
         # 0: input uses same register as output 0
         # =r: output register
         # =&r: output must be different from inputs using early clobber
-        gate_func = self.dag.graph.nodes[gate_id]['gate_func']
+        gate = self.dag.graph.nodes[gate_id]
+        gate_func = gate['gate_func']
+        if gate_func in ['in_port', 'out_port']:
+            return ""  # Skip input and output ports
+        inputs = self.sanitize_token_list(gate['inputs'])
+        outputs = self.sanitize_token_list(gate['outputs'])
+        info = self.get_gate_func_encoding(gate_id)
         code = ''
         if gate_func == 'copy':
             # Note: This is regular wire copy
             if len(outputs) == 1 and len(inputs) == 1:
-                code += f'"#PIM_OP {info} %0 %1 \\n'
+                code += f'"#PIM_OP {sn} {info} %0 %1 \\n'
                 code += f' mv %0, %1'
                 code += f'" : "=r" ({outputs[0]}) : "r" ({inputs[0]}) : {clobber}'
             else:
@@ -245,7 +257,7 @@ class GeneratorAsm():
         elif gate_func == 'copy_inout':
             # Note: copy_inout is used by wire copy inserter, supporting dependency chain while copying
             if len(outputs) == 1 and len(inputs) == 1:
-                code += f'"#PIM_OP {info} %0 %1 \\n'
+                code += f'"#PIM_OP {sn} {info} %0 %1 \\n'
                 code += f' mv %0, %1'
                 code += f'" : "=r" ({outputs[0]}), "+r" ({inputs[0]}) : : {clobber}'
             else:
@@ -253,14 +265,14 @@ class GeneratorAsm():
         elif gate_func == 'inv1':
             # Note: Enforce inverter input/output to be different, to reduce the number of copies in ASM translator
             if len(outputs) == 1 and len(inputs) == 1:
-                code += f'"#PIM_OP {info} %0 %1 \\n'
+                code += f'"#PIM_OP {sn} {info} %0 %1 \\n'
                 code += f' not %0, %1'
                 code += f'" : "=&r" ({outputs[0]}) : "r" ({inputs[0]}) : {clobber}'
             else:
                 self.raise_exception(f"Invalid inv1 operands: {len(outputs)} outputs and {len(inputs)} inputs.")
         elif gate_func == 'and2':
             if len(outputs) == 1 and len(inputs) == 2:
-                code += f'"#PIM_OP {info} %0 %1 %2 \\n'
+                code += f'"#PIM_OP {sn} {info} %0 %1 %2 \\n'
                 code += f' and %0, %1, %2 \\n'
                 code += f' mv %1, %0 \\n'
                 code += f' mv %2, %0'
@@ -269,7 +281,7 @@ class GeneratorAsm():
                 self.raise_exception(f"Invalid and2 operands: {len(outputs)} outputs and {len(inputs)} inputs.")
         elif gate_func == 'or2':
             if len(outputs) == 1 and len(inputs) == 2:
-                code += f'"#PIM_OP {info} %0 %1 %2 \\n'
+                code += f'"#PIM_OP {sn} {info} %0 %1 %2 \\n'
                 code += f' or %0, %1, %2 \\n'
                 code += f' mv %1, %0 \\n'
                 code += f' mv %2, %0'
@@ -278,7 +290,7 @@ class GeneratorAsm():
                 self.raise_exception(f"Invalid or2 operands: {len(outputs)} outputs and {len(inputs)} inputs.")
         elif gate_func == 'maj3':
             if len(outputs) == 1 and len(inputs) == 3:
-                code += f'"#PIM_OP {info} %0 %1 %2 %3 \\n'
+                code += f'"#PIM_OP {sn} {info} %0 %1 %2 %3 \\n'
                 code += f' and s1, %1, %2 \\n'
                 code += f' and s2, %2, %3 \\n'
                 code += f' and s3, %1, %3 \\n'
@@ -292,7 +304,7 @@ class GeneratorAsm():
                 self.raise_exception(f"Invalid maj3 operands: {len(outputs)} outputs and {len(inputs)} inputs.")
         elif gate_func == 'zero':
             if len(outputs) == 1 and len(inputs) == 0:
-                code += f'"#PIM_OP {info} %0 \\n'
+                code += f'"#PIM_OP {sn} {info} %0 \\n'
                 code += f' li %0, 0 \\n'
                 code += f' mv %0, %0'
                 code += f'" : "=r" ({outputs[0]}) : : {clobber}'
@@ -300,7 +312,7 @@ class GeneratorAsm():
                 self.raise_exception(f"Invalid zero operands: {len(outputs)} outputs and {len(inputs)} inputs.")
         elif gate_func == 'one':
             if len(outputs) == 1 and len(inputs) == 0:
-                code += f'"#PIM_OP {info} %0 \\n'
+                code += f'"#PIM_OP {sn} {info} %0 \\n'
                 code += f' li %0, 0 \\n'
                 code += f' not %0, %0'
                 code += f'" : "=r" ({outputs[0]}) : : {clobber}'
@@ -310,25 +322,17 @@ class GeneratorAsm():
             self.raise_exception(f"Error: Unknown gate function {gate_func} for gate {gate_id}")
         return f'\tasm({code});\n'
 
-    def get_gate_func_encoding(self, gate_id, inputs, outputs):
+    def get_gate_func_encoding(self, gate_id):
         """ Get gate_func encoding for passing information to ASM translator """
         gate = self.dag.graph.nodes[gate_id]
         info = f" {gate['gate_func']}"
         return info
 
-    def generate_single_asm_statement(self, gate_id, info, clobber):
+    def generate_single_asm_statement(self, gate_id, sn, clobber):
         """ Generate a single assembly statement based on the logic gate type """
-        gate = self.dag.graph.nodes[gate_id]
-        if gate['gate_func'] in ['in_port', 'out_port']:
-            # Skip input and output ports
-            return ""
-        inputs = self.sanitize_token_list(gate['inputs'])
-        outputs = self.sanitize_token_list(gate['outputs'])
-
         # Pass information from BLIF translator to ASM translator
         # Format: #PIM_OP <serial-number> <gate_func> operands
-        info += self.get_gate_func_encoding(gate_id, inputs, outputs)
-        return self.get_asm_instructions(gate_id, outputs, inputs, info, clobber)
+        return self.get_asm_instructions(gate_id, sn, clobber)
 
     def generate_all_asm_statements(self):
         """ Generate C asm statement sequence """
@@ -340,8 +344,7 @@ class GeneratorAsm():
 
         # Generate assembly statements for each item in the statement list
         for i, gate_id in enumerate(self.dag.get_topo_sorted_gate_id_list()):
-            info = str(i)
-            code += self.generate_single_asm_statement(gate_id, info, clobber)
+            code += self.generate_single_asm_statement(gate_id, i, clobber)
 
         code += '\tasm("#PIM_OP END ##########");\n'
         return code
