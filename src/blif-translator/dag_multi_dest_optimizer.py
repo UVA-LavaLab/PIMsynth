@@ -27,7 +27,6 @@ class MultiDestOptimizer(DagTransformer):
                 total_packed += self.run_xform_multi_dest_opt(dag, gate_id)
         if self.debug_level >= 1:
             print(f'DAG-Transform Summary: Packed {total_packed} wires using multi-destination optimization')
-        dag.sanity_check()
 
     def is_target_gate(self, dag, gate_id):
         """ Check if the gate is a target for inout variable reuse """

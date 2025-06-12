@@ -86,6 +86,11 @@ class BlifTranslator:
         """ Print or visualizer the DAG for debugging """
         if self.debug_level >= 1:
             print("Info: BLIF translator DAG checkpoint", tag)
+            dag.sanity_check()
+            if tag == 'initial':
+                dag.verify_dag(pim_mode='digital')
+            elif tag == 'final':
+                dag.verify_dag(pim_mode=self.pim_mode)
 
         if self.visualize:
             DAG.save_dag_as_json(dag, f"dag_{tag}.json")

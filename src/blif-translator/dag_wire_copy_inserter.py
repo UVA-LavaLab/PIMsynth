@@ -28,7 +28,6 @@ class WireCopyInserter(DagTransformer):
                 wire_queue.appendleft(new_wire)
         if self.debug_level >= 1:
             print(f'DAG-Transform Summary: Total {total_copy} wire copies inserted for input-destroying gates')
-        dag.sanity_check()
 
     def is_target_wire(self, dag, wire):
         """ Check if the wire is a target for wire copy insertion """
@@ -69,7 +68,7 @@ class WireCopyInserter(DagTransformer):
             print(f'DAG-Transform: Copy wire: {target_wire} -> {copy_gate_id} (for {anchor_gate_id})')
         dag.add_gate(gate_id=copy_gate_id, gate_func="copy_inout", inputs=[target_wire], outputs=[new_wire])
 
-        # Update wires
+        # Move the rest gates under the copy gate
         dag.add_wire(target_wire, fanin_gate_id, copy_gate_id)
         for fanout_gate_id in rest_gate_ids:
             dag.remove_wire(fanin_gate_id, fanout_gate_id)

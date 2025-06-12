@@ -21,7 +21,6 @@ class InvEliminator(DagTransformer):
                 total_inv += self.run_xform_inv_elimination(dag, gate_id)
         if self.debug_level >= 1:
             print(f'DAG-Transform Summary: Total {total_inv} inverter gates eliminated')
-        dag.sanity_check()
 
     def is_target_gate(self, dag, gate_id):
         """ Check if a gate is a target for inverter elimination """

@@ -23,7 +23,6 @@ class InoutVarReusing(DagTransformer):
                 total_reuse += self.run_xform_inout_var_reusing(dag, gate_id)
         if self.debug_level >= 1:
             print(f'DAG-Transform Summary: Reuse {total_reuse} inout wires')
-        dag.sanity_check()
 
     def is_target_gate(self, dag, gate_id):
         """ Check if the gate is a target for inout variable reuse """

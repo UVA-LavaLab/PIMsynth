@@ -23,7 +23,6 @@ class InputPortIsolation(DagTransformer):
                 total_copy += self.run_xform_copy_input_port(dag, gate_id)
         if self.debug_level >= 1:
             print(f'DAG-Transform Summary: Total {total_copy} copy gates inserted for input ports')
-        dag.sanity_check()
 
     def sanitize_name(self, input_str: str) -> str:
         """ Sanitize bus port or wire name """
