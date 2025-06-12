@@ -104,13 +104,21 @@ class PimEvalAPIAnalogCodeGenerator(PimEvalAPICodeGeneratorBase):
         return code
 
     def handleMajInstruction(self, instruction):
-        if not (instruction.opCode == "maj3"):
+        if not instruction.opCode.startswith("maj3"):
             return None
+        # Extract inversion information from BLIF translator
+        inv0, inv1, inv2 = False, False, False
+        if '__n' in instruction.opCode:
+            inv0, inv1, inv2 = [c == '1' for c in instruction.opCode.split('__n')[1][:3]]
+        operand0 = self.mapPimAsmRegToPimEvalAPI(instruction.operandsList[0])
+        operand1 = self.mapPimAsmRegToPimEvalAPI(instruction.operandsList[1], isInverted=inv0)
+        operand2 = self.mapPimAsmRegToPimEvalAPI(instruction.operandsList[2], isInverted=inv1)
+        operand3 = self.mapPimAsmRegToPimEvalAPI(instruction.operandsList[3], isInverted=inv2)
         code = self.generateInstructionComment(instruction)
         if instruction.operandsList[0] in instruction.operandsList[1:]:
-            code += f"\tpimOpAP(3, {self.mapPimAsmRegToPimEvalAPI(instruction.operandsList[1])}, {self.mapPimAsmRegToPimEvalAPI(instruction.operandsList[2])}, {self.mapPimAsmRegToPimEvalAPI(instruction.operandsList[3])});\n\n"
+            code += f"\tpimOpAP(3, {operand1}, {operand2}, {operand3});\n\n"
         else:
-            code += f"\tpimOpAAP(3, 1, {self.mapPimAsmRegToPimEvalAPI(instruction.operandsList[1])}, {self.mapPimAsmRegToPimEvalAPI(instruction.operandsList[2])}, {self.mapPimAsmRegToPimEvalAPI(instruction.operandsList[3])}, {self.mapPimAsmRegToPimEvalAPI(instruction.operandsList[0])});\n\n"
+            code += f"\tpimOpAAP(3, 1, {operand1}, {operand2}, {operand3}, {operand0});\n\n"
         return code
 
     def handleNotInstruction(self, instruction):

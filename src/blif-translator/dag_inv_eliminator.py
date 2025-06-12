@@ -29,9 +29,7 @@ class InvEliminator(DagTransformer):
         return gate['gate_func'] == "inv1"
 
     def run_xform_inv_elimination(self, dag, inv_gate_id):
-        """ Transform: Eliminate an inverter gate and negate the edges """
-        if self.debug_level >= 2:
-            print(f'DAG-Transform: Remove INV gate: {inv_gate_id}')
+        """ Transform: Eliminate an inverter gate and invert fanout gate inputs """
         inv_gate = dag.graph.nodes[inv_gate_id]
         in_wire = inv_gate['inputs'][0]
         out_wire = inv_gate['outputs'][0]
@@ -40,30 +38,24 @@ class InvEliminator(DagTransformer):
         if dag.is_in_port(in_wire) or dag.is_out_port(out_wire):
             return 0
 
+        if self.debug_level >= 2:
+            print(f'DAG-Transform: Remove INV gate: {inv_gate_id}')
+
         driver_gate_ids = dag.get_wire_fanin_gate_ids(in_wire)
         assert len(driver_gate_ids) == 1, "Inverter should have exactly one driver gate"
         driver_gate_id = driver_gate_ids[0]
         load_gate_ids = dag.get_wire_fanout_gate_ids(out_wire)
 
-        # Handle negation of wires
-        # If the in wire is negated, keep all out wires as is after inverter elimination
-        # If the in wire is not negated, negate all out wires after inverter elimination
-        is_in_wire_negated = dag.is_wire_negated(driver_gate_id, inv_gate_id)
-        is_out_wire_negated = []
-        for load_gate_id in load_gate_ids:
-            is_negated = dag.is_wire_negated(inv_gate_id, load_gate_id)
-            if not is_in_wire_negated:
-                is_negated = not is_negated
-            is_out_wire_negated.append(is_negated)
-
-        # Remove the inverter and update wires in DAG
+        # Remove the inverter gate and wires
         dag.remove_wire(driver_gate_id, inv_gate_id)
         for load_gate_id in load_gate_ids:
             dag.remove_wire(inv_gate_id, load_gate_id)
         dag.remove_gate(inv_gate_id)
-        for load_gate_id, is_negated in zip(load_gate_ids, is_out_wire_negated):
+
+        # Reconnect and invert the fanout gate inputs
+        for load_gate_id in load_gate_ids:
             dag.add_wire(in_wire, driver_gate_id, load_gate_id)
-            dag.set_wire_negated(driver_gate_id, load_gate_id, is_negated)
             dag.replace_input_wire(load_gate_id, out_wire, in_wire)
+            dag.invert_input_wire(load_gate_id, in_wire)
         return 1
 

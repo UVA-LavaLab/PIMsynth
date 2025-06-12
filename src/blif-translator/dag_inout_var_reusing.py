@@ -63,12 +63,14 @@ class InoutVarReusing(DagTransformer):
             while target_gate_id is not None and reusable_inout_wires:
                 if self.debug_level >= 2:
                     print(f'DAG-Transform: Reusing inout wire {reusable_inout_wires[0]} for gate {target_gate_id} (from {gate_id})')
-                is_negated = dag.is_wire_negated(gate_id, target_gate_id)
                 dag.remove_wire(gate_id, target_gate_id)
                 new_wire = dag.uniqufy_wire_name(f"{reusable_inout_wires[0]} seg")
                 dag.add_wire(new_wire, gate_id, target_gate_id)
-                dag.set_wire_negated(gate_id, target_gate_id, is_negated)
                 dag.replace_input_wire(target_gate_id, output_wire, new_wire)
+                # If the reused input is inverted, need to invert the new wire as well
+                is_inv = reusable_inout_wires[0] in dag.graph.nodes[gate_id]['inverted']
+                if is_inv:
+                    dag.invert_input_wire(target_gate_id, new_wire)
                 reusable_inout_wires.pop(0)
                 reuse_count += 1
                 if len(rest_gate_ids) <= 1:

@@ -12,6 +12,7 @@ import json
 from networkx.readwrite import json_graph
 from pyvis.network import Network
 import networkx as nx
+import copy
 
 
 class DAG:
@@ -27,6 +28,7 @@ class DAG:
                 - gate_func: Function of the gate (e.g., inv1, and2, maj3, copy, in_port, out_port)
                 - inputs: List of input wires with order preserved
                 - outputs: List of output wires with order preserved
+                - inverted: Set of input/output wires that are inverted
             - APIs:
                 - graph.add_node(gate_id): Add a gate node to the DAG
                 - graph.nodes[gate_id]: Access gate information dictionary by gate ID
@@ -35,7 +37,6 @@ class DAG:
                 - A wire may have multiple segaments because of in-out behavior of analog PIM
             - Attributes:
                 - wire_name: Name of the wire
-                - is_negated: False: not negated, True: negated (for analog PIM with dual-contact cells)
             - APIs:
                 - graph.add_edge(fanin_gate_id, gate_id): Add an edge from fanin gate to gate
                 - graph[fanin_gate_id][gate_id]: Access edge information dictionary by fanin and fanout gate IDs
@@ -51,6 +52,16 @@ class DAG:
         self.__out_ports = []  # To preserve order of output ports
         self.debug_level = debug_level
         self.initialize(in_ports, out_ports, gate_info_list)
+
+    def __deepcopy__(self, memo):
+        """ Create a deep copy of the DAG """
+        new_dag = DAG(module_name=self.module_name,
+                      in_ports=[], out_ports=[], gate_info_list=[],
+                      debug_level=self.debug_level)
+        new_dag.graph = copy.deepcopy(self.graph, memo)
+        new_dag.__in_ports = self.__in_ports.copy()
+        new_dag.__out_ports = self.__out_ports.copy()
+        return new_dag
 
     def initialize(self, in_ports, out_ports, gate_info_list):
         """ Initialize DAG nodes and edges """
@@ -114,7 +125,8 @@ class DAG:
                             gate_id=gate_id,
                             gate_func=gate_func,
                             inputs=inputs.copy(),
-                            outputs=outputs.copy())
+                            outputs=outputs.copy(),
+                            inverted=set())
 
     def remove_gate(self, gate_id):
         """ Remove a gate from the DAG """
@@ -134,7 +146,7 @@ class DAG:
             raise ValueError(f"Cannot add wire '{wire_name}': fanin or fanout gate does not exist.")
         if self.graph.has_edge(fanin_gate_id, fanout_gate_id):
             raise ValueError(f"Wire '{wire_name}' already exists between {fanin_gate_id} and {fanout_gate_id}.")
-        self.graph.add_edge(fanin_gate_id, fanout_gate_id, wire_name=wire_name, is_negated=False)
+        self.graph.add_edge(fanin_gate_id, fanout_gate_id, wire_name=wire_name)
 
     def remove_wire(self, fanin_gate_id, fanout_gate_id):
         """ Remove a wire (single edge only) from the DAG """
@@ -142,18 +154,6 @@ class DAG:
             raise ValueError(f"Wire does not exist between {fanin_gate_id} and {fanout_gate_id}.")
         wire_name = self.graph[fanin_gate_id][fanout_gate_id]['wire_name']
         self.graph.remove_edge(fanin_gate_id, fanout_gate_id)
-
-    def set_wire_negated(self, fanin_gate_id, fanout_gate_id, is_negated):
-        """ Set a wire (single edge only) as negated or not """
-        if not self.graph.has_edge(fanin_gate_id, fanout_gate_id):
-            raise ValueError(f"Wire does not exist between {fanin_gate_id} and {fanout_gate_id}.")
-        self.graph[fanin_gate_id][fanout_gate_id]['is_negated'] = is_negated
-
-    def is_wire_negated(self, fanin_gate_id, fanout_gate_id):
-        """ Check if a wire (single edge only) is negated """
-        if not self.graph.has_edge(fanin_gate_id, fanout_gate_id):
-            raise ValueError(f"Wire does not exist between {fanin_gate_id} and {fanout_gate_id}.")
-        return self.graph[fanin_gate_id][fanout_gate_id].get('is_negated', False)
 
     def replace_input_wire(self, gate_id, old_wire_name, new_wire_name):
         """ Replace an input wire of a gate with a new wire name """
@@ -168,6 +168,9 @@ class DAG:
         inputs = self.graph.nodes[gate_id]['inputs']
         inputs[inputs.index(old_wire_name)] = new_wire_name
         self.graph.nodes[gate_id]['inputs'] = inputs
+        if old_wire_name in self.graph.nodes[gate_id]['inverted']:
+            self.graph.nodes[gate_id]['inverted'].remove(old_wire_name)
+            self.graph.nodes[gate_id]['inverted'].add(new_wire_name)
 
         # Rename downstream wire segments recursively
         for _, to_gate_id, edge_data in self.graph.out_edges(gate_id, data=True):
@@ -176,6 +179,32 @@ class DAG:
                 next_wire_name = new_wire_name + wire_name[len(old_wire_name):]
                 self.graph[gate_id][to_gate_id]['wire_name'] = next_wire_name
                 self.replace_input_wire(to_gate_id, wire_name, next_wire_name)
+
+    def invert_input_wire(self, gate_id, wire_name):
+        """ Invert an input of a gate and trace downstream wire segments """
+        if not self.graph.has_node(gate_id):
+            raise ValueError(f"Gate ID '{gate_id}' does not exist in the DAG.")
+        if wire_name not in self.graph.nodes[gate_id]['inputs']:
+            raise ValueError(f"Wire '{wire_name}' is not an input of gate '{gate_id}'.")
+        # Invert the input wire
+        if wire_name in self.graph.nodes[gate_id]['inverted']:
+            self.graph.nodes[gate_id]['inverted'].remove(wire_name)
+        else:
+            self.graph.nodes[gate_id]['inverted'].add(wire_name)
+        # Update downstream wire segments recursively
+        for _, to_gate_id, edge_data in self.graph.out_edges(gate_id, data=True):
+            if edge_data.get('wire_name', '').startswith(wire_name):
+                next_wire_name = wire_name + ' seg'
+                self.graph[gate_id][to_gate_id]['wire_name'] = next_wire_name
+                self.invert_input_wire(to_gate_id, next_wire_name)
+
+    def is_input_wire_inverted(self, gate_id, wire_name):
+        """ Check if an input wire of a gate is inverted """
+        if not self.graph.has_node(gate_id):
+            raise ValueError(f"Gate ID '{gate_id}' does not exist in the DAG.")
+        if wire_name not in self.graph.nodes[gate_id]['inputs']:
+            raise ValueError(f"Wire '{wire_name}' is not an input of gate '{gate_id}'.")
+        return wire_name in self.graph.nodes[gate_id]['inverted']
 
     def uniqufy_gate_id(self, new_gate_id):
         """ Ensure the new gate ID is unique by appending a suffix if necessary """
@@ -219,9 +248,7 @@ class DAG:
             wire_name = edge_data.get('wire_name', None)
             if wire_name is None:
                 raise ValueError(f"Edge without wire_name found between {from_gate_id} and {to_gate_id}.")
-            is_negated = edge_data.get('is_negated', False)
-            repr_str += f"Edge: {from_gate_id} -> {to_gate_id} | Wire: {wire_name}"
-            repr_str += " | >>>>>>>>>> Negated\n" if is_negated else "\n"
+            repr_str += f"Edge: {from_gate_id} -> {to_gate_id} | Wire: {wire_name}\n"
         repr_str += "--------\n"
         for gate_id in self.get_topo_sorted_gate_id_list():
             repr_str += self.get_gate_info_str(gate_id) + "\n"
@@ -370,11 +397,22 @@ class DAG:
                 assert len(output_wires) == 0, f"Output port '{gate_id}' should not have any output wires."
                 assert len(input_wires) == 1, f"Output port '{gate_id}' should have exactly one input wire."
                 assert input_wires[0] == gate_id, f"Input wire '{input_wires[0]}' of output port '{gate_id}' should match the gate ID."
+            for wire_name in gate_node['inverted']:
+                if wire_name not in input_wires:
+                    raise ValueError(f"Inverted wire '{wire_name}' of gate '{gate_id}' is not in its input wires.")
+                if wire_name in output_wires:
+                    raise ValueError(f"Inverted wire '{wire_name}' of gate '{gate_id}' should not be in its output wires.")
+                if self.is_out_port(wire_name):
+                    raise ValueError(f"Inverted wire '{wire_name}' of gate '{gate_id}' should not be an output port.")
 
     @staticmethod
     def save_dag_as_json(dag, file_path):
         """ Save the DAG as a JSON file """
         # Export graph with embedded attributes
+        dag = copy.deepcopy(dag)  # Avoid modifying the original DAG
+        for node, data in dag.graph.nodes(data=True):
+            # Ensure all attributes are serializable
+            data['inverted'] = list(data.get('inverted', set()))
         data = json_graph.node_link_data(dag.graph, edges="links")
         with open(file_path, "w") as f:
             json.dump(data, f, indent=2)
@@ -393,6 +431,7 @@ class DAG:
                 dag.__in_ports.append(node)
             elif data.get('gate_func') == 'out_port':
                 dag.__out_ports.append(node)
+            dag.graph.nodes[node]['inverted'] = set(data.get('inverted', []))
 
         return dag
 

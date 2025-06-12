@@ -197,38 +197,78 @@ class GeneratorBitwise():
         code = ''
         if gate_func == 'copy':
             if len(outputs) == 1 and len(inputs) == 1:
+                inv0 = self.get_inv(gate_id, 0)
                 code += f'\t// PIM_OP {sn} {info} %0 %1 \n'
-                code += f'\t{outputs[0]} = {inputs[0]};\n'
+                code += f'\t{outputs[0]} = {inv0} {inputs[0]};\n'
             else:
                 self.raise_exception(f"Invalid copy operands: {len(outputs)} outputs and {len(inputs)} inputs.")
         elif gate_func == 'copy_inout':
             if len(outputs) == 1 and len(inputs) == 1:
+                inv0 = self.get_inv(gate_id, 0)
                 code += f'\t// PIM_OP {sn} {info} %0 %1 \n'
-                code += f'\t{outputs[0]} = {inputs[0]};\n'
+                code += f'\t{outputs[0]} = {inv0} {inputs[0]};\n'
             else:
                 self.raise_exception(f"Invalid copy_inout operands: {len(outputs)} outputs and {len(inputs)} inputs.")
         elif gate_func in ['inv1']:
             if len(outputs) == 1 and len(inputs) == 1:
+                inv0 = self.get_inv(gate_id, 0)
                 code += f'\t// PIM_OP {sn} {info} %0 %1 \n'
-                code += f'\t{outputs[0]} = !{inputs[0]};\n'
+                code += f'\t{outputs[0]} = ! {inv0} {inputs[0]};\n'
             else:
                 self.raise_exception(f"Invalid inv1 operands: {len(outputs)} outputs and {len(inputs)} inputs.")
         elif gate_func == 'and2':
             if len(outputs) == 1 and len(inputs) == 2:
+                inv0 = self.get_inv(gate_id, 0)
+                inv1 = self.get_inv(gate_id, 1)
+                in0, in1 = f'{inv0} {inputs[0]}', f'{inv1} {inputs[1]}'
                 code += f'\t// PIM_OP {sn} {info} %0 %1 %2 \n'
-                code += f'\t{outputs[0]} = {inputs[0]} = {inputs[1]} = {inputs[0]} & {inputs[1]};\n'
+                code += f'\t{outputs[0]} = {in0} & {in1};\n'
+                code += f'\t{inputs[0]} = {inv0} {outputs[0]};\n'
+                code += f'\t{inputs[1]} = {inv1} {outputs[0]};\n'
             else:
                 self.raise_exception(f"Invalid and2 operands: {len(outputs)} outputs and {len(inputs)} inputs.")
         elif gate_func == 'or2':
             if len(outputs) == 1 and len(inputs) == 2:
+                inv0 = self.get_inv(gate_id, 0)
+                inv1 = self.get_inv(gate_id, 1)
+                in0, in1 = f'{inv0} {inputs[0]}', f'{inv1} {inputs[1]}'
                 code += f'\t// PIM_OP {sn} {info} %0 %1 %2 \n'
-                code += f'\t{outputs[0]} = {inputs[0]} = {inputs[1]} = {inputs[0]} | {inputs[1]};\n'
+                code += f'\t{outputs[0]} = {in0} | {in1};\n'
+                code += f'\t{inputs[0]} = {inv0} {outputs[0]};\n'
+                code += f'\t{inputs[1]} = {inv1} {outputs[0]};\n'
             else:
                 self.raise_exception(f"Invalid or2 operands: {len(outputs)} outputs and {len(inputs)} inputs.")
         elif gate_func == 'maj3':
             if len(outputs) == 1 and len(inputs) == 3:
+                inv0 = self.get_inv(gate_id, 0)
+                inv1 = self.get_inv(gate_id, 1)
+                inv2 = self.get_inv(gate_id, 2)
+                in0, in1, in2 = f'{inv0} {inputs[0]}', f'{inv1} {inputs[1]}', f'{inv2} {inputs[2]}'
                 code += f'\t// PIM_OP {sn} {info} %0 %1 %2 %3 \n'
-                code += f'\t{outputs[0]} = {inputs[0]} = {inputs[1]} = {inputs[2]} = ({inputs[0]} & {inputs[1]}) | ({inputs[0]} & {inputs[2]}) | ({inputs[1]} & {inputs[2]});\n'
+                code += f'\t{outputs[0]} = ({in0} & {in1}) | ({in0} & {in2}) | ({in1} & {in2});\n'
+                code += f'\t{inputs[0]} = {inv0} {outputs[0]};\n'
+                code += f'\t{inputs[1]} = {inv1} {outputs[0]};\n'
+                code += f'\t{inputs[2]} = {inv2} {outputs[0]};\n'
+            elif len(outputs) == 2 and len(inputs) == 3:
+                inv0 = self.get_inv(gate_id, 0)
+                inv1 = self.get_inv(gate_id, 1)
+                inv2 = self.get_inv(gate_id, 2)
+                in0, in1, in2 = f'{inv0} {inputs[0]}', f'{inv1} {inputs[1]}', f'{inv2} {inputs[2]}'
+                code += f'\t// PIM_OP {sn} {info} %0 %1 %2 %3 \n'
+                code += f'\t{outputs[0]} = {outputs[1]} = ({in0} & {in1}) | ({in0} & {in2}) | ({in1} & {in2});\n'
+                code += f'\t{inputs[0]} = {inv0} {outputs[0]};\n'
+                code += f'\t{inputs[1]} = {inv1} {outputs[0]};\n'
+                code += f'\t{inputs[2]} = {inv2} {outputs[0]};\n'
+            elif len(outputs) == 3 and len(inputs) == 3:
+                inv0 = self.get_inv(gate_id, 0)
+                inv1 = self.get_inv(gate_id, 1)
+                inv2 = self.get_inv(gate_id, 2)
+                in0, in1, in2 = f'{inv0} {inputs[0]}', f'{inv1} {inputs[1]}', f'{inv2} {inputs[2]}'
+                code += f'\t// PIM_OP {sn} {info} %0 %1 %2 %3 \n'
+                code += f'\t{outputs[0]} = {outputs[1]} = {outputs[2]} = ({in0} & {in1}) | ({in0} & {in2}) | ({in1} & {in2});\n'
+                code += f'\t{inputs[0]} = {inv0} {outputs[0]};\n'
+                code += f'\t{inputs[1]} = {inv1} {outputs[0]};\n'
+                code += f'\t{inputs[2]} = {inv2} {outputs[0]};\n'
             else:
                 self.raise_exception(f"Invalid maj3 operands: {len(outputs)} outputs and {len(inputs)} inputs.")
         elif gate_func == 'zero':
@@ -246,6 +286,11 @@ class GeneratorBitwise():
         else:
             self.raise_exception(f"Error: Unknown gate function {gate_func} for gate ID {gate_id}.")
         return code
+
+    def get_inv(self, gate_id, in_idx):
+        """ Check if an input pin index is inverted for a given gate ID """
+        is_inv_input = self.dag.graph.nodes[gate_id]['inputs'][in_idx] in self.dag.graph.nodes[gate_id]['inverted']
+        return '!' if is_inv_input else ''
 
     def get_gate_func_encoding(self, gate_id):
         """ Get gate_func encoding for passing information to ASM translator """

@@ -300,6 +300,31 @@ class GeneratorAsm():
                 code += f' mv %2, %0 \\n'
                 code += f' mv %3, %0'
                 code += f'" : "=&r" ({outputs[0]}), "+r" ({inputs[0]}), "+r" ({inputs[1]}), "+r" ({inputs[2]}) : : {clobber}'
+            elif len(outputs) == 2 and len(inputs) == 3:
+                code += f'"#PIM_OP {sn} {info} %0 %1 %2 %3 %4 \\n'
+                code += f' and s1, %2, %3 \\n'
+                code += f' and s2, %3, %4 \\n'
+                code += f' and s3, %2, %4 \\n'
+                code += f' or s1, s1, s2 \\n'
+                code += f' or %0, s1, s3 \\n'
+                code += f' mv %1, %0 \\n'
+                code += f' mv %2, %0 \\n'
+                code += f' mv %3, %0'
+                code += f' mv %4, %0'
+                code += f'" : "=&r" ({outputs[0]}), "=&r" ({outputs[1]}), "+r" ({inputs[0]}), "+r" ({inputs[1]}), "+r" ({inputs[2]}) : : {clobber}'
+            elif len(outputs) == 3 and len(inputs) == 3:
+                code += f'"#PIM_OP {sn} {info} %0 %1 %2 %3 %4 %5 \\n'
+                code += f' and s1, %3, %4 \\n'
+                code += f' and s2, %4, %5 \\n'
+                code += f' and s3, %3, %5 \\n'
+                code += f' or s1, s1, s2 \\n'
+                code += f' or %0, s1, s3 \\n'
+                code += f' mv %1, %0 \\n'
+                code += f' mv %2, %0 \\n'
+                code += f' mv %3, %0'
+                code += f' mv %4, %0'
+                code += f' mv %5, %0'
+                code += f'" : "=&r" ({outputs[0]}), "=&r" ({outputs[1]}), "=&r" ({outputs[2]}), "+r" ({inputs[0]}), "+r" ({inputs[1]}), "+r" ({inputs[2]}) : : {clobber}'
             else:
                 self.raise_exception(f"Invalid maj3 operands: {len(outputs)} outputs and {len(inputs)} inputs.")
         elif gate_func == 'zero':
@@ -322,10 +347,23 @@ class GeneratorAsm():
             self.raise_exception(f"Error: Unknown gate function {gate_func} for gate {gate_id}")
         return f'\tasm({code});\n'
 
+    def get_inv(self, gate_id, in_idx):
+        """ Check if an input pin index is inverted for a given gate ID """
+        is_inv_input = self.dag.graph.nodes[gate_id]['inputs'][in_idx] in self.dag.graph.nodes[gate_id]['inverted']
+        return is_inv_input
+
     def get_gate_func_encoding(self, gate_id):
         """ Get gate_func encoding for passing information to ASM translator """
         gate = self.dag.graph.nodes[gate_id]
         info = f" {gate['gate_func']}"
+
+        # Append input inversion information
+        inv_str = ''
+        for i, _ in enumerate(gate['inputs']):
+            inv_str += '1' if self.get_inv(gate_id, i) else '0'
+        if '1' in inv_str:
+            info += f"__n{inv_str}"
+
         return info
 
     def generate_single_asm_statement(self, gate_id, sn, clobber):

@@ -22,6 +22,7 @@ from dag_input_port_isolation import InputPortIsolation
 from dag_maj_normalizer import MajNormalizer
 from dag_inv_eliminator import InvEliminator
 from dag_inout_var_reusing import InoutVarReusing
+from dag_multi_dest_optimizer import MultiDestOptimizer
 from dag_wire_copy_inserter import WireCopyInserter
 
 from generator_asm import GeneratorAsm
@@ -129,6 +130,11 @@ class BlifTranslator:
         inout_var_reuse = InoutVarReusing()
         inout_var_reuse.apply(dag)
         self.debug_checkpoint(dag, "post_inout_var_reuse")
+
+        ## Analog PIM: Utilize multi-destination gates
+        #multi_dest_optimizer = MultiDestOptimizer(self.num_regs)
+        #multi_dest_optimizer.apply(dag)
+        #self.debug_checkpoint(dag, "post_multi_dest_opt")
 
         ## Analog PIM: Copy wires that drives multiple input-destroying gates
         wire_copy_inserter = WireCopyInserter()
