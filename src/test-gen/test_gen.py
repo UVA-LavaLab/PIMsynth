@@ -116,6 +116,15 @@ class TestFileGeneratorBase():
             return int(data_type[4:])
         raise Exception(f"Unknown data type: {data_type}")
 
+    def _get_c_output_data_width(self, operator, data_type):
+        """ For bitwise testing: Some operators require different output bit width """
+        data_width = self._get_c_data_width(data_type)
+        if operator == 'popcount':
+            data_width = data_width.bit_length()  # log2
+        elif operator in ['gt', 'lt', 'eq']:
+            data_width = 1
+        return data_width
+
     def _get_inputs_list_string(self, with_type=False):
         inputs = [
             f"{self.__get_c_data_type(data_type)} {operand}" if with_type else operand
@@ -316,11 +325,9 @@ class BitwiseTestGenerator(TestFileGeneratorBase):
                 params += f'bit_{operand}+{i}, '
 
         # Call the bitwise function
-        # Note: Handle popcount specially here since it has fewer output bits
         for (operand, data_type) in self.output_operands:
-            data_width = self._get_c_data_width(data_type)
-            if self.operator == "popcount":
-                data_width = data_width.bit_length()  # log2
+            # Note: Some operators require narrower output data width
+            data_width = self._get_c_output_data_width(self.operator, data_type)
             code += f'\tint {operand}_bit_out[{data_width}];\n'
             for i in range(data_width):
                 params += f'{operand}_bit_out+{i}, '
@@ -330,9 +337,8 @@ class BitwiseTestGenerator(TestFileGeneratorBase):
 
         # Cast *_bit_out array to the output operands
         for (operand, data_type) in self.output_operands:
-            data_width = self._get_c_data_width(data_type)
-            if self.operator == "popcount":
-                data_width = data_width.bit_length()  # log2
+            # Note: Some operators require narrower output data width
+            data_width = self._get_c_output_data_width(self.operator, data_type)
             code += f"""
         {operand}_res = 0;
         for (int i = 0; i < {data_width}; i++) {{
