@@ -1,7 +1,7 @@
 // int32 add - EPFL impl
 // deyuan, 09/25/2024
 
-module add_int32(input [31:0] a, input [31:0] b, output [31:0] result);
+module add_int32_e(input [31:0] a, input [31:0] b, output [31:0] result);
     //assign result = a + b;
     wire n386, n387, n389, n390, n391, n392, n393, n394, n396, n397, n398,
       n399, n400, n401, n402, n404, n405, n406, n407, n408, n409, n410, n412,

@@ -284,7 +284,7 @@ class GoldenFunctionFileGenerator(TestFileGeneratorBase):
             signature = f"void {functionName}({self._get_inputs_list_string(with_type=True)}, {self._get_outputs_list_string(with_type=True, with_star=True)})"
             testStatmentStr = self.__get_golden_function_statement(self.operator)
             if testStatmentStr is None:
-                raise Exception("Error: The test generator does not support {self.operator} operator.")
+                raise Exception(f"Error: The test generator does not support {self.operator} operator.")
             code += f"""
     {signature} {{
       {testStatmentStr}

@@ -92,7 +92,15 @@ class TestCodeGenerator:
         if len(parts) != 4:
             raise ValueError(f"Invalid format: '{name}'. Expected format 'operation_datatype'.")
         arch, num_regs, pim_mode = parts[:3]
-        operator, data_type = parts[3].rsplit('_', 1)  # split by the last underscore
+        # TODO: Need a more robust way of extracting operator and data type
+        #       Assume .v filename is in format: <operator>_<datatype>_<suffix>
+        tokens = parts[3].split('_')
+        operator, data_type = None, None
+        for i, token in enumerate(tokens):
+            if token.startswith('int') or token.startswith('uint') or token.startswith('fp'):
+                operator = '_'.join(tokens[:i])
+                data_type = token
+                break
         return operator, data_type
 
     def __get_test_file_generator_config(self):
