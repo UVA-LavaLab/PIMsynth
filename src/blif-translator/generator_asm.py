@@ -309,7 +309,7 @@ class GeneratorAsm():
                 code += f' or %0, s1, s3 \\n'
                 code += f' mv %1, %0 \\n'
                 code += f' mv %2, %0 \\n'
-                code += f' mv %3, %0'
+                code += f' mv %3, %0 \\n'
                 code += f' mv %4, %0'
                 code += f'" : "=&r" ({outputs[0]}), "=&r" ({outputs[1]}), "+r" ({inputs[0]}), "+r" ({inputs[1]}), "+r" ({inputs[2]}) : : {clobber}'
             elif len(outputs) == 3 and len(inputs) == 3:
@@ -321,8 +321,8 @@ class GeneratorAsm():
                 code += f' or %0, s1, s3 \\n'
                 code += f' mv %1, %0 \\n'
                 code += f' mv %2, %0 \\n'
-                code += f' mv %3, %0'
-                code += f' mv %4, %0'
+                code += f' mv %3, %0 \\n'
+                code += f' mv %4, %0 \\n'
                 code += f' mv %5, %0'
                 code += f'" : "=&r" ({outputs[0]}), "=&r" ({outputs[1]}), "=&r" ({outputs[2]}), "+r" ({inputs[0]}), "+r" ({inputs[1]}), "+r" ({inputs[2]}) : : {clobber}'
             else:
