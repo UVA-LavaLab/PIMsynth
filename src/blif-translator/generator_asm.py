@@ -140,89 +140,89 @@ class GeneratorAsm():
         if gate_func == 'inv1':
             if len(outputs) == 1 and len(inputs) == 1:
                 code += f'"#PIM_OP {sn} {info} %0 %1 \\n'
-                code += f' not %0, %1'
+                code += ' not %0, %1'
                 code += f'" : "=r" ({outputs[0]}) : "r" ({inputs[0]}) : {clobber}'
             else:
                 self.raise_exception(f"Invalid inv1 operands: {len(outputs)} outputs and {len(inputs)} inputs.")
         elif gate_func == 'and2':
             if len(outputs) == 1 and len(inputs) == 2:
                 code += f'"#PIM_OP {sn} {info} %0 %1 %2 \\n'
-                code += f' and %0, %1, %2'
+                code += ' and %0, %1, %2'
                 code += f'" : "=r" ({outputs[0]}) : "r" ({inputs[0]}), "r" ({inputs[1]}) : {clobber}'
             else:
                 self.raise_exception(f"Invalid and2 operands: {len(outputs)} outputs and {len(inputs)} inputs.")
         elif gate_func == 'nand2':
             if len(outputs) == 1 and len(inputs) == 2:
                 code += f'"#PIM_OP {sn} {info} %0 %1 %2 \\n'
-                code += f' and %0, %1, %2 \\n'
-                code += f' not %0, %0'
+                code += ' and %0, %1, %2 \\n'
+                code += ' not %0, %0'
                 code += f'" : "=r" ({outputs[0]}) : "r" ({inputs[0]}), "r" ({inputs[1]}) : {clobber}'
             else:
                 self.raise_exception(f"Invalid nand2 operands: {len(outputs)} outputs and {len(inputs)} inputs.")
         elif gate_func == 'or2':
             if len(outputs) == 1 and len(inputs) == 2:
                 code += f'"#PIM_OP {sn} {info} %0 %1 %2 \\n'
-                code += f' or %0, %1, %2'
+                code += ' or %0, %1, %2'
                 code += f'" : "=r" ({outputs[0]}) : "r" ({inputs[0]}), "r" ({inputs[1]}) : {clobber}'
             else:
                 self.raise_exception(f"Invalid or2 operands: {len(outputs)} outputs and {len(inputs)} inputs.")
         elif gate_func == 'nor2':
             if len(outputs) == 1 and len(inputs) == 2:
                 code += f'"#PIM_OP {sn} {info} %0 %1 %2 \\n'
-                code += f' or %0, %1, %2 \\n'
-                code += f' not %0, %0'
+                code += ' or %0, %1, %2 \\n'
+                code += ' not %0, %0'
                 code += f'" : "=r" ({outputs[0]}) : "r" ({inputs[0]}), "r" ({inputs[1]}) : {clobber}'
             else:
                 self.raise_exception(f"Invalid nor2 operands: {len(outputs)} outputs and {len(inputs)} inputs.")
         elif gate_func == 'xor2':
             if len(outputs) == 1 and len(inputs) == 2:
                 code += f'"#PIM_OP {sn} {info} %0 %1 %2 \\n'
-                code += f' xor %0, %1, %2'
+                code += ' xor %0, %1, %2'
                 code += f'" : "=r" ({outputs[0]}) : "r" ({inputs[0]}), "r" ({inputs[1]}) : {clobber}'
             else:
                 self.raise_exception(f"Invalid xor2 operands: {len(outputs)} outputs and {len(inputs)} inputs.")
         elif gate_func == 'xnor2':
             if len(outputs) == 1 and len(inputs) == 2:
                 code += f'"#PIM_OP {sn} {info} %0 %1 %2 \\n'
-                code += f' xor %0, %1, %2 \\n'
-                code += f' not %0, %0'
+                code += ' xor %0, %1, %2 \\n'
+                code += ' not %0, %0'
                 code += f'" : "=r" ({outputs[0]}) : "r" ({inputs[0]}), "r" ({inputs[1]}) : {clobber}'
             else:
                 self.raise_exception(f"Invalid xnor2 operands: {len(outputs)} outputs and {len(inputs)} inputs.")
         elif gate_func == 'mux2':
             if len(outputs) == 1 and len(inputs) == 3:
                 code += f'"#PIM_OP {sn} {info} %0 %1 %3 %2 \\n'
-                code += f' not s1, %1 \\n'
-                code += f' and s2, s1, %2 \\n'
-                code += f' and s3, %1, %3 \\n'
-                code += f' or %0, s2, s3'
+                code += ' not s1, %1 \\n'
+                code += ' and s2, s1, %2 \\n'
+                code += ' and s3, %1, %3 \\n'
+                code += ' or %0, s2, s3'
                 code += f'" : "=r" ({outputs[0]}) : "r" ({inputs[0]}), "r" ({inputs[1]}), "r" ({inputs[2]}) : {clobber}'
             else:
                 self.raise_exception(f"Invalid mux2 operands: {len(outputs)} outputs and {len(inputs)} inputs.")
         elif gate_func == 'maj3':
             if len(outputs) == 1 and len(inputs) == 3:
                 code += f'"#PIM_OP {sn} {info} %0 %1 %2 %3 \\n'
-                code += f' and s1, %1, %2 \\n'
-                code += f' and s2, %2, %3 \\n'
-                code += f' and s3, %1, %3 \\n'
-                code += f' or s1, s1, s2 \\n'
-                code += f' or %0, s1, s3'
+                code += ' and s1, %1, %2 \\n'
+                code += ' and s2, %2, %3 \\n'
+                code += ' and s3, %1, %3 \\n'
+                code += ' or s1, s1, s2 \\n'
+                code += ' or %0, s1, s3'
                 code += f'" : "=r" ({outputs[0]}) : "r" ({inputs[0]}), "r" ({inputs[1]}), "r" ({inputs[2]}) : {clobber}'
             else:
                 self.raise_exception(f"Invalid maj3 operands: {len(outputs)} outputs and {len(inputs)} inputs.")
         elif gate_func == 'zero':
             if len(outputs) == 1 and len(inputs) == 0:
                 code += f'"#PIM_OP {sn} {info} %0 \\n'
-                code += f' li %0, 0 \\n'
-                code += f' mv %0, %0'
+                code += ' li %0, 0 \\n'
+                code += ' mv %0, %0'
                 code += f'" : "=r" ({outputs[0]}) : : {clobber}'
             else:
                 self.raise_exception(f"Invalid zero operands: {len(outputs)} outputs and {len(inputs)} inputs.")
         elif gate_func == 'one':
             if len(outputs) == 1 and len(inputs) == 0:
                 code += f'"#PIM_OP {sn} {info} %0 \\n'
-                code += f' li %0, 0 \\n'
-                code += f' not %0, %0'
+                code += ' li %0, 0 \\n'
+                code += ' not %0, %0'
                 code += f'" : "=r" ({outputs[0]}) : : {clobber}'
             else:
                 self.raise_exception(f"Invalid one operands: {len(outputs)} outputs and {len(inputs)} inputs.")
@@ -250,7 +250,7 @@ class GeneratorAsm():
             # Note: This is regular wire copy
             if len(outputs) == 1 and len(inputs) == 1:
                 code += f'"#PIM_OP {sn} {info} %0 %1 \\n'
-                code += f' mv %0, %1'
+                code += ' mv %0, %1'
                 code += f'" : "=r" ({outputs[0]}) : "r" ({inputs[0]}) : {clobber}'
             else:
                 self.raise_exception(f"Invalid copy operands: {len(outputs)} outputs and {len(inputs)} inputs.")
@@ -258,7 +258,7 @@ class GeneratorAsm():
             # Note: copy_inout is used by wire copy inserter, supporting dependency chain while copying
             if len(outputs) == 1 and len(inputs) == 1:
                 code += f'"#PIM_OP {sn} {info} %0 %1 \\n'
-                code += f' mv %0, %1'
+                code += ' mv %0, %1'
                 code += f'" : "=r" ({outputs[0]}), "+r" ({inputs[0]}) : : {clobber}'
             else:
                 self.raise_exception(f"Invalid copy_inout operands: {len(outputs)} outputs and {len(inputs)} inputs.")
@@ -266,80 +266,80 @@ class GeneratorAsm():
             # Note: Enforce inverter input/output to be different, to reduce the number of copies in ASM translator
             if len(outputs) == 1 and len(inputs) == 1:
                 code += f'"#PIM_OP {sn} {info} %0 %1 \\n'
-                code += f' not %0, %1'
+                code += ' not %0, %1'
                 code += f'" : "=&r" ({outputs[0]}) : "r" ({inputs[0]}) : {clobber}'
             else:
                 self.raise_exception(f"Invalid inv1 operands: {len(outputs)} outputs and {len(inputs)} inputs.")
         elif gate_func == 'and2':
             if len(outputs) == 1 and len(inputs) == 2:
                 code += f'"#PIM_OP {sn} {info} %0 %1 %2 \\n'
-                code += f' and %0, %1, %2 \\n'
-                code += f' mv %1, %0 \\n'
-                code += f' mv %2, %0'
+                code += ' and %0, %1, %2 \\n'
+                code += ' mv %1, %0 \\n'
+                code += ' mv %2, %0'
                 code += f'" : "=&r" ({outputs[0]}), "+r" ({inputs[0]}), "+r" ({inputs[1]}) : : {clobber}'
             else:
                 self.raise_exception(f"Invalid and2 operands: {len(outputs)} outputs and {len(inputs)} inputs.")
         elif gate_func == 'or2':
             if len(outputs) == 1 and len(inputs) == 2:
                 code += f'"#PIM_OP {sn} {info} %0 %1 %2 \\n'
-                code += f' or %0, %1, %2 \\n'
-                code += f' mv %1, %0 \\n'
-                code += f' mv %2, %0'
+                code += ' or %0, %1, %2 \\n'
+                code += ' mv %1, %0 \\n'
+                code += ' mv %2, %0'
                 code += f'" : "=&r" ({outputs[0]}), "+r" ({inputs[0]}), "+r" ({inputs[1]}) : : {clobber}'
             else:
                 self.raise_exception(f"Invalid or2 operands: {len(outputs)} outputs and {len(inputs)} inputs.")
         elif gate_func == 'maj3':
             if len(outputs) == 1 and len(inputs) == 3:
                 code += f'"#PIM_OP {sn} {info} %0 %1 %2 %3 \\n'
-                code += f' and s1, %1, %2 \\n'
-                code += f' and s2, %2, %3 \\n'
-                code += f' and s3, %1, %3 \\n'
-                code += f' or s1, s1, s2 \\n'
-                code += f' or %0, s1, s3 \\n'
-                code += f' mv %1, %0 \\n'
-                code += f' mv %2, %0 \\n'
-                code += f' mv %3, %0'
+                code += ' and s1, %1, %2 \\n'
+                code += ' and s2, %2, %3 \\n'
+                code += ' and s3, %1, %3 \\n'
+                code += ' or s1, s1, s2 \\n'
+                code += ' or %0, s1, s3 \\n'
+                code += ' mv %1, %0 \\n'
+                code += ' mv %2, %0 \\n'
+                code += ' mv %3, %0'
                 code += f'" : "=&r" ({outputs[0]}), "+r" ({inputs[0]}), "+r" ({inputs[1]}), "+r" ({inputs[2]}) : : {clobber}'
             elif len(outputs) == 2 and len(inputs) == 3:
                 code += f'"#PIM_OP {sn} {info} %0 %1 %2 %3 %4 \\n'
-                code += f' and s1, %2, %3 \\n'
-                code += f' and s2, %3, %4 \\n'
-                code += f' and s3, %2, %4 \\n'
-                code += f' or s1, s1, s2 \\n'
-                code += f' or %0, s1, s3 \\n'
-                code += f' mv %1, %0 \\n'
-                code += f' mv %2, %0 \\n'
-                code += f' mv %3, %0 \\n'
-                code += f' mv %4, %0'
+                code += ' and s1, %2, %3 \\n'
+                code += ' and s2, %3, %4 \\n'
+                code += ' and s3, %2, %4 \\n'
+                code += ' or s1, s1, s2 \\n'
+                code += ' or %0, s1, s3 \\n'
+                code += ' mv %1, %0 \\n'
+                code += ' mv %2, %0 \\n'
+                code += ' mv %3, %0 \\n'
+                code += ' mv %4, %0'
                 code += f'" : "=&r" ({outputs[0]}), "=&r" ({outputs[1]}), "+r" ({inputs[0]}), "+r" ({inputs[1]}), "+r" ({inputs[2]}) : : {clobber}'
             elif len(outputs) == 3 and len(inputs) == 3:
                 code += f'"#PIM_OP {sn} {info} %0 %1 %2 %3 %4 %5 \\n'
-                code += f' and s1, %3, %4 \\n'
-                code += f' and s2, %4, %5 \\n'
-                code += f' and s3, %3, %5 \\n'
-                code += f' or s1, s1, s2 \\n'
-                code += f' or %0, s1, s3 \\n'
-                code += f' mv %1, %0 \\n'
-                code += f' mv %2, %0 \\n'
-                code += f' mv %3, %0 \\n'
-                code += f' mv %4, %0 \\n'
-                code += f' mv %5, %0'
+                code += ' and s1, %3, %4 \\n'
+                code += ' and s2, %4, %5 \\n'
+                code += ' and s3, %3, %5 \\n'
+                code += ' or s1, s1, s2 \\n'
+                code += ' or %0, s1, s3 \\n'
+                code += ' mv %1, %0 \\n'
+                code += ' mv %2, %0 \\n'
+                code += ' mv %3, %0 \\n'
+                code += ' mv %4, %0 \\n'
+                code += ' mv %5, %0'
                 code += f'" : "=&r" ({outputs[0]}), "=&r" ({outputs[1]}), "=&r" ({outputs[2]}), "+r" ({inputs[0]}), "+r" ({inputs[1]}), "+r" ({inputs[2]}) : : {clobber}'
             else:
                 self.raise_exception(f"Invalid maj3 operands: {len(outputs)} outputs and {len(inputs)} inputs.")
         elif gate_func == 'zero':
             if len(outputs) == 1 and len(inputs) == 0:
                 code += f'"#PIM_OP {sn} {info} %0 \\n'
-                code += f' li %0, 0 \\n'
-                code += f' mv %0, %0'
+                code += ' li %0, 0 \\n'
+                code += ' mv %0, %0'
                 code += f'" : "=r" ({outputs[0]}) : : {clobber}'
             else:
                 self.raise_exception(f"Invalid zero operands: {len(outputs)} outputs and {len(inputs)} inputs.")
         elif gate_func == 'one':
             if len(outputs) == 1 and len(inputs) == 0:
                 code += f'"#PIM_OP {sn} {info} %0 \\n'
-                code += f' li %0, 0 \\n'
-                code += f' not %0, %0'
+                code += ' li %0, 0 \\n'
+                code += ' not %0, %0'
                 code += f'" : "=r" ({outputs[0]}) : : {clobber}'
             else:
                 self.raise_exception(f"Invalid one operands: {len(outputs)} outputs and {len(inputs)} inputs.")

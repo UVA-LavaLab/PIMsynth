@@ -13,6 +13,21 @@ import pprint
 from lark import Lark, Transformer
 
 
+class GateInfo:
+    """ For passing gate information from parser to DAG """
+
+    def __init__(self, gate_id, gate_func, inputs, outputs):
+        """ Initialize """
+        self.gate_id = gate_id
+        self.gate_func = gate_func
+        self.inputs = inputs
+        self.outputs = outputs
+
+    def __repr__(self):
+        """ String representation of GateInfo """
+        return f"{self.gate_func:<10} {self.gate_id:<10} | outputs: {str(self.outputs):<20} | inputs: {str(self.inputs)}"
+
+
 class BlifTransformer(Transformer):
     """ BLIF Transformer class for Lark parsing """
 
@@ -133,12 +148,12 @@ class BlifParser:
                 args = item['arguments']
                 inputs = [s for sub in args[:-1] for s in sub]  # flatten
                 outputs = list(args[-1])
-                gate_info = {
-                    'gate_id': str(gate_count),
-                    'gate_func': item['gate_name'],
-                    'inputs': inputs,
-                    'outputs': outputs
-                }
+                gate_info = GateInfo(
+                    gate_id=str(gate_count),
+                    gate_func=item['gate_name'],
+                    inputs=inputs,
+                    outputs=outputs
+                )
                 gate_info_list.append(gate_info)
                 gate_count += 1
         return gate_info_list
