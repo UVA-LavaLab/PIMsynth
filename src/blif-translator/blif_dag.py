@@ -56,6 +56,14 @@ class DAG:
         self.initialize(in_ports, out_ports, gate_info_list)
         self.verifier = DagVerifier(dag=self, debug_level=debug_level)
 
+    def raise_exception(self, message):
+        """ Helper function to raise an exception with a message """
+        # Enable breakpoint for debugging
+        if self.debug_level >= 1:
+            print(f"DEBUG: {message}")
+            breakpoint()
+        raise ValueError(message)
+
     def __deepcopy__(self, memo):
         """ Create a deep copy of the DAG """
         new_dag = DAG(module_name=self.module_name,
@@ -102,7 +110,7 @@ class DAG:
             fanins = wire_fanins.get(wire, [])
             fanouts = wire_fanouts.get(wire, [])
             if not fanins and not fanouts:
-                raise ValueError(f"Wire '{wire}' has no fanins and fanouts")
+                self.raise_exception(f"Wire '{wire}' has no fanins and fanouts")
             elif not fanins:  # input port
                 assert wire in self.__in_ports, f"Wire '{wire}' has no fanins and is not an input port."
                 self.graph.nodes[wire]['outputs'].append(wire)
@@ -123,7 +131,7 @@ class DAG:
     def add_gate(self, gate_id='', gate_func='', inputs=[], outputs=[]):
         """ Add a gate to the DAG """
         if gate_id in self.graph:
-            raise ValueError(f"Gate ID '{gate_id}' already exists in the DAG.")
+            self.raise_exception(f"Gate ID '{gate_id}' already exists in the DAG.")
         self.graph.add_node(gate_id,
                             gate_id=gate_id,
                             gate_func=gate_func,
@@ -134,38 +142,38 @@ class DAG:
     def remove_gate(self, gate_id):
         """ Remove a gate from the DAG """
         if not self.graph.has_node(gate_id):
-            raise ValueError(f"Gate ID '{gate_id}' does not exist in the DAG.")
+            self.raise_exception(f"Gate ID '{gate_id}' does not exist in the DAG.")
         if self.graph.in_degree(gate_id) > 0 or self.graph.out_degree(gate_id) > 0:
             for u, v, edge_data in self.graph.in_edges(gate_id, data=True):
                 print(f'Edge: {u} -> {v} | Attr: {edge_data}')
             for u, v, edge_data in self.graph.out_edges(gate_id, data=True):
                 print(f'Edge: {u} -> {v} | Attr: {edge_data}')
-            raise ValueError(f"Cannot remove gate '{gate_id}': it has connected wires.")
+            self.raise_exception(f"Cannot remove gate '{gate_id}': it has connected wires.")
         self.graph.remove_node(gate_id)
 
     def add_wire(self, wire_name, fanin_gate_id, fanout_gate_id):
         """ Add a wire to the DAG """
         if not self.graph.has_node(fanin_gate_id) or not self.graph.has_node(fanout_gate_id):
-            raise ValueError(f"Cannot add wire '{wire_name}': fanin or fanout gate does not exist.")
+            self.raise_exception(f"Cannot add wire '{wire_name}': fanin or fanout gate does not exist.")
         if self.graph.has_edge(fanin_gate_id, fanout_gate_id):
-            raise ValueError(f"Wire '{wire_name}' already exists between {fanin_gate_id} and {fanout_gate_id}.")
+            self.raise_exception(f"Wire '{wire_name}' already exists between {fanin_gate_id} and {fanout_gate_id}.")
         self.graph.add_edge(fanin_gate_id, fanout_gate_id, wire_name=wire_name)
 
     def remove_wire(self, fanin_gate_id, fanout_gate_id):
         """ Remove a wire (single edge only) from the DAG """
         if not self.graph.has_edge(fanin_gate_id, fanout_gate_id):
-            raise ValueError(f"Wire does not exist between {fanin_gate_id} and {fanout_gate_id}.")
+            self.raise_exception(f"Wire does not exist between {fanin_gate_id} and {fanout_gate_id}.")
         wire_name = self.graph[fanin_gate_id][fanout_gate_id]['wire_name']
         self.graph.remove_edge(fanin_gate_id, fanout_gate_id)
 
     def replace_output_wire(self, gate_id, old_wire_name, new_wire_name):
         """ Replace an output wire of a gate with a new wire name """
         if not self.graph.has_node(gate_id):
-            raise ValueError(f"Gate ID '{gate_id}' does not exist in the DAG.")
+            self.raise_exception(f"Gate ID '{gate_id}' does not exist in the DAG.")
         if old_wire_name not in self.graph.nodes[gate_id]['outputs']:
-            raise ValueError(f"Old wire '{old_wire_name}' is not an output of gate '{gate_id}'.")
+            self.raise_exception(f"Old wire '{old_wire_name}' is not an output of gate '{gate_id}'.")
         if new_wire_name in self.graph.nodes[gate_id]['outputs']:
-            raise ValueError(f"New wire '{new_wire_name}' already exists as an output of gate '{gate_id}'.")
+            self.raise_exception(f"New wire '{new_wire_name}' already exists as an output of gate '{gate_id}'.")
 
         # Update outputs
         outputs = self.graph.nodes[gate_id]['outputs']
@@ -175,11 +183,11 @@ class DAG:
     def replace_input_wire(self, gate_id, old_wire_name, new_wire_name):
         """ Replace an input wire of a gate with a new wire name """
         if not self.graph.has_node(gate_id):
-            raise ValueError(f"Gate ID '{gate_id}' does not exist in the DAG.")
+            self.raise_exception(f"Gate ID '{gate_id}' does not exist in the DAG.")
         if old_wire_name not in self.graph.nodes[gate_id]['inputs']:
-            raise ValueError(f"Old wire '{old_wire_name}' is not an input of gate '{gate_id}'.")
+            self.raise_exception(f"Old wire '{old_wire_name}' is not an input of gate '{gate_id}'.")
         if new_wire_name in self.graph.nodes[gate_id]['inputs']:
-            raise ValueError(f"New wire '{new_wire_name}' already exists as an input of gate '{gate_id}'.")
+            self.raise_exception(f"New wire '{new_wire_name}' already exists as an input of gate '{gate_id}'.")
 
         # Update inputs
         inputs = self.graph.nodes[gate_id]['inputs']
@@ -201,9 +209,9 @@ class DAG:
     def invert_input_wire(self, gate_id, target_wire_name):
         """ Invert an input of a gate and trace downstream wire segments """
         if not self.graph.has_node(gate_id):
-            raise ValueError(f"Gate ID '{gate_id}' does not exist in the DAG.")
+            self.raise_exception(f"Gate ID '{gate_id}' does not exist in the DAG.")
         if target_wire_name not in self.graph.nodes[gate_id]['inputs']:
-            raise ValueError(f"Wire '{target_wire_name}' is not an input of gate '{gate_id}'.")
+            self.raise_exception(f"Wire '{target_wire_name}' is not an input of gate '{gate_id}'.")
         # Invert the input wire
         if target_wire_name in self.graph.nodes[gate_id]['inverted']:
             self.graph.nodes[gate_id]['inverted'].remove(target_wire_name)
@@ -219,9 +227,9 @@ class DAG:
     def is_input_wire_inverted(self, gate_id, wire_name):
         """ Check if an input wire of a gate is inverted """
         if not self.graph.has_node(gate_id):
-            raise ValueError(f"Gate ID '{gate_id}' does not exist in the DAG.")
+            self.raise_exception(f"Gate ID '{gate_id}' does not exist in the DAG.")
         if wire_name not in self.graph.nodes[gate_id]['inputs']:
-            raise ValueError(f"Wire '{wire_name}' is not an input of gate '{gate_id}'.")
+            self.raise_exception(f"Wire '{wire_name}' is not an input of gate '{gate_id}'.")
         return wire_name in self.graph.nodes[gate_id]['inverted']
 
     def uniqufy_gate_id(self, new_gate_id):
@@ -283,7 +291,7 @@ class DAG:
         for from_gate_id, to_gate_id, edge_data in self.graph.edges(data=True):
             wire_name = edge_data.get('wire_name', None)
             if wire_name is None:
-                raise ValueError(f"Edge without wire_name found between {from_gate_id} and {to_gate_id}.")
+                self.raise_exception(f"Edge without wire_name found between {from_gate_id} and {to_gate_id}.")
             repr_str += f"Edge: {from_gate_id} -> {to_gate_id} | Wire: {wire_name}\n"
         repr_str += "--------\n"
         for gate_id in self.get_topo_sorted_gate_id_list():
@@ -328,7 +336,7 @@ class DAG:
     def get_wire_name(self, from_gate_id, to_gate_id):
         """ Get the wire name connecting two gates """
         if not self.graph.has_edge(from_gate_id, to_gate_id):
-            raise ValueError(f"No wire exists between {from_gate_id} and {to_gate_id}.")
+            self.raise_exception(f"No wire exists between {from_gate_id} and {to_gate_id}.")
         return self.graph[from_gate_id][to_gate_id]['wire_name']
 
     def get_topo_sorted_gate_id_list(self):
@@ -383,19 +391,25 @@ class DAG:
             print("INFO: Input/output port sanity check...")
         for in_port in self.__in_ports:
             gate_node = self.graph.nodes.get(in_port)
-            assert gate_node['gate_func'] == 'in_port', f"Input port '{in_port}' is not correctly set as an input port."
+            if gate_node['gate_func'] != 'in_port':
+                self.raise_exception(f"Input port '{in_port}' is not correctly set as an input port.")
         for out_port in self.__out_ports:
             gate_node = self.graph.nodes.get(out_port)
-            assert gate_node['gate_func'] == 'out_port', f"Output port '{out_port}' is not correctly set as an output port."
+            if gate_node['gate_func'] != 'out_port':
+                self.raise_exception(f"Output port '{out_port}' is not correctly set as an output port.")
         for gate_id in self.graph.nodes:
             gate_node = self.graph.nodes[gate_id]
             if gate_node['gate_func'] in ['in_port', 'zero', 'one']:
-                assert gate_node['inputs'] == [], f"Gate '{gate_id}' should not have inputs."
+                if gate_node['inputs']:
+                    self.raise_exception(f"Gate '{gate_id}' should not have inputs.")
             if gate_node['gate_func'] == 'in_port':
-                assert gate_id in self.__in_ports, f"Input port '{gate_id}' is not in the input ports list."
+                if not gate_id in self.__in_ports:
+                    self.raise_exception(f"Input port '{gate_id}' is not in the input ports list.")
             if gate_node['gate_func'] == 'out_port':
-                assert gate_node['outputs'] == [], f"Output port '{gate_id}' should not have outputs."
-                assert gate_id in self.__out_ports, f"Output port '{gate_id}' is not in the output ports list."
+                if gate_node['outputs']:
+                    self.raise_exception(f"Output port '{gate_id}' should not have outputs.")
+                if not gate_id in self.__out_ports:
+                    self.raise_exception(f"Output port '{gate_id}' is not in the output ports list.")
         # Check if wire_fanins and wire_fanouts are in sync
         if self.debug_level >= 2:
             print("INFO: Wire connection sanity check...")
@@ -404,14 +418,16 @@ class DAG:
         for from_gate_id, to_gate_id, edge_data in self.graph.edges(data=True):
             wire_name = edge_data.get('wire_name', None)
             if wire_name is None:
-                raise ValueError(f"Edge without wire_name found between {from_gate_id} and {to_gate_id}.")
+                self.raise_exception(f"Edge without wire_name found between {from_gate_id} and {to_gate_id}.")
             wire_fanins.setdefault(wire_name, set()).add(from_gate_id)
             wire_fanouts.setdefault(wire_name, set()).add(to_gate_id)
         for wire_name in set(wire_fanins.keys()).union(wire_fanouts.keys()):
             fanins = wire_fanins.get(wire_name, set())
             fanouts = wire_fanouts.get(wire_name, set())
-            assert len(fanins) == 1, f"Wire '{wire_name}' has multiple fanins: {fanins}. Expected a single fanin."
-            assert len(fanouts) > 0, f"Wire '{wire_name}' has no fanouts: {fanouts}. Expected at least one fanout."
+            if len(fanins) != 1:
+                self.raise_exception(f"Wire '{wire_name}' has multiple fanins: {fanins}. Expected a single fanin.")
+            if not fanouts:
+                self.raise_exception(f"Wire '{wire_name}' has no fanouts: {fanouts}. Expected at least one fanout.")
         # Check if gate inputs and outputs are in sync
         if self.debug_level >= 2:
             print("INFO: Gate input/output sanity check...")
@@ -421,30 +437,38 @@ class DAG:
             output_wires = gate_node['outputs']
             input_base_names = set([wire.split(' seg')[0] for wire in input_wires])
             if len(input_base_names) != len(input_wires):
-                raise ValueError(f"Gate '{gate_id}' has multiple input segments of the same wire: {input_wires}.")
+                self.raise_exception(f"Gate '{gate_id}' has multiple input segments of the same wire: {input_wires}.")
             for input_wire in input_wires:
                 if gate_id not in wire_fanouts[input_wire]:
-                    raise ValueError(f"Gate '{gate_id}' not found in fanouts of input wire '{input_wire}'.")
+                    self.raise_exception(f"Gate '{gate_id}' not found in fanouts of input wire '{input_wire}'.")
             for output_wire in output_wires:
                 if gate_id not in wire_fanins[output_wire]:
-                    raise ValueError(f"Gate '{gate_id}' not found in fanins of output wire '{output_wire}'.")
+                    self.raise_exception(f"Gate '{gate_id}' not found in fanins of output wire '{output_wire}'.")
             if gate_node['gate_func'] == 'in_port':
-                assert len(input_wires) == 0, f"Input port '{gate_id}' should not have any input wires."
-                assert len(output_wires) == 1, f"Input port '{gate_id}' should have exactly one output wire."
-                assert output_wires[0] == gate_id, f"Output wire '{output_wires[0]}' of input port '{gate_id}' should match the gate ID."
-                assert len(gate_node['inverted']) == 0, f"Input port '{gate_id}' should not have any inverted wires."
+                if input_wires:
+                    self.raise_exception(f"Input port '{gate_id}' should not have any input wires.")
+                if len(output_wires) > 1: # some input port may have no output wires
+                    self.raise_exception(f"Input port '{gate_id}' should have at most one output wire.")
+                if output_wires and output_wires[0] != gate_id:
+                    self.raise_exception(f"Output wire '{output_wires[0]}' of input port '{gate_id}' should match the gate ID.")
+                if gate_node['inverted']:
+                    self.raise_exception(f"Input port '{gate_id}' should not have any inverted wires.")
             if gate_node['gate_func'] == 'out_port':
-                assert len(output_wires) == 0, f"Output port '{gate_id}' should not have any output wires."
-                assert len(input_wires) == 1, f"Output port '{gate_id}' should have exactly one input wire."
-                assert input_wires[0] == gate_id, f"Input wire '{input_wires[0]}' of output port '{gate_id}' should match the gate ID."
-                assert len(gate_node['inverted']) == 0, f"Output port '{gate_id}' should not have any inverted wires."
+                if output_wires:
+                    self.raise_exception(f"Output port '{gate_id}' should not have any output wires.")
+                if len(input_wires) != 1:
+                    self.raise_exception(f"Output port '{gate_id}' should have exactly one input wire.")
+                if input_wires[0] != gate_id:
+                    self.raise_exception(f"Input wire '{input_wires[0]}' of output port '{gate_id}' should match the gate ID.")
+                if gate_node['inverted']:
+                    self.raise_exception(f"Output port '{gate_id}' should not have any inverted wires.")
             for wire_name in gate_node['inverted']:
                 if wire_name not in input_wires:
-                    raise ValueError(f"Inverted wire '{wire_name}' of gate '{gate_id}' is not in its input wires.")
+                    self.raise_exception(f"Inverted wire '{wire_name}' of gate '{gate_id}' is not in its input wires.")
                 if wire_name in output_wires:
-                    raise ValueError(f"Inverted wire '{wire_name}' of gate '{gate_id}' should not be in its output wires.")
+                    self.raise_exception(f"Inverted wire '{wire_name}' of gate '{gate_id}' should not be in its output wires.")
                 if self.is_out_port(wire_name):
-                    raise ValueError(f"Inverted wire '{wire_name}' of gate '{gate_id}' should not be an output port.")
+                    self.raise_exception(f"Inverted wire '{wire_name}' of gate '{gate_id}' should not be an output port.")
 
     def verify_dag(self, pim_mode='digital'):
         """ Verify the DAG with input/output simulation """

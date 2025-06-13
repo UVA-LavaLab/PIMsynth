@@ -31,6 +31,8 @@ class InputPortIsolation(DagTransformer):
     def run_xform_copy_input_port(self, dag, in_port_gate_id):
         """ Transform: Insert copy gates for an input port """
         orig_gate = dag.graph.nodes[in_port_gate_id]
+        if not orig_gate['outputs']:
+            return 0  # no outputs, skip
         orig_wire = orig_gate['outputs'][0]
         # Handle all fanouts of the input port
         fanouts = dag.get_wire_fanout_gate_ids(orig_wire)
