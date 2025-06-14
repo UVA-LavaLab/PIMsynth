@@ -3,7 +3,8 @@
 // deyuan, 03/30/2025
 
 module gt_uint_nbit #(
-    parameter WIDTH = 32
+    parameter WIDTH = 32,
+    parameter IMPL_TYPE = 0
 )(
     input [WIDTH-1:0] A,
     input [WIDTH-1:0] B,
@@ -17,7 +18,9 @@ module gt_uint_nbit #(
     genvar i;
     generate
         for (i = 0; i < WIDTH; i = i + 1) begin : subtractor_cmp_chain
-            subtractor_1bit_cmp u_subtractor_1bit_cmp (
+            subtractor_1bit_cmp #(
+                .IMPL_TYPE(IMPL_TYPE)
+            ) u_subtractor_1bit_cmp (
                 .A(B[i]),
                 .B(A[i]),
                 .Bin(Borrow[i]),

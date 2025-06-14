@@ -1,5 +1,6 @@
 # List of submodules for compiling top level modules
 
+maj3.v
 adder_1bit_half.v
 adder_1bit.v
 adder_nbit.v
@@ -17,7 +18,6 @@ mul_full_4bit.v
 mul_partial_2bit.v
 mul_partial_4bit.v
 mul_partial_8bit.v
-
 
 not_nbit.v
 and_nbit.v

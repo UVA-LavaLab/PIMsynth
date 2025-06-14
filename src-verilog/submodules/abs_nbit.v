@@ -3,7 +3,8 @@
 // deyuan, 03/29/2025
 
 module abs_nbit #(
-    parameter WIDTH = 32
+    parameter WIDTH = 32,
+    parameter IMPL_TYPE = 0
 )(
     input [WIDTH-1:0] A,
     output [WIDTH-1:0] Y
@@ -16,7 +17,9 @@ module abs_nbit #(
     genvar i;
     generate
         for (i = 0; i < WIDTH; i = i + 1) begin : half_adder_chain
-            adder_1bit_half u_adder_1bit_half (
+            adder_1bit_half #(
+                .IMPL_TYPE(IMPL_TYPE)
+            ) u_adder_1bit_half (
                 .A(A[i] ^ A[WIDTH-1]), // perform NOT if sign bit is 1
                 .B(Carry[i]),
                 .Sum(Y[i]),
@@ -24,4 +27,5 @@ module abs_nbit #(
             );
         end
     endgenerate
+
 endmodule

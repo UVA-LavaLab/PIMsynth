@@ -3,17 +3,19 @@
 // deyuan, 03/28/2025
 
 module adder_nbit_cout #(
-    parameter WIDTH = 32
+    parameter WIDTH = 32,
+    parameter IMPL_TYPE = 0
 )(
     input [WIDTH-1:0] A,
     input [WIDTH-1:0] B,
     output [WIDTH-1:0] Sum,
     output Cout
 );
+
     wire [WIDTH-1:0] Carry;
 
     // Instantiate the first full adder with Cin = 0
-    adder_1bit u_adder_1bit (
+    adder_1bit #(.IMPL_TYPE(IMPL_TYPE)) u_adder_1bit (
         .A(A[0]),
         .B(B[0]),
         .Cin(1'b0),    // Initialize Cin to 0
@@ -25,7 +27,7 @@ module adder_nbit_cout #(
     genvar i;
     generate
         for (i = 1; i < WIDTH; i = i + 1) begin : adder_chain
-            adder_1bit u_adder_1bit (
+            adder_1bit #(.IMPL_TYPE(IMPL_TYPE)) u_adder_1bit (
                 .A(A[i]),
                 .B(B[i]),
                 .Cin(Carry[i-1]),
@@ -36,4 +38,5 @@ module adder_nbit_cout #(
     endgenerate
 
     assign Cout = Carry[WIDTH-1];
+
 endmodule
