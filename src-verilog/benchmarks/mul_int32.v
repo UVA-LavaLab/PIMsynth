@@ -3,7 +3,8 @@
 // deyuan, 03/28/2025
 
 module mul_int32 #(
-    parameter WIDTH = 32
+    parameter WIDTH = 32,
+    parameter IMPL_TYPE = 0
 )(
     input  [WIDTH-1:0] A,  // Multiplicand
     input  [WIDTH-1:0] B,  // Multiplier
@@ -11,7 +12,10 @@ module mul_int32 #(
 );
 
     // Instantiate the n-bit multiplier submodule
-    multiplier_nbit #(WIDTH) u_multiplier_nbit (
+    multiplier_nbit #(
+        .WIDTH(WIDTH),
+        .IMPL_TYPE(IMPL_TYPE)
+    ) u_multiplier_nbit (
         .A(A),
         .B(B),
         .P(P)

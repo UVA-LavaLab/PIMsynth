@@ -3,7 +3,8 @@
 // deyuan, 03/29/2025
 
 module add_sub_int32 #(
-    parameter WIDTH = 32
+    parameter WIDTH = 32,
+    parameter IMPL_TYPE = 0
 )(
     input [WIDTH-1:0] A,
     input [WIDTH-1:0] B,
@@ -14,7 +15,8 @@ module add_sub_int32 #(
     wire [WIDTH-1:0] tmp;
 
     adder_nbit #(
-        .WIDTH(WIDTH)
+        .WIDTH(WIDTH),
+        .IMPL_TYPE(IMPL_TYPE)
     ) u_adder_nbit (
         .A(A),
         .B(B),
@@ -22,7 +24,8 @@ module add_sub_int32 #(
     );
 
     subtractor_nbit #(
-        .WIDTH(WIDTH)
+        .WIDTH(WIDTH),
+        .IMPL_TYPE(IMPL_TYPE)
     ) u_subtractor_nbit (
         .A(tmp),
         .B(C),

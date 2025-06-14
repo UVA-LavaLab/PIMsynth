@@ -3,7 +3,8 @@
 // deyuan, 03/30/2025
 
 module min_uint64 #(
-    parameter WIDTH = 64
+    parameter WIDTH = 64,
+    parameter IMPL_TYPE = 0
 )(
     input [WIDTH-1:0] A,
     input [WIDTH-1:0] B,
@@ -12,7 +13,8 @@ module min_uint64 #(
 
     wire gt;
     gt_uint_nbit #(
-        .WIDTH(WIDTH)
+        .WIDTH(WIDTH),
+        .IMPL_TYPE(IMPL_TYPE)
     ) u_gt_uint_nbit (
         .A(A),
         .B(B),

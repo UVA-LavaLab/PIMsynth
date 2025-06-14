@@ -3,7 +3,8 @@
 // deyuan, 03/30/2025
 
 module gt_int16 #(
-    parameter WIDTH = 16
+    parameter WIDTH = 16,
+    parameter IMPL_TYPE = 0
 )(
     input [WIDTH-1:0] A,
     input [WIDTH-1:0] B,
@@ -11,7 +12,8 @@ module gt_int16 #(
 );
 
     gt_int_nbit #(
-        .WIDTH(WIDTH)
+        .WIDTH(WIDTH),
+        .IMPL_TYPE(IMPL_TYPE)
     ) u_gt_int_nbit (
         .A(A),
         .B(B),
