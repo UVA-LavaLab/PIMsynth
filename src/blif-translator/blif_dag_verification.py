@@ -73,7 +73,7 @@ class DagVerifier:
         # Get input variables
         input_wires = gate['inputs']
         input_inverted = [wire in gate['inverted'] for wire in input_wires]
-        input_variables = [var.split(' seg')[0] for var in input_wires]
+        input_variables = [self.dag.get_wire_base_name(var) for var in input_wires]
         input_values = []
         for input_var, inverted in zip(input_variables, input_inverted):
             if input_var not in symbol_table:
@@ -119,7 +119,7 @@ class DagVerifier:
 
         # Update output variables
         output_wires = gate['outputs']
-        output_variables = [var.split(' seg')[0] for var in output_wires]
+        output_variables = [self.dag.get_wire_base_name(var) for var in output_wires]
         for output_var in output_variables:
             symbol_table[output_var] = output_value
 

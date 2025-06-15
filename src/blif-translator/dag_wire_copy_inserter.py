@@ -80,7 +80,7 @@ class WireCopyInserter(DagTransformer):
         # This is done by:
         # 1. Let the new copy gate drive the anchor gate (new wire segment)
         # 2. Use '+r' in ineline assembly IR so that LLVM knows the dependency
-        target_wire_segment = dag.uniqufy_wire_name(f"{target_wire} seg")
+        target_wire_segment = dag.generate_unique_wire_segment_name(target_wire)
         dag.remove_wire(fanin_gate_id, anchor_gate_id)
         dag.add_wire(target_wire_segment, copy_gate_id, anchor_gate_id)
         dag.replace_input_wire(anchor_gate_id, target_wire, target_wire_segment)

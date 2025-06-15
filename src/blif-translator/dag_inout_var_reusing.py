@@ -44,8 +44,6 @@ class InoutVarReusing(DagTransformer):
     def run_xform_inout_var_reusing(self, dag, gate_id):
         """ Transform: Reuse inout variables from the previous stage """
         gate = dag.graph.nodes[gate_id]
-        if self.debug_level >= 2:
-            print(f'DAG-Transform: Reuse inout variables of gate {gate_id} ({gate["gate_func"]})')
 
         # Check if the gate has reusable inputs
         reusable_inout_wires = dag.get_reusable_inout_wires(gate_id)
@@ -63,7 +61,7 @@ class InoutVarReusing(DagTransformer):
                 if self.debug_level >= 2:
                     print(f'DAG-Transform: Reusing inout wire {reusable_inout_wires[0]} for gate {target_gate_id} (from {gate_id})')
                 dag.remove_wire(gate_id, target_gate_id)
-                new_wire = dag.uniqufy_wire_name(f"{reusable_inout_wires[0]} seg")
+                new_wire = dag.generate_unique_wire_segment_name(reusable_inout_wires[0])
                 dag.add_wire(new_wire, gate_id, target_gate_id)
                 dag.replace_input_wire(target_gate_id, output_wire, new_wire)
                 # If the reused input is inverted, need to invert the new wire as well

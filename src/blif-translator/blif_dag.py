@@ -54,6 +54,7 @@ class DAG:
         self.__out_ports = []  # To preserve order of output ports
         self.pim_mode = pim_mode
         self.debug_level = debug_level
+        self.wire_segment_marker = '_$'
         self.initialize(in_ports, out_ports, gate_info_list)
         self.verifier = DagVerifier(dag=self, debug_level=debug_level)
 
@@ -216,10 +217,11 @@ class DAG:
 
         # Rename downstream wire segments recursively
         # segments of old wire -> segments of new wire
+        # Note: wire segments is from in-out pin and not tracked as gate['outputs']
         for _, to_gate_id, edge_data in self.graph.out_edges(gate_id, data=True):
             wire_name = edge_data.get('wire_name', '')
-            if wire_name.startswith(old_wire_name):
-                next_wire_name = new_wire_name + wire_name[len(old_wire_name):]
+            if self.is_same_wire(wire_name, old_wire_name):
+                next_wire_name = self.generate_unique_wire_segment_name(new_wire_name)
                 self.graph[gate_id][to_gate_id]['wire_name'] = next_wire_name
                 self.replace_input_wire(to_gate_id, wire_name, next_wire_name)
 
@@ -236,10 +238,9 @@ class DAG:
             self.graph.nodes[gate_id]['inverted'].add(target_wire_name)
         # Update downstream wire segments recursively
         for _, to_gate_id, edge_data in self.graph.out_edges(gate_id, data=True):
-            if edge_data.get('wire_name', '').startswith(target_wire_name):
-                next_wire_name = target_wire_name + ' seg'
-                self.graph[gate_id][to_gate_id]['wire_name'] = next_wire_name
-                self.invert_input_wire(to_gate_id, next_wire_name)
+            wire_name = edge_data.get('wire_name', '')
+            if self.is_same_wire(wire_name, target_wire_name):
+                self.invert_input_wire(to_gate_id, wire_name)
 
     def is_input_wire_inverted(self, gate_id, wire_name):
         """ Check if an input wire of a gate is inverted """
@@ -274,19 +275,31 @@ class DAG:
 
     def generate_unique_wire_segment_name(self, wire_name):
         """ Generate a unique wire segment name based on the base wire name """
-        base_name = wire_name.split(' seg')[0]
-        new_name = self.uniqufy_wire_name(f"{base_name} seg")
+        base_name = self.get_wire_base_name(wire_name)
+        new_name = self.uniqufy_wire_name(f"{base_name}{self.wire_segment_marker}")
         if self.debug_level >= 4:
             print(f"INFO: Generated unique wire segment: {new_name} from wire: {wire_name}")
         return new_name
 
-    def is_segments_of_same_wire(self, wire_name1, wire_name2):
+    def is_same_wire(self, wire_name1, wire_name2):
         """ Check if two wire names refer to the same wire """
         if wire_name1 is None or wire_name2 is None:
             return False
-        tokens1 = wire_name1.split(' seg')
-        tokens2 = wire_name2.split(' seg')
-        return (len(tokens1) > 1 or len(tokens2) > 1) and tokens1[0] == tokens2[0]
+        if wire_name1 == wire_name2:
+            return True
+        tokens1 = wire_name1.split(self.wire_segment_marker)
+        tokens2 = wire_name2.split(self.wire_segment_marker)
+        return tokens1[0] == tokens2[0]
+
+    def is_wire_segment(self, wire_name):
+        """ Check if a wire name is a segment of a wire (contains wire segment marker) """
+        return self.wire_segment_marker in wire_name
+
+    def get_wire_base_name(self, wire_name):
+        """ Get the base name of a wire, removing any segment suffix """
+        if not self.is_wire_segment(wire_name):
+            return wire_name
+        return wire_name.split(self.wire_segment_marker)[0]
 
     def debug_print(self, enable_breakpoint=False):
         """ Print debug information about the DAG """
@@ -383,7 +396,7 @@ class DAG:
                 if skip_port and (self.is_in_port(wire_name) or self.is_out_port(wire_name)):
                     continue  # skip ports
                 if merge_segments:
-                    wire_name = wire_name.split(' seg')[0]
+                    wire_name = self.get_wire_base_name(wire_name)
                 wire_names.add(wire_name)
         return list(wire_names)
 
@@ -397,8 +410,8 @@ class DAG:
             wire_name = edge_data.get('wire_name', None)
             if wire_name is None:
                 continue
-            if ' seg' in wire_name:
-                segmented_wires.append(wire_name.split(' seg')[0])
+            if self.is_wire_segment(wire_name):
+                segmented_wires.append(self.get_wire_base_name(wire_name))
         reusable_inout_wires = []
         for wire_name in gate['inputs']:
             if wire_name in segmented_wires:
@@ -406,10 +419,10 @@ class DAG:
             reusable_inout_wires.append(wire_name)
         return reusable_inout_wires
 
-    @staticmethod
-    def sanitize_name(wire_name):
+    def sanitize_name(self, wire_name):
         """ Sanitize wire/port/gate name by removing segment suffix """
-        return wire_name.replace("[", "_").replace("]", "_").split(' seg')[0]
+        wire_name = wire_name.replace("[", "_").replace("]", "_")
+        return self.get_wire_base_name(wire_name)
 
     def sanity_check(self):
         """ Perform sanity checks on the DAG """
@@ -468,12 +481,12 @@ class DAG:
             fanout_wire_segments = {}  # base_name -> set of segments
             for from_gate_id, to_gate_id, edge_data in self.graph.out_edges(gate_id, data=True):
                 wire_name = edge_data.get('wire_name', '')
-                wire_base_name = wire_name.split(' seg')[0]
+                wire_base_name = self.get_wire_base_name(wire_name)
                 fanout_wire_segments.setdefault(wire_base_name, [])
                 fanout_wire_segments[wire_base_name].append(wire_name)
             for wire_base_name, segments in fanout_wire_segments.items():
                 total = len(segments)
-                num_segments = len([s for s in segments if ' seg' in s])
+                num_segments = len([s for s in segments if self.is_wire_segment(s)])
                 if num_segments > 1 or (total > 1 and num_segments > 0):
                     self.raise_exception(f"Gate '{gate_id}' has multiple segments for wire '{wire_base_name}': {segments}.")
         return wire_fanins, wire_fanouts
@@ -486,7 +499,7 @@ class DAG:
             gate_node = self.graph.nodes[gate_id]
             input_wires = gate_node['inputs']
             output_wires = gate_node['outputs']
-            input_base_names = set([wire.split(' seg')[0] for wire in input_wires])
+            input_base_names = set([self.get_wire_base_name(wire) for wire in input_wires])
             # Note: Until the final step, it's possible that multiple segments of the same wire are used as inputs of
             #       the same gate, e.g., from different paths driving different input pins
             if self.debug_level >= 2:

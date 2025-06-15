@@ -34,7 +34,8 @@ class InvEliminator(DagTransformer):
         out_wire = inv_gate['outputs'][0]
 
         # Note: Skip inverters that are connected to input or output ports for now
-        if dag.is_in_port(in_wire) or dag.is_out_port(out_wire):
+        # It's possible that the input wire is an output port if port isolation is not applied
+        if dag.is_in_port(in_wire) or dag.is_out_port(in_wire) or dag.is_out_port(out_wire):
             return 0
 
         if self.debug_level >= 2:
