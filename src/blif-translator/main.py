@@ -127,9 +127,9 @@ class BlifTranslator:
         self.debug_checkpoint(dag, "post_maj_norm")
 
         # Analog PIM: Eliminate inverters
-        #inv_eliminator = InvEliminator()
-        #inv_eliminator.apply(dag)
-        #self.debug_checkpoint(dag, "post_inv_elim")
+        inv_eliminator = InvEliminator()
+        inv_eliminator.apply(dag)
+        self.debug_checkpoint(dag, "post_inv_elim")
 
         ## Analog PIM: Reuse TRA inputs to drive next stage gates
         inout_var_reuse = InoutVarReusing()

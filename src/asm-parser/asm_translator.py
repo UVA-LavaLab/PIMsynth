@@ -372,6 +372,9 @@ class AsmTranslator:
         while isinstance(self.riscvStatementList[portInfoIndex], PortInfo):
             portInfo = self.riscvStatementList[portInfoIndex]
             if self.isOutputPort(portInfo):
+                # TODO: Remove this assumption that the first operand of the last instruction
+                #       in an asm block is the destination operand. This creates a special
+                #       requirement to the asm generator in BLIF translator.
                 destinationOperand = instructionSequence[-1].operandsList[0]
                 writeSourceOperand = destinationOperand
                 writeDestinationOperand = portInfo.getPortName()

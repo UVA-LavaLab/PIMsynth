@@ -238,6 +238,7 @@ class GeneratorAsm():
         # 0: input uses same register as output 0
         # =r: output register
         # =&r: output must be different from inputs using early clobber
+        # TODO: Remove the assumption from ASM translator that the first operand of the last instruction is %0
         gate = self.dag.graph.nodes[gate_id]
         gate_func = gate['gate_func']
         if gate_func in ['in_port', 'out_port']:
@@ -275,7 +276,8 @@ class GeneratorAsm():
                 code += f'"#PIM_OP {sn} {info} %0 %1 %2 \\n'
                 code += ' and %0, %1, %2 \\n'
                 code += ' mv %1, %0 \\n'
-                code += ' mv %2, %0'
+                code += ' mv %2, %0 \\n'
+                code += ' mv %0, %0'
                 code += f'" : "=&r" ({outputs[0]}), "+r" ({inputs[0]}), "+r" ({inputs[1]}) : : {clobber}'
             else:
                 self.raise_exception(f"Invalid and2 operands: {len(outputs)} outputs and {len(inputs)} inputs.")
@@ -284,7 +286,8 @@ class GeneratorAsm():
                 code += f'"#PIM_OP {sn} {info} %0 %1 %2 \\n'
                 code += ' or %0, %1, %2 \\n'
                 code += ' mv %1, %0 \\n'
-                code += ' mv %2, %0'
+                code += ' mv %2, %0 \\n'
+                code += ' mv %0, %0'
                 code += f'" : "=&r" ({outputs[0]}), "+r" ({inputs[0]}), "+r" ({inputs[1]}) : : {clobber}'
             else:
                 self.raise_exception(f"Invalid or2 operands: {len(outputs)} outputs and {len(inputs)} inputs.")
@@ -298,7 +301,8 @@ class GeneratorAsm():
                 code += ' or %0, s1, s3 \\n'
                 code += ' mv %1, %0 \\n'
                 code += ' mv %2, %0 \\n'
-                code += ' mv %3, %0'
+                code += ' mv %3, %0 \\n'
+                code += ' mv %0, %0'
                 code += f'" : "=&r" ({outputs[0]}), "+r" ({inputs[0]}), "+r" ({inputs[1]}), "+r" ({inputs[2]}) : : {clobber}'
             elif len(outputs) == 2 and len(inputs) == 3:
                 code += f'"#PIM_OP {sn} {info} %0 %1 %2 %3 %4 \\n'
@@ -310,7 +314,8 @@ class GeneratorAsm():
                 code += ' mv %1, %0 \\n'
                 code += ' mv %2, %0 \\n'
                 code += ' mv %3, %0 \\n'
-                code += ' mv %4, %0'
+                code += ' mv %4, %0 \\n'
+                code += ' mv %0, %0'
                 code += f'" : "=&r" ({outputs[0]}), "=&r" ({outputs[1]}), "+r" ({inputs[0]}), "+r" ({inputs[1]}), "+r" ({inputs[2]}) : : {clobber}'
             elif len(outputs) == 3 and len(inputs) == 3:
                 code += f'"#PIM_OP {sn} {info} %0 %1 %2 %3 %4 %5 \\n'
@@ -323,7 +328,8 @@ class GeneratorAsm():
                 code += ' mv %2, %0 \\n'
                 code += ' mv %3, %0 \\n'
                 code += ' mv %4, %0 \\n'
-                code += ' mv %5, %0'
+                code += ' mv %5, %0 \\n'
+                code += ' mv %0, %0'
                 code += f'" : "=&r" ({outputs[0]}), "=&r" ({outputs[1]}), "=&r" ({outputs[2]}), "+r" ({inputs[0]}), "+r" ({inputs[1]}), "+r" ({inputs[2]}) : : {clobber}'
             else:
                 self.raise_exception(f"Invalid maj3 operands: {len(outputs)} outputs and {len(inputs)} inputs.")

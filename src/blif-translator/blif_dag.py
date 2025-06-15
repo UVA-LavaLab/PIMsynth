@@ -314,7 +314,7 @@ class DAG:
         for output in node['outputs']:
             if output in node['inverted']:
                 output_str += ' [~]'
-            output_str += f" {output},"
+            output_str += f" {output}"
         input_str = ''
         for input in node['inputs']:
             if input in node['inverted']:
