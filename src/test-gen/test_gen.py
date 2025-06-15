@@ -318,7 +318,7 @@ class BitwiseTestGenerator(TestFileGeneratorBase):
             code += f"""
             int bit_{operand}[{data_width}];
             for (int i = 0; i < {data_width}; i++) {{
-                bit_{operand}[i] = {operand} & (1 << i) ? 1 : 0;
+                bit_{operand}[i] = {operand} & (1ULL << i) ? 1 : 0;
             }}
             """
             for i in range(data_width):
