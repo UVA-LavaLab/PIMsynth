@@ -107,19 +107,26 @@ BLIF_GRAMMAR = r"""
 class BlifParser:
     """ BLIF parser class: Parse a BLIF file """
 
-    def __init__(self, module_name):
+    def __init__(self, module_name, debug_level=0):
         """ Initialize the BLIF parser """
         self.lark_parser = Lark(BLIF_GRAMMAR, parser='lalr', transformer=BlifTransformer())
         self.parse_tree = None
         self.module_name = module_name
+        self.debug_level = debug_level
 
     def parse(self, blif_content):
         """ Parse the input BLIF file content and create DAG """
         self.parse_tree = self.lark_parser.parse(blif_content)
+        if self.debug_level >= 2:
+            self.print_tree()
 
     def print_tree(self):
         """ Print the parse tree """
-        pprint.pprint(self.parse_tree)
+        print('BLIF PARSE TREE:')
+        print('-' * 20)
+        for item in self.parse_tree.children:
+            pprint.pprint(item)
+        print('-' * 20)
 
     def get_in_ports(self):
         """ Get input ports from the parse tree """
@@ -156,5 +163,13 @@ class BlifParser:
                 )
                 gate_info_list.append(gate_info)
                 gate_count += 1
+
+        if self.debug_level >= 2:
+            print('BLIF GATE INFO:')
+            print('-' * 20)
+            for gate_info in gate_info_list:
+                print(gate_info)
+            print('-' * 20)
+
         return gate_info_list
 

@@ -10,6 +10,7 @@ Date: 2025-05-28
 
 import json
 import copy
+from collections import defaultdict
 from networkx.readwrite import json_graph
 from pyvis.network import Network
 import networkx as nx
@@ -94,41 +95,43 @@ class DAG:
             gate_outputs = gate_info.outputs
             self.add_gate(gate_id=gate_id, gate_func=gate_func, inputs=gate_inputs, outputs=gate_outputs)
         # Connect wires
-        wire_fanins = {}
-        wire_fanouts = {}
+        wire_fanins = defaultdict(set)
+        wire_fanouts = defaultdict(set)
         for gate_info in gate_info_list:
             gate_id = gate_info.gate_id
             gate_inputs = gate_info.inputs
             gate_outputs = gate_info.outputs
             for wire in gate_inputs:
-                if wire not in wire_fanouts:
-                    wire_fanouts[wire] = set()
                 wire_fanouts[wire].add(gate_id)
             for wire in gate_outputs:
-                if wire not in wire_fanins:
-                    wire_fanins[wire] = set()
                 wire_fanins[wire].add(gate_id)
         for wire in set(wire_fanins.keys()).union(wire_fanouts.keys()):
             fanins = wire_fanins.get(wire, [])
             fanouts = wire_fanouts.get(wire, [])
-            if not fanins and not fanouts:
-                self.raise_exception(f"Wire '{wire}' has no fanins and fanouts")
-            elif not fanins:  # input port
-                assert wire in self.__in_ports, f"Wire '{wire}' has no fanins and is not an input port."
-                self.graph.nodes[wire]['outputs'].append(wire)
-                for gate_id in fanouts:
-                    self.add_wire(wire_name=wire, fanin_gate_id=wire, fanout_gate_id=gate_id)
-            elif not fanouts:  # output port
-                assert wire in self.__out_ports, f"Wire '{wire}' has no fanouts and is not an output port."
-                self.graph.nodes[wire]['inputs'].append(wire)
-                for gate_id in fanins:
-                    self.add_wire(wire_name=wire, fanin_gate_id=gate_id, fanout_gate_id=wire)
-            else:
-                assert wire not in self.__in_ports and wire not in self.__out_ports
-                assert len(fanins) == 1, f"Wire '{wire}' has multiple fanins: {fanins}. Expected a single fanin."
-                fanin_gate_id = next(iter(fanins))
+            #if not fanins and not fanouts:
+            #    self.raise_exception(f"Wire '{wire}' has no fanins and fanouts")
+            if not fanins:
+                if not fanouts:
+                    self.raise_exception(f"Wire '{wire}' has no fanins and fanouts")
+                if wire not in self.__in_ports:
+                    self.raise_exception(f"Wire '{wire}' has no fanins and is not an input port.")
+                fanin_gate_id = wire
+                self.graph.nodes[fanin_gate_id]['outputs'].append(wire)
                 for gate_id in fanouts:
                     self.add_wire(wire_name=wire, fanin_gate_id=fanin_gate_id, fanout_gate_id=gate_id)
+            else:
+                if len(fanins) != 1:
+                    self.raise_exception(f"Wire '{wire}' has multiple fanins: {fanins}. Expected a single fanin.")
+                fanin_gate_id = next(iter(fanins))
+                # Special case: If wire is with an output port name, connect it to the port gate first 
+                # It is legal to use such wire as inputs of internal logic, so it can have multiple fanouts
+                if wire in self.__out_ports:
+                    fanout_gate_id = wire
+                    self.graph.nodes[fanout_gate_id]['inputs'].append(wire)
+                    self.add_wire(wire_name=wire, fanin_gate_id=fanin_gate_id, fanout_gate_id=fanout_gate_id)
+                # Connect regular fanouts
+                for fanout_gate_id in fanouts:
+                    self.add_wire(wire_name=wire, fanin_gate_id=fanin_gate_id, fanout_gate_id=fanout_gate_id)
 
     def add_gate(self, gate_id='', gate_func='', inputs=None, outputs=None):
         """ Add a gate to the DAG """
@@ -449,6 +452,20 @@ class DAG:
                 self.raise_exception(f"Wire '{wire_name}' has multiple fanins: {fanins}. Expected a single fanin.")
             if not fanouts:
                 self.raise_exception(f"Wire '{wire_name}' has no fanouts: {fanouts}. Expected at least one fanout.")
+        # Check wire segments branching
+        # Wire segments should form a chain, not a tree
+        for gate_id in self.graph.nodes:
+            fanout_wire_segments = {}  # base_name -> set of segments
+            for from_gate_id, to_gate_id, edge_data in self.graph.out_edges(gate_id, data=True):
+                wire_name = edge_data.get('wire_name', '')
+                wire_base_name = wire_name.split(' seg')[0]
+                fanout_wire_segments.setdefault(wire_base_name, [])
+                fanout_wire_segments[wire_base_name].append(wire_name)
+            for wire_base_name, segments in fanout_wire_segments.items():
+                total = len(segments)
+                num_segments = len([s for s in segments if ' seg' in s])
+                if num_segments > 1 or (total > 1 and num_segments > 0):
+                    self.raise_exception(f"Gate '{gate_id}' has multiple segments for wire '{wire_base_name}': {segments}.")
         return wire_fanins, wire_fanouts
 
     def sanity_check_gates(self, wire_fanins, wire_fanouts):

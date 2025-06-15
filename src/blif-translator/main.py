@@ -175,7 +175,7 @@ class BlifTranslator:
         DagTransformer.debug_level = self.debug_level
 
         # Run BLIF parser
-        parser = blif_parser.BlifParser(self.module_name)
+        parser = blif_parser.BlifParser(self.module_name, self.debug_level)
         file_content = util.getContent(self.input_file)
         parser.parse(file_content)
         in_ports = parser.get_in_ports()
