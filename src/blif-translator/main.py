@@ -18,7 +18,7 @@ import blif_parser
 from blif_dag import DAG
 
 from dag_transformer_base import DagTransformer
-from dag_input_port_isolation import InputPortIsolation
+from dag_port_isolation import PortIsolation
 from dag_maj_normalizer import MajNormalizer
 from dag_inv_eliminator import InvEliminator
 from dag_inout_var_reusing import InoutVarReusing
@@ -117,9 +117,9 @@ class BlifTranslator:
         print("Info: Optimizing DAG for analog PIM")
 
         # Analog PIM: Copy external inputs to register rows
-        input_port_isolation = InputPortIsolation()
-        input_port_isolation.apply(dag)
-        self.debug_checkpoint(dag, "post_input_port_iso")
+        port_isolation = PortIsolation()
+        port_isolation.apply(dag)
+        self.debug_checkpoint(dag, "post_port_isolation")
 
         # Analog PIM: Normalize majority gates
         maj_normalizer = MajNormalizer()

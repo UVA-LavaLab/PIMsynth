@@ -297,7 +297,17 @@ class DAG:
     def get_gate_info_str(self, gate_id):
         """ Get gate information as a string by gate ID """
         node = self.graph.nodes.get(gate_id)
-        return f"{node['gate_func']:<10} {node['gate_id']:<10} | outputs: {str(node['outputs']):<20} | inputs: {str(node['inputs'])}"
+        output_str = ''
+        for output in node['outputs']:
+            if output in node['inverted']:
+                output_str += ' [~]'
+            output_str += f" {output},"
+        input_str = ''
+        for input in node['inputs']:
+            if input in node['inverted']:
+                input_str += ' [~]'
+            input_str += f" {input:<10}"
+        return f"{node['gate_func']:<10} {node['gate_id']:<10} | OUT: {output_str:<10} | IN: {input_str}"
 
     def __repr__(self):
         """ String representation of the DAG """
@@ -511,8 +521,11 @@ class DAG:
                     self.raise_exception(f"Inverted wire '{wire_name}' of gate '{gate_id}' is not in its input wires.")
                 if wire_name in output_wires:
                     self.raise_exception(f"Inverted wire '{wire_name}' of gate '{gate_id}' should not be in its output wires.")
-                if self.is_out_port(wire_name):
-                    self.raise_exception(f"Inverted wire '{wire_name}' of gate '{gate_id}' should not be an output port.")
+                # Note: An output port wire can be used to drive internal logic.
+                # If it drives an inverter then another gate, it hits this condition after inverter elimination.
+                if self.debug_level >= 2:
+                    if self.is_out_port(wire_name):
+                        print(f"Warning: Inverted wire '{wire_name}' of gate '{gate_id}' is an output port wire.")
 
     def verify_dag(self, pim_mode='digital'):
         """ Verify the DAG with input/output simulation """
