@@ -121,7 +121,7 @@ class TestFileGeneratorBase():
         data_width = self._get_c_data_width(data_type)
         if operator == 'popcount':
             data_width = data_width.bit_length()  # log2
-        elif operator in ['gt', 'lt', 'eq']:
+        elif operator in ['gt', 'lt', 'eq', 'ne']:
             data_width = 1
         return data_width
 
