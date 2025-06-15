@@ -2,13 +2,14 @@
 // Dependencies: adder_1bit_half.v adder_nbit_cout.v
 // deyuan, 03/30/2025
 
-module popcount_int32 (
+module popcount_int32_maj (
     input  [31:0] A,
     output [5:0] Y
 );
 
     localparam WIDTH = 32;
-    localparam IMPL_TYPE = 0;
+    // TODO: Yosys errors out if running hierarchy with -chparam IMPL_TYPE 1
+    localparam IMPL_TYPE = 1;
 
     // 2-bit partial sum
     wire [WIDTH-1:0] sum_2bit;

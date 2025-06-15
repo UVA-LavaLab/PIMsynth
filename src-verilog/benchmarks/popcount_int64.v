@@ -2,13 +2,13 @@
 // Dependencies: adder_1bit_half.v adder_nbit_cout.v
 // deyuan, 03/30/2025
 
-module popcount_int64 #(
-    parameter WIDTH = 64,
-    parameter IMPL_TYPE = 0
-) (
-    input  [WIDTH-1:0] A,
+module popcount_int64 (
+    input  [63:0] A,
     output [6:0] Y
 );
+
+    localparam WIDTH = 64;
+    localparam IMPL_TYPE = 0;
 
     // 2-bit partial sum
     wire [WIDTH-1:0] sum_2bit;
@@ -34,7 +34,7 @@ module popcount_int64 #(
             adder_nbit_cout #(
                 .WIDTH(2),
                 .IMPL_TYPE(IMPL_TYPE)
-            ) u_adder_nbit_cout (
+            ) u_adder_nbit_cout_3bit (
                 .A(sum_2bit[j+1:j]),
                 .B(sum_2bit[j+3:j+2]),
                 .Sum(sum_3bit[j/4][1:0]),
@@ -51,7 +51,7 @@ module popcount_int64 #(
             adder_nbit_cout #(
                 .WIDTH(3),
                 .IMPL_TYPE(IMPL_TYPE)
-            ) u_adder_nbit_cout (
+            ) u_adder_nbit_cout_4bit (
                 .A(sum_3bit[k/4]),
                 .B(sum_3bit[k/4+1]),
                 .Sum(sum_4bit[k/8][2:0]),
@@ -68,7 +68,7 @@ module popcount_int64 #(
             adder_nbit_cout #(
                 .WIDTH(4),
                 .IMPL_TYPE(IMPL_TYPE)
-            ) u_adder_nbit_cout (
+            ) u_adder_nbit_cout_5bit (
                 .A(sum_4bit[l/8]),
                 .B(sum_4bit[l/8+1]),
                 .Sum(sum_5bit[l/16][3:0]),
@@ -85,7 +85,7 @@ module popcount_int64 #(
             adder_nbit_cout #(
                 .WIDTH(5),
                 .IMPL_TYPE(IMPL_TYPE)
-            ) u_adder_nbit_cout (
+            ) u_adder_nbit_cout_6bit (
                 .A(sum_5bit[m/16]),
                 .B(sum_5bit[m/16+1]),
                 .Sum(sum_6bit[m/32][4:0]),
@@ -101,7 +101,7 @@ module popcount_int64 #(
             adder_nbit_cout #(
                 .WIDTH(6),
                 .IMPL_TYPE(IMPL_TYPE)
-            ) u_adder_nbit_cout (
+            ) u_adder_nbit_cout_7bit (
                 .A(sum_6bit[n/32]),
                 .B(sum_6bit[n/32+1]),
                 .Sum(Y[n+5:n]),

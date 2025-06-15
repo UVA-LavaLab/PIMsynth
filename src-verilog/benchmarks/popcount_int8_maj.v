@@ -1,14 +1,15 @@
-// 32-bit Integer Popcount
+// 8-bit Integer Popcount
 // Dependencies: adder_1bit_half.v adder_nbit_cout.v
 // deyuan, 03/30/2025
 
-module popcount_int32 (
-    input  [31:0] A,
-    output [5:0] Y
+module popcount_int8_maj (
+    input  [7:0] A,
+    output [3:0] Y
 );
 
-    localparam WIDTH = 32;
-    localparam IMPL_TYPE = 0;
+    localparam WIDTH = 8;
+    // TODO: Yosys errors out if running hierarchy with -chparam IMPL_TYPE 1
+    localparam IMPL_TYPE = 1;
 
     // 2-bit partial sum
     wire [WIDTH-1:0] sum_2bit;
@@ -27,7 +28,7 @@ module popcount_int32 (
     endgenerate
 
     // reduce to 3-bit sum
-    wire [2:0] sum_3bit [7:0];
+    wire [2:0] sum_3bit [1:0];
     generate
         genvar j;
         for (j = 0; j < WIDTH; j = j + 4) begin : gen_partial_sum_3bit
@@ -44,7 +45,6 @@ module popcount_int32 (
     endgenerate
 
     // reduce to 4-bit sum
-    wire [3:0] sum_4bit [3:0];
     generate
         genvar k;
         for (k = 0; k < WIDTH; k = k + 8) begin : gen_partial_sum_4bit
@@ -54,41 +54,8 @@ module popcount_int32 (
             ) u_adder_nbit_cout_4bit (
                 .A(sum_3bit[k/4]),
                 .B(sum_3bit[k/4+1]),
-                .Sum(sum_4bit[k/8][2:0]),
-                .Cout(sum_4bit[k/8][3])
-            );
-        end
-    endgenerate
-
-    // reduce to 5-bit sum
-    wire [4:0] sum_5bit [1:0];
-    generate
-        genvar l;
-        for (l = 0; l < WIDTH; l = l + 16) begin : gen_partial_sum_5bit
-            adder_nbit_cout #(
-                .WIDTH(4),
-                .IMPL_TYPE(IMPL_TYPE)
-            ) u_adder_nbit_cout_5bit (
-                .A(sum_4bit[l/8]),
-                .B(sum_4bit[l/8+1]),
-                .Sum(sum_5bit[l/16][3:0]),
-                .Cout(sum_5bit[l/16][4])
-            );
-        end
-    endgenerate
-
-    // reduce to 6-bit sum
-    generate
-        genvar m;
-        for (m = 0; m < WIDTH - 1; m = m + 32) begin : gen_partial_sum_6bit
-            adder_nbit_cout #(
-                .WIDTH(5),
-                .IMPL_TYPE(IMPL_TYPE)
-            ) u_adder_nbit_cout_6bit (
-                .A(sum_5bit[m/16]),
-                .B(sum_5bit[m/16+1]),
-                .Sum(Y[m+4:m]),
-                .Cout(Y[m+5])
+                .Sum(Y[k+2:k]),
+                .Cout(Y[k+3])
             );
         end
     endgenerate

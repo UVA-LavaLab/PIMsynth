@@ -22,8 +22,8 @@ module adder_1bit_half #(
         wire m1, m2, m3, nm1;
         // MAJ + NOT
         maj3 inst1 (.A(A), .B(B), .C(1'b0), .Y(m1));
-        maj3 inst2 (.A(A), .B(B), .C(1'b1), .Y(m2));
         assign nm1 = ~m1;
+        maj3 inst2 (.A(A), .B(B), .C(1'b1), .Y(m2));
         maj3 inst3 (.A(m2), .B(nm1), .C(1'b0), .Y(m3));
         assign Cout = m1;
         assign Sum = m3;
