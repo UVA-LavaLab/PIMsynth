@@ -123,7 +123,7 @@ class DAG:
                 if len(fanins) != 1:
                     self.raise_exception(f"Wire '{wire}' has multiple fanins: {fanins}. Expected a single fanin.")
                 fanin_gate_id = next(iter(fanins))
-                # Special case: If wire is with an output port name, connect it to the port gate first 
+                # Special case: If wire is with an output port name, connect it to the port gate first
                 # It is legal to use such wire as inputs of internal logic, so it can have multiple fanouts
                 if wire in self.__out_ports:
                     fanout_gate_id = wire
@@ -477,8 +477,11 @@ class DAG:
             input_wires = gate_node['inputs']
             output_wires = gate_node['outputs']
             input_base_names = set([wire.split(' seg')[0] for wire in input_wires])
-            if len(input_base_names) != len(input_wires):
-                self.raise_exception(f"Gate '{gate_id}' has multiple input segments of the same wire: {input_wires}.")
+            # Note: Until the final step, it's possible that multiple segments of the same wire are used as inputs of
+            #       the same gate, e.g., from different paths driving different input pins
+            if self.debug_level >= 2:
+                if len(input_base_names) != len(input_wires):
+                    print(f"Warning: Gate '{gate_id}' has multiple input segments of the same wire: {input_wires}.")
             for input_wire in input_wires:
                 if gate_id not in wire_fanouts[input_wire]:
                     self.raise_exception(f"Gate '{gate_id}' not found in fanouts of input wire '{input_wire}'.")
