@@ -14,6 +14,10 @@ from dag_transformer_base import DagTransformer
 class MajNormalizer(DagTransformer):
     """ Normalizes other gates to majority gates in the DAG """
 
+    def __init__(self):
+        """ Initialize """
+        self.solution = 0  # 0: separate zero/one gates; 1: single zero/one gate
+
     def apply(self, dag):
         """ Apply the majority normalization transformation to the DAG """
         total_and = 0
@@ -31,29 +35,47 @@ class MajNormalizer(DagTransformer):
         """ Transform: AND gate to MAJ gate """
         orig_gate = dag.graph.nodes[gate_id]
         # Add a zero gate and a wire
-        zero_gate_id = dag.uniqufy_gate_id("zero")
+        if self.solution == 0:
+            zero_gate_id = dag.uniqufy_gate_id("zero")
+            zero_wire = dag.uniqufy_wire_name("zero")
+            dag.add_gate(gate_id=zero_gate_id, gate_func="zero", inputs=[], outputs=[zero_wire])
+            dag.add_wire(zero_wire, zero_gate_id, gate_id)
+        elif self.solution == 1:
+            zero_gate_id = "zero"
+            zero_wire = "zero"
+            if not dag.graph.has_node(zero_gate_id):
+                dag.add_gate(gate_id=zero_gate_id, gate_func="zero", inputs=[], outputs=[zero_wire])
+            dag.add_wire(zero_wire, zero_gate_id, gate_id)
+        else:
+            raise ValueError("Invalid solution option for zero gate creation")
         if self.debug_level >= 2:
             print(f'DAG-Transform: AND to MAJ: {gate_id} -> {zero_gate_id}, {gate_id}')
-        new_wire = dag.uniqufy_wire_name("zero")
-        dag.add_gate(gate_id=zero_gate_id, gate_func="zero", inputs=[], outputs=[new_wire])
-        dag.add_wire(new_wire, zero_gate_id, gate_id)
         # Update the original gate
         orig_gate['gate_func'] = "maj3"
-        orig_gate['inputs'].append(new_wire)
+        orig_gate['inputs'].append(zero_wire)
         return 1
 
     def run_xform_or_to_maj(self, dag, gate_id):
         """ Transform: OR gate to MAJ gate """
         gate = dag.graph.nodes[gate_id]
         # Add a one gate and a wire
-        one_gate_id = dag.uniqufy_gate_id("one")
+        if self.solution == 0:
+            one_gate_id = dag.uniqufy_gate_id("one")
+            one_wire = dag.uniqufy_wire_name("one")
+            dag.add_gate(gate_id=one_gate_id, gate_func="one", inputs=[], outputs=[one_wire])
+            dag.add_wire(one_wire, one_gate_id, gate_id)
+        elif self.solution == 1:
+            one_gate_id = "one"
+            one_wire = "one"
+            if not dag.graph.has_node(one_gate_id):
+                dag.add_gate(gate_id=one_gate_id, gate_func="one", inputs=[], outputs=[one_wire])
+            dag.add_wire(one_wire, one_gate_id, gate_id)
+        else:
+            raise ValueError("Invalid solution option for one gate creation")
         if self.debug_level >= 2:
             print(f'DAG-Transform: OR to MAJ: {gate_id} -> {one_gate_id}, {gate_id}')
-        new_wire = dag.uniqufy_wire_name("one")
-        dag.add_gate(gate_id=one_gate_id, gate_func="one", inputs=[], outputs=[new_wire])
-        dag.add_wire(new_wire, one_gate_id, gate_id)
         # Update the original gate
         gate['gate_func'] = "maj3"
-        gate['inputs'].append(new_wire)
+        gate['inputs'].append(one_wire)
         return 1
 
