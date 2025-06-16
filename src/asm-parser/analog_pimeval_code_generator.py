@@ -106,19 +106,55 @@ class PimEvalAPIAnalogCodeGenerator(PimEvalAPICodeGeneratorBase):
     def handleMajInstruction(self, instruction):
         if not instruction.opCode.startswith("maj3"):
             return None
+        num_operands = len(instruction.operandsList)
+        if num_operands < 4 or num_operands > 6:
+            raise ValueError(f"Invalid number of operands for maj3 instruction: {num_operands}")
+
         # Extract inversion information from BLIF translator
         inv0, inv1, inv2 = False, False, False
         if '__n' in instruction.opCode:
             inv0, inv1, inv2 = [c == '1' for c in instruction.opCode.split('__n')[1][:3]]
-        operand0 = self.mapPimAsmRegToPimEvalAPI(instruction.operandsList[0])
-        operand1 = self.mapPimAsmRegToPimEvalAPI(instruction.operandsList[1], isInverted=inv0)
-        operand2 = self.mapPimAsmRegToPimEvalAPI(instruction.operandsList[2], isInverted=inv1)
-        operand3 = self.mapPimAsmRegToPimEvalAPI(instruction.operandsList[3], isInverted=inv2)
+
+        # Prepare source operands
+        operand_src0 = self.mapPimAsmRegToPimEvalAPI(instruction.operandsList[-3], isInverted=inv0)
+        operand_src1 = self.mapPimAsmRegToPimEvalAPI(instruction.operandsList[-2], isInverted=inv1)
+        operand_src2 = self.mapPimAsmRegToPimEvalAPI(instruction.operandsList[-1], isInverted=inv2)
+        sources = [operand_src0, operand_src1, operand_src2]
+
+        # Prepare destination operands
+        if num_operands == 4:
+            operand_dest0 = self.mapPimAsmRegToPimEvalAPI(instruction.operandsList[0])
+            dests = [operand_dest0]
+        elif num_operands == 5:
+            operand_dest0 = self.mapPimAsmRegToPimEvalAPI(instruction.operandsList[0])
+            operand_dest1 = self.mapPimAsmRegToPimEvalAPI(instruction.operandsList[1])
+            dests = [operand_dest0, operand_dest1]
+        elif num_operands == 6:
+            operand_dest0 = self.mapPimAsmRegToPimEvalAPI(instruction.operandsList[0])
+            operand_dest1 = self.mapPimAsmRegToPimEvalAPI(instruction.operandsList[1])
+            operand_dest2 = self.mapPimAsmRegToPimEvalAPI(instruction.operandsList[2])
+            dests = [operand_dest0, operand_dest1, operand_dest2]
+
+        # Safety check
+        if len(set(sources)) != len(sources):
+            raise ValueError(f"Error: maj3 instruction {instruction.opCode} has duplicate source operands.")
+        if len(set(dests)) != len(dests):
+            raise ValueError(f"Error: maj3 instruction {instruction.opCode} has duplicate destination operands.")
+        # TODO: If allowing same src and dest in BLIF translator, update here
+        if len(set(sources + dests)) != len(sources + dests):
+            raise ValueError(f"Error: maj3 instruction {instruction.opCode} has source and destination operands that overlap.")
+
+        # Generate code
         code = self.generateInstructionComment(instruction)
-        if instruction.operandsList[0] in instruction.operandsList[1:]:
-            code += f"\tpimOpAP(3, {operand1}, {operand2}, {operand3});\n\n"
-        else:
-            code += f"\tpimOpAAP(3, 1, {operand1}, {operand2}, {operand3}, {operand0});\n\n"
+        if not dests:
+            code += f"\tpimOpAP(3, {sources[0]}, {sources[1]}, {sources[2]});\n\n"
+        elif len(dests) == 1:
+            code += f"\tpimOpAAP(3, 1, {sources[0]}, {sources[1]}, {sources[2]}, {dests[0]});\n\n"
+        elif len(dests) == 2:
+            code += f"\tpimOpAAP(3, 2, {sources[0]}, {sources[1]}, {sources[2]}, {dests[0]}, {dests[1]});\n\n"
+        elif len(dests) == 3:
+            code += f"\tpimOpAAP(3, 3, {sources[0]}, {sources[1]}, {sources[2]}, {dests[0]}, {dests[1]}, {dests[2]});\n\n"
+
         return code
 
     def handleNotInstruction(self, instruction):

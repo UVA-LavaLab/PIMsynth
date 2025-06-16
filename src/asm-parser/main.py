@@ -44,14 +44,13 @@ if __name__ == "__main__":
     inputList = list(set(parser.inputList))
     outputList = list(set(parser.outputList))
 
+    debugLevel = 0
+
     # Transrom the riscv assembly to bit-serial assembly
-    asmTranslator = AsmTranslator(riscvStatementList, inputList, outputList, pimMode=args.pim_mode)
+    asmTranslator = AsmTranslator(riscvStatementList, inputList, outputList, pimMode=args.pim_mode, debugLevel=debugLevel)
+    asmTranslator.translate()
+    asmTranslator.shrink_temp_variables()
     bitSerialAsm = asmTranslator.getBitSerialAsm()
-
-    # for instruction in bitSerialAsm:
-        # print(instruction)
-
-    # asmTranslator.symbolTable.print_symbols()
 
     statsGenerator = StatsGenerator(bitSerialAsm)
     stats = statsGenerator.generateStats()

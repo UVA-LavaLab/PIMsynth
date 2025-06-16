@@ -88,11 +88,12 @@ class TempManager:
             raise IndexError("Index out of bounds")
 
 class AsmTranslator:
-    def __init__(self, riscvStatementList, inputList, outputList, pimMode):
+    def __init__(self, riscvStatementList, inputList, outputList, pimMode, debugLevel=0):
         self.riscvStatementList = riscvStatementList
         self.inputList = inputList
         self.outputList = outputList
         self.pimMode = pimMode
+        self.debugLevel = debugLevel
         self.remainedOutputList = outputList.copy()
         self.bitSerialStatementList = []
         self.symbolTable = SymbolTable()
@@ -100,10 +101,16 @@ class AsmTranslator:
         self.LINE_STRING = 80 * "=" + "\n"
         self.tempManager = TempManager()
         self.ports = set(inputList + outputList)
-        self.translate()
-        tempVariablesShrinker = TempVariablesShrinker(self.bitSerialStatementList)
-        tempVariablesShrinker.shrinkTempVariables()
-        self.bitSerialStatementList = tempVariablesShrinker.newInstructionSequence
+
+        if self.debugLevel >= 1:
+            print("Starting AsmTranslator.")
+            for i, input in enumerate(inputList):
+                print(f'INPUT {i}: {input}')
+            for i, output in enumerate(outputList):
+                print(f'OUTPUT {i}: {output}')
+            for i, statement in enumerate(riscvStatementList):
+                print(f'[{i}] {statement}')
+            print('-' * 40)
 
     def __get_statement_list_as_string(self, statement_list):
         return "\n".join([f"{statement}" for statement in statement_list])
@@ -120,11 +127,17 @@ class AsmTranslator:
 
 
     def translate(self):
+        """ Translate the RISCV assembly to bit-serial assembly """
+        print("Translating RISCV assembly to bit-serial assembly...\n")
         statementIndex = 0
         while statementIndex < len(self.riscvStatementList):
             statement = self.riscvStatementList[statementIndex]
             if isinstance(statement, Instruction):
                 if len(self.remainedOutputList) == 0:
+                    if self.debugLevel >= 1:
+                        print("Bit-Serial Assembly Code After Translation:")
+                        for i, instruction in enumerate(self.bitSerialStatementList):
+                            print(f"[{i}] {instruction}")
                     return
                 elif statement.isLoadInstruction():
                     statementIndex += self.translateLoadInstruction(statementIndex)
@@ -133,11 +146,30 @@ class AsmTranslator:
                 elif statement.isMoveInstruction():
                     statementIndex += self.translateMoveInstruction(statementIndex)
                 else:
+                    if self.debugLevel >= 2:
+                        print(f"DEBUG: IDX {statementIndex:<5} {'INST-IGNOR':<10} : {self.riscvStatementList[statementIndex]}")
                     statementIndex += 1
             elif isinstance(statement, Directive) and statement.val == "#APP":
                 statementIndex += self.translateInlineAssembly(statementIndex)
             else:
+                if self.debugLevel >= 2:
+                    print(f"DEBUG: IDX {statementIndex:<5} {'STMT-IGNOR':<10} : {self.riscvStatementList[statementIndex]}")
                 statementIndex += 1
+
+    def shrink_temp_variables(self):
+        """ Shrink temporary variables in the bit-serial statement list """
+        print("Simplifying temporary variables in the bit-serial assembly...\n")
+        tempVariablesShrinker = TempVariablesShrinker(self.bitSerialStatementList)
+        tempVariablesShrinker.shrinkTempVariables()
+        self.bitSerialStatementList = tempVariablesShrinker.newInstructionSequence
+
+        if self.debugLevel >= 1:
+            print("Bit-Serial Assembly Code:")
+            for i, instruction in enumerate(self.bitSerialStatementList):
+                print(f"[{i}] {instruction}")
+            print("Symbol Table:")
+            self.symbolTable.print_symbols()
+            print('-' * 40)
 
     def getDestinationOperandFromInstruction(self, instruction):
         if instruction.opCode == "write":
@@ -246,6 +278,10 @@ class AsmTranslator:
             return returnVal, doUnsudpendThePath
 
     def translateMoveInstruction(self, statementIndex):
+        """ Translate a move instruction in RISCV assembly to bit-serial assembly """
+        if self.debugLevel >= 2:
+            print(f"DEBUG: IDX {statementIndex:<5} {'MOVE':<10} : {self.riscvStatementList[statementIndex]}")
+
         riscvInstruction = self.riscvStatementList[statementIndex]
         if self.isBitSerialRegister(riscvInstruction.operandsList[0]):
             if self.isBitSerialRegister(riscvInstruction.operandsList[1]):
@@ -267,6 +303,10 @@ class AsmTranslator:
         return 1
 
     def translateLoadInstruction(self, statementIndex):
+        """ Translate a load instruction from RISCV assembly to bit-serial assembly """
+        if self.debugLevel >= 2:
+            print(f"DEBUG: IDX {statementIndex:<5} {'LOAD':<10} : {self.riscvStatementList[statementIndex]}")
+
         riscvInstruction = self.riscvStatementList[statementIndex]
         portInfo = self.riscvStatementList[statementIndex + 1]
 
@@ -275,6 +315,9 @@ class AsmTranslator:
 
         if destinationOperand and sourceOperand:
             self.appendBitSerialInstruction("read", [destinationOperand, sourceOperand], riscvInstruction.line, suspended)
+        else:
+            if self.debugLevel >= 2:
+                print(f"WARNING: Invalid load instruction at line {riscvInstruction.line}.")
 
         return 1
 
@@ -314,9 +357,14 @@ class AsmTranslator:
                 return portInfo.getPortName()  # Use input port name
 
         resolvedOperand, doUnsudpendThePath = self.resolveOperand(sourceOperand, line=line)
+        print(f"DEBUG: {doUnsudpendThePath=}, {resolvedOperand=}, {sourceOperand=}, {line=}")
         return resolvedOperand
 
     def translateStoreInstruction(self, statementIndex):
+        """ Translate a store instruction in RISCV assembly to bit-serial assembly """
+        if self.debugLevel >= 2:
+            print(f"DEBUG: IDX {statementIndex:<5} {'STORE':<10} : {self.riscvStatementList[statementIndex]}")
+
         riscvInstruction = self.riscvStatementList[statementIndex]
         portInfo = self.riscvStatementList[statementIndex + 1]
 
@@ -401,6 +449,8 @@ class AsmTranslator:
 
     def translateInlineAssembly(self, statementIndex):
         """ Translate an inline assembly block between #APP and #NO_APP directives """
+        if self.debugLevel >= 2:
+            print(f"DEBUG: IDX {statementIndex:<5} {'INLINE-ASM':<10} : {self.riscvStatementList[statementIndex]}")
         newOpCode, operandsList = self.parsePimOpDirective(statementIndex + 1)
         if newOpCode is None:
             return 2
