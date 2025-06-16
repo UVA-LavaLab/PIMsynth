@@ -14,12 +14,6 @@ import os
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from util import *
 
-# Util function
-def findTempVarIndex(inputString):
-    if inputString.startswith("temp"):
-        return int(inputString[4:])
-    else:
-        return -1
 
 class PimEvalAPICodeGeneratorBase:
     def __init__(self, instructionSequence, functionName, ports):
@@ -119,10 +113,17 @@ class PimEvalAPICodeGeneratorBase:
         dataTypeBitWidth = self.getDataTypeBitWidth()
         return (tmpVarIndex // dataTypeBitWidth, tmpVarIndex % dataTypeBitWidth)
 
+    @staticmethod
+    def findTempVarIndex(inputString):
+        if inputString.startswith("temp"):
+            return int(inputString[4:])
+        else:
+            return -1
+
     def getTempVarMapList(self):
         tempVarMapList = list()
         for tempVar in self.getTempVarList():
-            tmpVarIndex = findTempVarIndex(tempVar)
+            tmpVarIndex = self.findTempVarIndex(tempVar)
             pimObjIndex = self.mapVarIndex(tmpVarIndex)
 
     def generateTemporaryVariables(self):
@@ -159,7 +160,7 @@ class PimEvalAPICodeGeneratorBase:
 
     def formatOperand(self, operand):
         if "temp" in operand:
-            tmpVarIndex = findTempVarIndex(operand)
+            tmpVarIndex = self.findTempVarIndex(operand)
             tempObjIndex, offset = self.mapVarIndex(tmpVarIndex)
             return f"tempObj{tempObjIndex}, {offset}"
         else:

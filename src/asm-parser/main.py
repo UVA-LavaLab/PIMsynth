@@ -11,14 +11,15 @@ Date: 2024-09-27
 import sys
 import argparse
 import os
-from parser import *
-from asm_translator import *
-from stats_generator import *
-from digital_pimeval_code_generator import *
-from analog_pimeval_code_generator import *
+from parser import Parser
+from asm_translator import AsmTranslator
+from stats_generator import StatsGenerator
+from code_gen_pimeval_digital import PimEvalAPIDigitalCodeGenerator
+from code_gen_pimeval_analog import PimEvalAPIAnalogCodeGenerator
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from util import *
+
 
 if __name__ == "__main__":
     # Set up argument parser with optional arguments

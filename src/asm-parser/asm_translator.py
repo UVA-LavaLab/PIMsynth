@@ -357,7 +357,6 @@ class AsmTranslator:
                 return portInfo.getPortName()  # Use input port name
 
         resolvedOperand, doUnsudpendThePath = self.resolveOperand(sourceOperand, line=line)
-        print(f"DEBUG: {doUnsudpendThePath=}, {resolvedOperand=}, {sourceOperand=}, {line=}")
         return resolvedOperand
 
     def translateStoreInstruction(self, statementIndex):

@@ -14,7 +14,8 @@ import sys
 import os
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from util import *
-from pimeval_code_generator_base import *
+from code_gen_pimeval_base import PimEvalAPICodeGeneratorBase
+
 
 class PimEvalAPIAnalogCodeGenerator(PimEvalAPICodeGeneratorBase):
     def __init__(self, *args, **kwargs):
