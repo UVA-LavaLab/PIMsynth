@@ -219,7 +219,7 @@ class DAG:
         # segments of old wire -> segments of new wire
         # Note: wire segments is from in-out pin and not tracked as gate['outputs']
         for _, to_gate_id, edge_data in self.graph.out_edges(gate_id, data=True):
-            wire_name = edge_data.get('wire_name', '')
+            wire_name = edge_data.get('wire_name', None)
             if self.is_same_wire(wire_name, old_wire_name):
                 next_wire_name = self.generate_unique_wire_segment_name(new_wire_name)
                 self.graph[gate_id][to_gate_id]['wire_name'] = next_wire_name
@@ -251,16 +251,14 @@ class DAG:
         return wire_name in self.graph.nodes[gate_id]['inverted']
 
     def uniqufy_gate_id(self, new_gate_id):
-        """ Ensure the new gate ID is unique by appending a suffix if necessary """
-        if new_gate_id not in self.graph:
-            return new_gate_id
+        """ Ensure the new gate ID is unique by appending a suffix """
         suffix = 1
         while f"{new_gate_id}_{suffix}" in self.graph:
             suffix += 1
         return f"{new_gate_id}_{suffix}"
 
     def uniqufy_wire_name(self, new_wire_name):
-        """ Ensure the new wire name is unique by appending a suffix if necessary """
+        """ Ensure the new wire name is unique by appending a suffix """
         # TODO: Improve efficiency
         wire_names = set()
         for _, _, edge_data in self.graph.edges(data=True):
@@ -312,15 +310,14 @@ class DAG:
         node = self.graph.nodes.get(gate_id)
         output_str = ''
         for output in node['outputs']:
-            if output in node['inverted']:
-                output_str += ' [~]'
-            output_str += f" {output}"
+            output_str += ' [~]' if output in node['inverted'] else ' '
+            output_str += f"{output}"
         input_str = ''
         for input in node['inputs']:
-            if input in node['inverted']:
-                input_str += ' [~]'
-            input_str += f" {input:<10}"
-        return f"{node['gate_func']:<10} {node['gate_id']:<10} | OUT: {output_str:<10} | IN: {input_str}"
+            input_str += ' [~] ' if input in node['inverted'] else '     '
+            input_str += f"{input:<10}"
+        input_str = input_str.rstrip()
+        return f"{node['gate_func']:<10} | {node['gate_id']:<15} | OUT:{output_str:<25} | IN:{input_str}"
 
     def __repr__(self):
         """ String representation of the DAG """
@@ -429,6 +426,7 @@ class DAG:
         self.sanity_check_ports()
         wire_fanins, wire_fanouts = self.sanity_check_wires()
         self.sanity_check_gates(wire_fanins, wire_fanouts)
+        self.sanity_check_analog_pim(wire_fanins, wire_fanouts)
 
     def sanity_check_ports(self):
         """ Sanity check for ports """
@@ -539,6 +537,24 @@ class DAG:
                 if self.debug_level >= 2:
                     if self.is_out_port(wire_name):
                         print(f"Warning: Inverted wire '{wire_name}' of gate '{gate_id}' is an output port wire.")
+
+    def sanity_check_analog_pim(self, wire_fanins, wire_fanouts):
+        """ Perform sanity checks specific to analog PIM mode """
+        if self.pim_mode != 'analog':
+            return
+        num_analog_pim_violations = 0
+        for wire_name in set(wire_fanins.keys()).union(wire_fanouts.keys()):
+            fanins = wire_fanins.get(wire_name, set())
+            fanouts = wire_fanouts.get(wire_name, set())
+            num_input_destroying_gates = 0
+            for fanout in fanouts:
+                if self.graph.nodes[fanout]['gate_func'] in ['and2', 'or2', 'maj3']:
+                    num_input_destroying_gates += 1
+            if num_input_destroying_gates > 1 or (num_input_destroying_gates == 1 and len(fanins) > 1):
+                num_analog_pim_violations += 1
+                if self.debug_level >= 4:
+                    print(f"Warning: Wire '{wire_name}' violates analog PIM input-destroying gate rule")
+        print(f"INFO: Found {num_analog_pim_violations} analog PIM violations in the DAG.")
 
     def verify_dag(self, pim_mode='digital'):
         """ Verify the DAG with input/output simulation """

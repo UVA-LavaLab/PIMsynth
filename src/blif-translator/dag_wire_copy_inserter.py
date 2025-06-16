@@ -62,8 +62,8 @@ class WireCopyInserter(DagTransformer):
         assert rest_gate_ids
 
         # Create a copy gate
-        copy_gate_id = dag.uniqufy_gate_id("copy_inout")
-        new_wire = dag.uniqufy_wire_name("copy_inout")
+        copy_gate_id = dag.uniqufy_gate_id("cpio")
+        new_wire = dag.uniqufy_wire_name("cpio")
         if self.debug_level >= 2:
             print(f'DAG-Transform: Copy wire: {target_wire} -> {copy_gate_id} (for {anchor_gate_id})')
         dag.add_gate(gate_id=copy_gate_id, gate_func="copy_inout", inputs=[target_wire], outputs=[new_wire])

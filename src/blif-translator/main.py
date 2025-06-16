@@ -188,6 +188,7 @@ class BlifTranslator:
             in_ports=in_ports,
             out_ports=out_ports,
             gate_info_list=gate_info_list,
+            pim_mode=self.pim_mode,
             debug_level=self.debug_level
         )
 

@@ -29,7 +29,7 @@ class MultiDestOptimizer(DagTransformer):
             print(f'DAG-Transform Summary: Packed {total_packed} wires using multi-destination optimization')
 
     def is_target_gate(self, dag, gate_id):
-        """ Check if the gate is a target for inout variable reuse """
+        """ Check if the gate is a target for multi-destination optimization """
         gate = dag.graph.nodes[gate_id]
         return gate['gate_func'] in ['maj3']
 
@@ -48,11 +48,8 @@ class MultiDestOptimizer(DagTransformer):
     def run_xform_multi_dest_opt(self, dag, driver_gate_id):
         """ Transform: Apply multi-destination optimization to the gate """
         driver_gate = dag.graph.nodes[driver_gate_id]
-        if self.debug_level >= 2:
-            print(f'DAG-Transform: Reuse inout variables of gate {driver_gate_id} ({driver_gate["gate_func"]})')
-
         output_wires = driver_gate['outputs']
-        if len(output_wires) >= 3 or len(output_wires) == 0:
+        if len(output_wires) >= self.max_outputs or len(output_wires) == 0:
             return 0
         num_slots = min(self.max_outputs - len(output_wires), self.num_regs - 3 - 1) # ensure enough registers for scheduling
         pack_count = 0
@@ -64,12 +61,12 @@ class MultiDestOptimizer(DagTransformer):
                 target_gate_id, rest_gate_ids = self.find_first_input_destroying_gate(dag, output_gate_ids)
                 if target_gate_id is None or len(rest_gate_ids) == 0:
                     break
-                if self.debug_level >= 2:
-                    print(f'DAG-Transform: Creating new output wire for gate {target_gate_id} (from {driver_gate_id})')
 
                 # Update wires
+                new_wire = dag.uniqufy_wire_name(f"dup")
+                if self.debug_level >= 2:
+                    print(f'DAG-Transform: Creating new output wire {new_wire} to replace {target_wire} from {driver_gate_id} to {target_gate_id}')
                 dag.remove_wire(driver_gate_id, target_gate_id)
-                new_wire = dag.uniqufy_wire_name(f"{target_wire}_dup")
                 dag.add_wire(new_wire, driver_gate_id, target_gate_id)
                 dag.graph.nodes[driver_gate_id]['outputs'].append(new_wire)
                 dag.replace_input_wire(target_gate_id, target_wire, new_wire)
