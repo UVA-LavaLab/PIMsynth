@@ -31,6 +31,12 @@ class LinkedInstruction(Instruction):
     def getOperandsList(self):
         return self.operandsList
 
+    def getSrcOperands(self):
+        return AsmTranslator.getSrcOperands(self.opCode, self.operandsList)
+
+    def getDestOperands(self):
+        return AsmTranslator.getDestOperands(self.opCode, self.operandsList)
+
 class SymbolTable:
     def __init__(self):
         self.dictionary = {}
@@ -162,7 +168,7 @@ class AsmTranslator:
     def shrink_temp_variables(self):
         """ Shrink temporary variables in the bit-serial statement list """
         print("Simplifying temporary variables in the bit-serial assembly...\n")
-        tempVariablesShrinker = TempVariablesShrinker(self.bitSerialStatementList)
+        tempVariablesShrinker = TempVariablesShrinker(self.bitSerialStatementList, self.allRegs, self.debugLevel)
         tempVariablesShrinker.shrinkTempVariables()
         self.bitSerialStatementList = tempVariablesShrinker.newInstructionSequence
 
@@ -175,37 +181,41 @@ class AsmTranslator:
             print('-' * 40)
 
     def getDestinationOperandFromInstruction(self, instruction):
-        if instruction.opCode == "write":
-            return instruction.operandsList[1]
-        else:
-            return instruction.operandsList[0]
+        destOperands = instruction.getDestOperands()
+        return destOperands[0] if destOperands else None
 
     def getSourceOperandFromInstruction(self, instruction):
-        if instruction.opCode in ["write", "one", "zero"]:
-            return instruction.operandsList[0]
-        else:
-            return instruction.operandsList[1]
+        srcOperands = instruction.getSrcOperands()
+        return srcOperands[0] if srcOperands else None
 
-    def getDestinationOperands(self, opCode, operandsList):
+    @staticmethod
+    def getSrcOperands(opCode, operandsList):
+        if opCode == "write":
+            return [operandsList[0]]
+        elif opCode.startswith("maj3"):
+            return operandsList[-3:]
+        else:
+            return operandsList[1:]
+
+    @staticmethod
+    def getDestOperands(opCode, operandsList):
         """ Get all destination operands based on opCode and operandsList """
         if opCode == "write":
             return [operandsList[1]]
-        elif opCode == "maj3":
+        elif opCode.startswith("maj3"):
             return operandsList[:-3]  # There can be multiple dest operands of maj3 in analog PIM
         else:
             return [operandsList[0]]
 
     def appendBitSerialInstruction(self, opCode, operands, line, suspended=False):
-        if opCode == "write":
-            sourceInstructionList = [self.symbolTable.getSymbol(sourceOperand) for sourceOperand in [operands[0]]]
-        elif opCode == "read":
-            sourceInstructionList = [self.symbolTable.getSymbol(sourceOperand) for sourceOperand in operands[1:]]
-        else:
-            sourceInstructionList = [self.symbolTable.getSymbol(sourceOperand) for sourceOperand in operands[1:]]
+        # Identify source instructions
+        srcOperands = self.getSrcOperands(opCode, operands)
+        sourceInstructionList = [self.symbolTable.getSymbol(srcOperand) for srcOperand in srcOperands]
+        # Create a new instruction
         bitSerialInstruction = LinkedInstruction(opCode, operands, line, sourceInstructionList=sourceInstructionList, suspended=suspended)
         self.bitSerialStatementList.append(bitSerialInstruction)
         # Note: Handle multiple dest operands of inline asm block
-        destOperands = self.getDestinationOperands(opCode, operands)
+        destOperands = self.getDestOperands(opCode, operands)
         for destOperand in destOperands:
             self.symbolTable.addSymbol(destOperand, bitSerialInstruction)
             if opCode == "write" and destOperand in self.remainedOutputList:
@@ -480,8 +490,10 @@ class AsmTranslator:
 class TempVariablesShrinker:
     """ Shrinks temporary variables to use the smallest set of indices """
 
-    def __init__(self, instructionSequence):
+    def __init__(self, instructionSequence, pimRegs, debugLevel=0):
         self.instructionSequence = instructionSequence
+        self.pimRegs = pimRegs
+        self.debugLevel = debugLevel
         self.newInstructionSequence = []
         self.symbolTable = SymbolTable()
         self.tempManager = TempManager()
@@ -489,14 +501,20 @@ class TempVariablesShrinker:
     def shrinkTempVariables(self):
         for instruction in self.instructionSequence:
             operandIdx = 0
+            hasPimReg = False
             for operand in instruction.operandsList:
                 if not instruction.suspended:
                     if "temp" in operand:
                         newOperand = self.updateTempVariable(operand)
                         instruction.operandsList[operandIdx] = newOperand
+                if operand in self.pimRegs:
+                    hasPimReg = True
                 operandIdx += 1
             if not instruction.suspended:
                 self.newInstructionSequence.append(instruction)
+            elif hasPimReg:
+                if self.debugLevel >= 1:
+                    print(f'Warning: Suspended instruction with PIM register found: {instruction}')
 
     def updateTempVariable(self, tempVariable):
         avaialableTempVariable = self.symbolTable.getSymbol(tempVariable)
