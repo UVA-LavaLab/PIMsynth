@@ -80,6 +80,7 @@ class TempManager:
         return len(self.isAllocated) - 1
 
     def freeTemp(self, tempStr):
+        # Assumption: tempStr is in format temp%d
         index = int(tempStr[4:])
         # Set the element at the specified index to False
         if 0 <= index < len(self.isAllocated):
@@ -88,11 +89,13 @@ class TempManager:
             raise IndexError("Index out of bounds")
 
 class AsmTranslator:
-    def __init__(self, riscvStatementList, inputList, outputList, pimMode, debugLevel=0):
+    def __init__(self, riscvStatementList, inputList, outputList, pimMode, numRegs, debugLevel=0):
         self.riscvStatementList = riscvStatementList
         self.inputList = inputList
         self.outputList = outputList
         self.pimMode = pimMode
+        self.numRegs = numRegs
+        self.allRegs = set(([f't{i}' for i in range(7)] + [f's{i}' for i in range(12)])[:numRegs])
         self.debugLevel = debugLevel
         self.remainedOutputList = outputList.copy()
         self.bitSerialStatementList = []
@@ -183,11 +186,14 @@ class AsmTranslator:
         else:
             return instruction.operandsList[1]
 
-    def getDestinationOperand(self, opCode, operandsList):
+    def getDestinationOperands(self, opCode, operandsList):
+        """ Get all destination operands based on opCode and operandsList """
         if opCode == "write":
-            return operandsList[1]
+            return [operandsList[1]]
+        elif opCode == "maj3":
+            return operandsList[:-3]  # There can be multiple dest operands of maj3 in analog PIM
         else:
-            return operandsList[0]
+            return [operandsList[0]]
 
     def appendBitSerialInstruction(self, opCode, operands, line, suspended=False):
         if opCode == "write":
@@ -198,9 +204,12 @@ class AsmTranslator:
             sourceInstructionList = [self.symbolTable.getSymbol(sourceOperand) for sourceOperand in operands[1:]]
         bitSerialInstruction = LinkedInstruction(opCode, operands, line, sourceInstructionList=sourceInstructionList, suspended=suspended)
         self.bitSerialStatementList.append(bitSerialInstruction)
-        self.symbolTable.addSymbol(self.getDestinationOperand(opCode, operands), bitSerialInstruction)
-        if opCode == "write" and self.getDestinationOperand(opCode, operands) in self.remainedOutputList:
-            self.remainedOutputList.remove(self.getDestinationOperand(opCode, operands))
+        # Note: Handle multiple dest operands of inline asm block
+        destOperands = self.getDestinationOperands(opCode, operands)
+        for destOperand in destOperands:
+            self.symbolTable.addSymbol(destOperand, bitSerialInstruction)
+            if opCode == "write" and destOperand in self.remainedOutputList:
+                self.remainedOutputList.remove(destOperand)
 
     def isInputPort(self, portInfo):
         """Check if the PortInfo is an input port."""
@@ -221,8 +230,7 @@ class AsmTranslator:
         return symbol in self.inputList
 
     def isBitSerialRegister(self, symbol):
-        pattern = r"^[ts][0-9]+$"
-        return bool(re.match(pattern, symbol))
+        return symbol in self.allRegs
 
     def resolveOperand(self, symbol, line=-1):
         # Lookup the symbol table
@@ -470,6 +478,8 @@ class AsmTranslator:
         return self.bitSerialStatementList
 
 class TempVariablesShrinker:
+    """ Shrinks temporary variables to use the smallest set of indices """
+
     def __init__(self, instructionSequence):
         self.instructionSequence = instructionSequence
         self.newInstructionSequence = []

@@ -137,9 +137,9 @@ class BlifTranslator:
         self.debug_checkpoint(dag, "post_inout_var_reuse")
 
         ## Analog PIM: Utilize multi-destination gates
-        #multi_dest_optimizer = MultiDestOptimizer(self.num_regs)
-        #multi_dest_optimizer.apply(dag)
-        #self.debug_checkpoint(dag, "post_multi_dest_opt")
+        multi_dest_optimizer = MultiDestOptimizer(self.num_regs)
+        multi_dest_optimizer.apply(dag)
+        self.debug_checkpoint(dag, "post_multi_dest_opt")
 
         ## Analog PIM: Copy wires that drives multiple input-destroying gates
         wire_copy_inserter = WireCopyInserter()

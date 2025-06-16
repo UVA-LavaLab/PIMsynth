@@ -29,6 +29,7 @@ if __name__ == "__main__":
     parser.add_argument('--module-name', '-m', type=str, required=True, help='The name of the module to parse.')
     parser.add_argument('--output-format', '-f', type=str, required=True, help='Output format: asm or cpp.')
     parser.add_argument('--pim-mode', '-p', type=str, default='digital', help='The PIM architecture mode (analog/digital).')
+    parser.add_argument('--num-regs', '-r', type=int, default=4, choices=range(2, 16), help='Number of registers (2-16).')
 
     # Parse the arguments
     args = parser.parse_args()
@@ -48,7 +49,7 @@ if __name__ == "__main__":
     debugLevel = 0
 
     # Transrom the riscv assembly to bit-serial assembly
-    asmTranslator = AsmTranslator(riscvStatementList, inputList, outputList, pimMode=args.pim_mode, debugLevel=debugLevel)
+    asmTranslator = AsmTranslator(riscvStatementList, inputList, outputList, pimMode=args.pim_mode, numRegs=args.num_regs, debugLevel=debugLevel)
     asmTranslator.translate()
     asmTranslator.shrink_temp_variables()
     bitSerialAsm = asmTranslator.getBitSerialAsm()
