@@ -10,7 +10,7 @@ Date: 2025-05-28
 
 import json
 import copy
-from collections import defaultdict
+from collections import defaultdict, deque
 from networkx.readwrite import json_graph
 from pyvis.network import Network
 import networkx as nx
@@ -55,6 +55,7 @@ class DAG:
         self.pim_mode = pim_mode
         self.debug_level = debug_level
         self.wire_segment_marker = '_$'
+        self.topo_sort_algorithm = 1
         self.initialize(in_ports, out_ports, gate_info_list)
         self.verifier = DagVerifier(dag=self, debug_level=debug_level)
 
@@ -377,9 +378,81 @@ class DAG:
             self.raise_exception(f"No wire exists between {from_gate_id} and {to_gate_id}.")
         return self.graph[from_gate_id][to_gate_id]['wire_name']
 
+    def priority_khan_topo_sort(self):
+        """ Perform priority-aware topological sort based on Kahn's algorithm """
+        if self.debug_level >= 1:
+            print("DEBUG: Performing priority-aware topological sort based on Khan's algorithm.")
+        indeg = dict(self.graph.in_degree(self.graph))
+        # Treat zero-degree and port-copy gates as sources
+        def is_port_copy(gate_id):
+            if self.graph.nodes[gate_id]['gate_func'] in ['copy', 'copy_inout']:
+                preds = list(self.graph.predecessors(gate_id))
+                if len(preds) == 1 and preds[0] in self.__in_ports:
+                    return True
+            return False
+        is_source = {gate_id: indeg[gate_id] == 0 or is_port_copy(gate_id) for gate_id in self.graph.nodes}
+        ready_int = deque()
+        ready_src = deque(self.__in_ports)  # add in ports first
+        ready_src += deque([gate_id for gate_id, degree in indeg.items() if degree == 0 and not gate_id in self.__in_ports])
+        order = []
+
+        def can_unlock_successor(gate_id):
+            return any(indeg[succ] == 1 for succ in self.graph.successors(gate_id))
+        def pick_most_critical(ready_list):
+            return max(ready_list, key=lambda x: sum(indeg[succ] == 1 for succ in self.graph.successors(x)))
+
+        while ready_int or ready_src:
+            if ready_int:
+                # Prioritize INT1: non-copy gates
+                crit_int1 = [gate_id for gate_id in ready_int if self.graph.nodes[gate_id]['gate_func'] not in ['copy', 'copy_inout']]
+                if crit_int1:
+                    gate_id = pick_most_critical(crit_int1)
+                else:
+                    # Prioritize INT2: Gates on critical paths
+                    crit_int2 = [gate_id for gate_id in ready_int if can_unlock_successor(gate_id)]
+                    if crit_int2:
+                        gate_id = pick_most_critical(crit_int2)
+                    else:
+                        # Prioritize INT3: Rest non-source gates
+                        gate_id = ready_int[0]
+                ready_int.remove(gate_id)
+            else:
+                # Prioritize SRC1: In ports, or port-copy gates on critical paths 
+                crit_src1 = [gate_id for gate_id in ready_src if gate_id in self.__in_ports or (is_port_copy(gate_id) and can_unlock_successor(gate_id))]
+                if crit_src1:
+                    gate_id = pick_most_critical(crit_src1)
+                else:
+                    # Prioritize SRC2: Source gates on critical paths
+                    crit_src2 = [gate_id for gate_id in ready_src if is_source[gate_id] and can_unlock_successor(gate_id)]
+                    if crit_src2:
+                        gate_id = pick_most_critical(crit_src2)
+                    else:
+                        # Prioritize SRC3: Rest port-copy gates
+                        crit_src3 = [gate_id for gate_id in ready_src if is_port_copy(gate_id)]
+                        if crit_src3:
+                            gate_id = pick_most_critical(crit_src3)
+                        else:
+                            # Prioritize SRC4: Rest source gates
+                            gate_id = ready_src[0]
+                ready_src.remove(gate_id)
+            order.append(gate_id)
+            for succ in self.graph.successors(gate_id):
+                indeg[succ] -= 1
+                if indeg[succ] == 0:
+                    if is_source[succ]:
+                        ready_src.append(succ)
+                    else:
+                        ready_int.append(succ)
+        if len(order) != len(self.graph):
+            self.raise_exception("Topological sort failed: not all nodes were processed.")
+        return order
+ 
     def get_topo_sorted_gate_id_list(self):
         """ Get a list of all gates in topological order """
-        return list(nx.topological_sort(self.graph))
+        if self.topo_sort_algorithm == 1:
+            return self.priority_khan_topo_sort()
+        else:
+            return list(nx.topological_sort(self.graph))
 
     def get_wire_name_list(self, skip_port=True, merge_segments=True):
         """ Get a list of internal wires in sorted gate order """
