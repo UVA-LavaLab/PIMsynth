@@ -417,8 +417,8 @@ class DAG:
                         gate_id = ready_int[0]
                 ready_int.remove(gate_id)
             else:
-                # Prioritize SRC1: In ports, or port-copy gates on critical paths 
-                crit_src1 = [gate_id for gate_id in ready_src if gate_id in self.__in_ports or (is_port_copy(gate_id) and can_unlock_successor(gate_id))]
+                # Prioritize SRC1: In ports or port-copy gates on critical paths 
+                crit_src1 = [gate_id for gate_id in ready_src if (gate_id in self.__in_ports or is_port_copy(gate_id)) and can_unlock_successor(gate_id)]
                 if crit_src1:
                     gate_id = pick_most_critical(crit_src1)
                 else:
@@ -427,8 +427,8 @@ class DAG:
                     if crit_src2:
                         gate_id = pick_most_critical(crit_src2)
                     else:
-                        # Prioritize SRC3: Rest port-copy gates
-                        crit_src3 = [gate_id for gate_id in ready_src if is_port_copy(gate_id)]
+                        # Prioritize SRC3: Rest in ports or port-copy gates
+                        crit_src3 = [gate_id for gate_id in ready_src if gate_id in self.__in_ports or is_port_copy(gate_id)]
                         if crit_src3:
                             gate_id = pick_most_critical(crit_src3)
                         else:

@@ -50,7 +50,7 @@ class SymbolTable:
         self.dictionary[key] = val
 
     def __repr__(self):
-        string = ""
+        string = "Symbol Table:\n"
         if not self.dictionary:
             return "Symbol table is empty."
         else:
@@ -121,23 +121,25 @@ class AsmTranslator:
                 print(f'[{i}] {statement}')
             print('-' * 40)
 
-    def __get_statement_list_as_string(self, statement_list):
-        return "\n".join([f"{statement}" for statement in statement_list])
-
     def __get_bit_serial_statement_list_string(self):
-        return self.__get_statement_list_as_string(self.bitSerialStatementList)
+        string = "Bit-Serial Assembly Code:\n"
+        for i, statement in enumerate(self.bitSerialStatementList):
+            string += f"[{i}] {statement}\n"
+        return string
 
     def __repr__(self):
         string = ""
+        string += self.LINE_STRING
         string += self.symbolTable.__repr__()
         string += self.LINE_STRING
         string += self.__get_bit_serial_statement_list_string()
+        string += self.LINE_STRING
         return string
 
 
     def translate(self):
         """ Translate the RISCV assembly to bit-serial assembly """
-        print("Translating RISCV assembly to bit-serial assembly...\n")
+        print("Translating RISCV assembly to bit-serial assembly...")
         statementIndex = 0
         while statementIndex < len(self.riscvStatementList):
             statement = self.riscvStatementList[statementIndex]
@@ -167,18 +169,23 @@ class AsmTranslator:
 
     def shrink_temp_variables(self):
         """ Shrink temporary variables in the bit-serial statement list """
-        print("Simplifying temporary variables in the bit-serial assembly...\n")
+        print("Simplifying temporary variables in the bit-serial assembly...")
         tempVariablesShrinker = TempVariablesShrinker(self.bitSerialStatementList, self.allRegs, self.debugLevel)
         tempVariablesShrinker.shrinkTempVariables()
         self.bitSerialStatementList = tempVariablesShrinker.newInstructionSequence
-
         if self.debugLevel >= 1:
-            print("Bit-Serial Assembly Code:")
-            for i, instruction in enumerate(self.bitSerialStatementList):
-                print(f"[{i}] {instruction}")
-            print("Symbol Table:")
-            self.symbolTable.print_symbols()
-            print('-' * 40)
+            print(self)
+
+    def pack_analog_copies(self):
+        """ Pack analog copies of port/zero/one instructions for analog PIM mode """
+        if self.pimMode != "analog":
+            return
+        print("Packing analog copies of port/zero/one instructions...")
+        analog_copy_packer = AnalogCopyPacker(self.bitSerialStatementList, self.debugLevel)
+        analog_copy_packer.pack_analog_copies()
+        self.bitSerialStatementList = analog_copy_packer.newInstructionSequence
+        if self.debugLevel >= 1:
+            print(self)
 
     def getDestinationOperandFromInstruction(self, instruction):
         destOperands = instruction.getDestOperands()
@@ -194,6 +201,10 @@ class AsmTranslator:
             return [operandsList[0]]
         elif opCode.startswith("maj3"):
             return operandsList[-3:]
+        elif opCode == "copy":
+            return operandsList[-1:]
+        elif opCode in ["zero", "one"]:
+            return []
         else:
             return operandsList[1:]
 
@@ -204,6 +215,10 @@ class AsmTranslator:
             return [operandsList[1]]
         elif opCode.startswith("maj3"):
             return operandsList[:-3]  # There can be multiple dest operands of maj3 in analog PIM
+        elif opCode == "copy":
+            return operandsList[:-1]
+        elif opCode in ["zero", "one"]:
+            return operandsList
         else:
             return [operandsList[0]]
 
@@ -524,4 +539,75 @@ class TempVariablesShrinker:
             return newTempVariable
         else:
             return avaialableTempVariable
+
+class AnalogCopyPacker:
+    """ Pack analog copies of port/zero/one instructions for analog PIM mode """
+
+    def __init__(self, instructionSequence, debugLevel=0):
+        self.instructionSequence = instructionSequence
+        self.debugLevel = debugLevel
+        self.newInstructionSequence = []
+
+    def pack_analog_copies(self):
+        max_slots = 3  # 3 outputs at most for AAP
+        pack_count = 0
+        for i, inst in enumerate(self.instructionSequence):
+            if inst.suspended:
+                continue
+            if inst.getOpCode() in ["copy", "mv"]:
+                if inst.getSrcOperands() == inst.getDestOperands():
+                    continue # skip
+                target_opcode = ["copy", "mv"]
+            elif inst.getOpCode() in ["zero", "one"]:
+                target_opcode = [inst.getOpCode()]
+            else:
+                self.newInstructionSequence.append(inst)
+                continue
+            # look ahead for packing opportunities
+            while len(inst.getDestOperands()) < max_slots:
+                idx_to_pack = self.find_next_packable_instruction(i, target_opcode, inst.getSrcOperands())
+                if idx_to_pack is not None:
+                    inst_to_pack = self.instructionSequence[idx_to_pack]
+                    self.pack_instructions(inst, inst_to_pack)
+                    inst_to_pack.suspended = True  # Mark the packed instruction as suspended
+                    pack_count += 1
+                    if self.debugLevel >= 2:
+                        print(f"DEBUG: Packing instruction {idx_to_pack} to instruction at index {i}")
+                        print(f"       {idx_to_pack} -> {inst_to_pack}")
+                        print(f"       {i} -> {inst}")
+                    continue
+                else:
+                    break
+            self.newInstructionSequence.append(inst)
+        print(f"Summary: Packed {pack_count} analog copy/zero/one instructions.")
+
+    def find_next_packable_instruction(self, idx, op_code, orig_src):
+        """ Find the next instruction that can be packed with the current one """
+        visited_operands = set()
+        window_size = 100
+        for i in range(idx + 1, len(self.instructionSequence)):
+            if i - idx > window_size:
+                break
+            inst = self.instructionSequence[i]
+            srcs = inst.getSrcOperands()
+            dests = inst.getDestOperands()
+            if inst.opCode in ["copy", "mv"] and srcs == dests:
+                inst.suspended = True
+                continue
+            if inst.getOpCode() in op_code and not inst.suspended:
+                packable = (set(srcs) == set(orig_src) and
+                            not any(operand in visited_operands for operand in srcs + dests))
+                if packable:
+                    return i
+            srcs = inst.getSrcOperands()
+            dests = inst.getDestOperands()
+            visited_operands.update(srcs)
+            visited_operands.update(dests)
+        return None
+
+    def pack_instructions(self, inst, inst_to_pack):
+        """ Pack two instructions together """
+        srcs = inst.getSrcOperands()
+        dests = inst.getDestOperands() + inst_to_pack.getDestOperands()
+        inst.operandsList = dests + srcs
 

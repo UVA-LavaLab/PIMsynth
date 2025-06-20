@@ -72,14 +72,30 @@ class PimEvalAPIAnalogCodeGenerator(PimEvalAPICodeGeneratorBase):
         if not (instruction.opCode == "zero"):
             return None
         code = self.generateInstructionComment(instruction)
-        code += f"\tpimOpAAP(1, 1, {self.zero}, 0, {self.mapPimAsmRegToPimEvalAPI(instruction.operandsList[0])});\n\n"
+        dests = [self.mapPimAsmRegToPimEvalAPI(operand) for operand in instruction.operandsList]
+        if len(dests) == 1:
+            code += f"\tpimOpAAP(1, 1, {self.zero}, 0, {dests[0]});\n\n"
+        elif len(dests) == 2:
+            code += f"\tpimOpAAP(1, 2, {self.zero}, 0, {dests[0]}, {dests[1]});\n\n"
+        elif len(dests) == 3:
+            code += f"\tpimOpAAP(1, 3, {self.zero}, 0, {dests[0]}, {dests[1]}, {dests[2]});\n\n"
+        else:
+            raise ValueError(f"Invalid number of operands for zero instruction: {len(dests)}")
         return code
 
     def handleOneInstruction(self, instruction):
         if not (instruction.opCode == "one"):
             return None
         code = self.generateInstructionComment(instruction)
-        code += f"\tpimOpAAP(1, 1, {self.one}, 0, {self.mapPimAsmRegToPimEvalAPI(instruction.operandsList[0])});\n\n"
+        dests = [self.mapPimAsmRegToPimEvalAPI(operand) for operand in instruction.operandsList]
+        if len(dests) == 1:
+            code += f"\tpimOpAAP(1, 1, {self.one}, 0, {dests[0]});\n\n"
+        elif len(dests) == 2:
+            code += f"\tpimOpAAP(1, 2, {self.one}, 0, {dests[0]}, {dests[1]});\n\n"
+        elif len(dests) == 3:
+            code += f"\tpimOpAAP(1, 3, {self.one}, 0, {dests[0]}, {dests[1]}, {dests[2]});\n\n"
+        else:
+            raise ValueError(f"Invalid number of operands for one instruction: {len(dests)}")
         return code
 
     def handleAndInstruction(self, instruction):
@@ -174,10 +190,19 @@ class PimEvalAPIAnalogCodeGenerator(PimEvalAPICodeGeneratorBase):
         if instruction.opCode not in ['mv', 'copy', 'copy_inout']:
             return None
         code = self.generateInstructionComment(instruction)
-        if instruction.operandsList[0] == instruction.operandsList[1]:
+        srcs = [self.mapPimAsmRegToPimEvalAPI(operand) for operand in instruction.operandsList[-1:]]
+        dests = [self.mapPimAsmRegToPimEvalAPI(operand) for operand in instruction.operandsList[:-1]
+                 if operand != instruction.operandsList[-1]]
+        if len(dests) == 0:
             pass
+        elif len(dests) == 1:
+            code += f"\tpimOpAAP(1, 1, {srcs[0]}, {dests[0]});\n\n"
+        elif len(dests) == 2:
+            code += f"\tpimOpAAP(1, 2, {srcs[0]}, {dests[0]}, {dests[1]});\n\n"
+        elif len(dests) == 3:
+            code += f"\tpimOpAAP(1, 3, {srcs[0]}, {dests[0]}, {dests[1]}, {dests[2]});\n\n"
         else:
-            code += f"\tpimOpAAP(1, 1, {self.mapPimAsmRegToPimEvalAPI(instruction.operandsList[1])}, {self.mapPimAsmRegToPimEvalAPI(instruction.operandsList[0])});\n\n"
+            raise ValueError(f"Invalid number of operands for move instruction: {len(dests)}")
         return code
 
     def generateLogicInstruction(self, instruction):

@@ -52,6 +52,7 @@ if __name__ == "__main__":
     asmTranslator = AsmTranslator(riscvStatementList, inputList, outputList, pimMode=args.pim_mode, numRegs=args.num_regs, debugLevel=debugLevel)
     asmTranslator.translate()
     asmTranslator.shrink_temp_variables()
+    asmTranslator.pack_analog_copies()
     bitSerialAsm = asmTranslator.getBitSerialAsm()
 
     statsGenerator = StatsGenerator(bitSerialAsm)
