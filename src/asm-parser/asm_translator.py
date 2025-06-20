@@ -167,12 +167,28 @@ class AsmTranslator:
                     print(f"DEBUG: IDX {statementIndex:<5} {'STMT-IGNOR':<10} : {self.riscvStatementList[statementIndex]}")
                 statementIndex += 1
 
+    def post_translation_optimization(self):
+        """ Perform post-translation optimizations on the bit-serial assembly """
+        # Post translation optimization
+        self.shrink_temp_variables()
+        self.remove_redundant_copies()
+        self.pack_analog_copies()
+
     def shrink_temp_variables(self):
         """ Shrink temporary variables in the bit-serial statement list """
-        print("Simplifying temporary variables in the bit-serial assembly...")
+        print("INFO: Simplifying temporary variables in the bit-serial assembly...")
         tempVariablesShrinker = TempVariablesShrinker(self.bitSerialStatementList, self.allRegs, self.debugLevel)
         tempVariablesShrinker.shrinkTempVariables()
         self.bitSerialStatementList = tempVariablesShrinker.newInstructionSequence
+        if self.debugLevel >= 1:
+            print(self)
+
+    def remove_redundant_copies(self):
+        """ Remove redundant copy instructions in the bit-serial statement list """
+        print("INFO: Removing redundant copy instructions...")
+        copy_remover = RedundantCopyRemover(self.bitSerialStatementList, self.debugLevel)
+        copy_remover.remove_redendant_copies()
+        self.bitSerialStatementList = copy_remover.newInstructionSequence
         if self.debugLevel >= 1:
             print(self)
 
@@ -180,7 +196,7 @@ class AsmTranslator:
         """ Pack analog copies of port/zero/one instructions for analog PIM mode """
         if self.pimMode != "analog":
             return
-        print("Packing analog copies of port/zero/one instructions...")
+        print("INFO: Packing analog copies of port/zero/one instructions...")
         analog_copy_packer = AnalogCopyPacker(self.bitSerialStatementList, self.debugLevel)
         analog_copy_packer.pack_analog_copies()
         self.bitSerialStatementList = analog_copy_packer.newInstructionSequence
@@ -540,6 +556,45 @@ class TempVariablesShrinker:
         else:
             return avaialableTempVariable
 
+class RedundantCopyRemover:
+    """ Remove redundant copy/move instructions from the instruction sequence """
+
+    def __init__(self, instructionSequence, debugLevel=0):
+        self.instructionSequence = instructionSequence
+        self.debugLevel = debugLevel
+        self.newInstructionSequence = []
+        self.line_map = {}
+
+    def update_line_map(self, removed_line, source_insts):
+        """ Record the mapping from removed lines to their source lines """
+        if len(source_insts) != 1:
+            raise ValueError(f"Not supported: Remove an inst with multiple sources at line {removed_line}.")
+        src_inst = source_insts[0]
+        if src_inst.line in self.line_map:
+            src_inst = self.line_map[src_inst.line]  # use root
+        self.line_map[removed_line] = src_inst
+
+    def update_source_lines(self, inst):
+        """ Update the source lines of an instruction """
+        for idx, src_inst in enumerate(inst.sourceInstructionList):
+            if src_inst is not None and src_inst.line in self.line_map:
+                inst.sourceInstructionList[idx] = self.line_map[src_inst.line]
+
+    def remove_redendant_copies(self):
+        removed_count = 0
+        for i, inst in enumerate(self.instructionSequence):
+            if inst.suspended:
+                continue
+            if inst.getOpCode() in ["copy", "mv"] and inst.getSrcOperands() == inst.getDestOperands():
+                inst.suspended = True  # Mark the instruction as suspended
+                self.update_line_map(inst.line, inst.sourceInstructionList)
+                removed_count += 1
+            else:
+                self.update_source_lines(inst)
+                self.newInstructionSequence.append(inst)
+        print(f"INFO: Summary: Removed {removed_count} redundant copies.")
+
+
 class AnalogCopyPacker:
     """ Pack analog copies of port/zero/one instructions for analog PIM mode """
 
@@ -579,7 +634,7 @@ class AnalogCopyPacker:
                 else:
                     break
             self.newInstructionSequence.append(inst)
-        print(f"Summary: Packed {pack_count} analog copy/zero/one instructions.")
+        print(f"INFO: Summary: Packed {pack_count} analog copy/zero/one instructions.")
 
     def find_next_packable_instruction(self, idx, op_code, orig_src):
         """ Find the next instruction that can be packed with the current one """

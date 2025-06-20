@@ -51,8 +51,7 @@ if __name__ == "__main__":
     # Transrom the riscv assembly to bit-serial assembly
     asmTranslator = AsmTranslator(riscvStatementList, inputList, outputList, pimMode=args.pim_mode, numRegs=args.num_regs, debugLevel=debugLevel)
     asmTranslator.translate()
-    asmTranslator.shrink_temp_variables()
-    asmTranslator.pack_analog_copies()
+    asmTranslator.post_translation_optimization()
     bitSerialAsm = asmTranslator.getBitSerialAsm()
 
     statsGenerator = StatsGenerator(bitSerialAsm)
