@@ -25,17 +25,43 @@ class LinkedInstruction(Instruction):
     def unsuspend(self):
         self.suspended = False
 
-    def getOpCode(self):
+    def get_opcode(self):
         return self.opCode
 
-    def getOperandsList(self):
-        return self.operandsList
+    def get_src_operands(self):
+        return self.get_src_operands_from_opcode(self.opCode, self.operandsList)
 
-    def getSrcOperands(self):
-        return AsmTranslator.getSrcOperands(self.opCode, self.operandsList)
+    def get_dest_operands(self):
+        return self.get_dest_operands_from_opcode(self.opCode, self.operandsList)
 
-    def getDestOperands(self):
-        return AsmTranslator.getDestOperands(self.opCode, self.operandsList)
+    @staticmethod
+    def get_src_operands_from_opcode(opcode, operands_list):
+        if opcode == "write":
+            return [operands_list[0]]
+        elif opcode.startswith("maj3"):
+            return operands_list[-3:]
+        elif opcode in ["copy", "mv"]:
+            return operands_list[-1:]
+        elif opcode in ["zero", "one"]:
+            return []
+        else:
+            return operands_list[1:]
+
+    @staticmethod
+    def get_dest_operands_from_opcode(opcode, operands_list):
+        """ Get all destination operands based on opCode and operandsList """
+        # In analog PIM, there can be multiple dest operands for maj/copy/mv/zero/one
+        if opcode == "write":
+            return [operands_list[1]]
+        elif opcode.startswith("maj3"):
+            return operands_list[:-3]
+        elif opcode in ["copy", "mv"]:
+            return operands_list[:-1]
+        elif opcode in ["zero", "one"]:
+            return operands_list
+        else:
+            return [operands_list[0]]
+
 
 class SymbolTable:
     def __init__(self):
@@ -204,49 +230,22 @@ class AsmTranslator:
             print(self)
 
     def getDestinationOperandFromInstruction(self, instruction):
-        destOperands = instruction.getDestOperands()
+        destOperands = instruction.get_dest_operands()
         return destOperands[0] if destOperands else None
 
     def getSourceOperandFromInstruction(self, instruction):
-        srcOperands = instruction.getSrcOperands()
+        srcOperands = instruction.get_src_operands()
         return srcOperands[0] if srcOperands else None
-
-    @staticmethod
-    def getSrcOperands(opCode, operandsList):
-        if opCode == "write":
-            return [operandsList[0]]
-        elif opCode.startswith("maj3"):
-            return operandsList[-3:]
-        elif opCode == "copy":
-            return operandsList[-1:]
-        elif opCode in ["zero", "one"]:
-            return []
-        else:
-            return operandsList[1:]
-
-    @staticmethod
-    def getDestOperands(opCode, operandsList):
-        """ Get all destination operands based on opCode and operandsList """
-        if opCode == "write":
-            return [operandsList[1]]
-        elif opCode.startswith("maj3"):
-            return operandsList[:-3]  # There can be multiple dest operands of maj3 in analog PIM
-        elif opCode == "copy":
-            return operandsList[:-1]
-        elif opCode in ["zero", "one"]:
-            return operandsList
-        else:
-            return [operandsList[0]]
 
     def appendBitSerialInstruction(self, opCode, operands, line, suspended=False):
         # Identify source instructions
-        srcOperands = self.getSrcOperands(opCode, operands)
+        srcOperands = LinkedInstruction.get_src_operands_from_opcode(opCode, operands)
         sourceInstructionList = [self.symbolTable.getSymbol(srcOperand) for srcOperand in srcOperands]
         # Create a new instruction
         bitSerialInstruction = LinkedInstruction(opCode, operands, line, sourceInstructionList=sourceInstructionList, suspended=suspended)
         self.bitSerialStatementList.append(bitSerialInstruction)
         # Note: Handle multiple dest operands of inline asm block
-        destOperands = self.getDestOperands(opCode, operands)
+        destOperands = LinkedInstruction.get_dest_operands_from_opcode(opCode, operands)
         for destOperand in destOperands:
             self.symbolTable.addSymbol(destOperand, bitSerialInstruction)
             if opCode == "write" and destOperand in self.remainedOutputList:
@@ -544,7 +543,7 @@ class PostTranslationOptimizer:
                 inst.sourceInstructionList[idx] = self.line_map[src_inst.line]
 
 
-class TempVariablesShrinker (PostTranslationOptimizer):
+class TempVariablesShrinker(PostTranslationOptimizer):
     """ Shrinks temporary variables to use the smallest set of indices """
 
     def __init__(self, instruction_sequence, pim_regs, debug_level=0):
@@ -580,6 +579,7 @@ class TempVariablesShrinker (PostTranslationOptimizer):
         else:
             return avaialable_temp_variable
 
+
 class RedundantCopyRemover(PostTranslationOptimizer):
     """ Remove redundant copy/move instructions from the instruction sequence """
 
@@ -591,7 +591,7 @@ class RedundantCopyRemover(PostTranslationOptimizer):
         for i, inst in enumerate(self.instruction_sequence):
             if inst.suspended:
                 continue
-            if inst.getOpCode() in ["copy", "mv"] and inst.getSrcOperands() == inst.getDestOperands():
+            if inst.get_opcode() in ["copy", "mv"] and inst.get_src_operands() == inst.get_dest_operands():
                 inst.suspended = True  # Mark the instruction as suspended
                 self.update_line_map(inst.line, inst.sourceInstructionList)
                 removed_count += 1
@@ -600,7 +600,8 @@ class RedundantCopyRemover(PostTranslationOptimizer):
                 self.new_instruction_sequence.append(inst)
         print(f"INFO: Summary: Removed {removed_count} redundant copies.")
 
-class AnalogCopyPacker (PostTranslationOptimizer):
+
+class AnalogCopyPacker(PostTranslationOptimizer):
     """ Pack analog copies of port/zero/one instructions for analog PIM mode """
 
     def __init__(self, instruction_sequence, debug_level=0):
@@ -612,19 +613,19 @@ class AnalogCopyPacker (PostTranslationOptimizer):
         for i, inst in enumerate(self.instruction_sequence):
             if inst.suspended:
                 continue
-            if inst.getOpCode() in ["copy", "mv"]:
-                if inst.getSrcOperands() == inst.getDestOperands():
+            if inst.get_opcode() in ["copy", "mv"]:
+                if inst.get_src_operands() == inst.get_dest_operands():
                     continue # skip
                 target_opcode = ["copy", "mv"]
-            elif inst.getOpCode() in ["zero", "one"]:
-                target_opcode = [inst.getOpCode()]
+            elif inst.get_opcode() in ["zero", "one"]:
+                target_opcode = [inst.get_opcode()]
             else:
                 self.update_source_lines(inst)
                 self.new_instruction_sequence.append(inst)
                 continue
             # look ahead for packing opportunities
-            while len(inst.getDestOperands()) < max_slots:
-                idx_to_pack = self.find_next_packable_instruction(i, target_opcode, inst.getSrcOperands())
+            while len(inst.get_dest_operands()) < max_slots:
+                idx_to_pack = self.find_next_packable_instruction(i, target_opcode, inst.get_src_operands())
                 if idx_to_pack is not None:
                     inst_to_pack = self.instruction_sequence[idx_to_pack]
                     self.pack_instructions(inst, inst_to_pack)
@@ -649,25 +650,25 @@ class AnalogCopyPacker (PostTranslationOptimizer):
             if i - idx > window_size:
                 break
             inst = self.instruction_sequence[i]
-            srcs = inst.getSrcOperands()
-            dests = inst.getDestOperands()
-            if inst.opCode in ["copy", "mv"] and srcs == dests:
+            srcs = inst.get_src_operands()
+            dests = inst.get_dest_operands()
+            if inst.get_opcode() in ["copy", "mv"] and srcs == dests:
                 inst.suspended = True
                 continue
-            if inst.getOpCode() in op_code and not inst.suspended:
+            if inst.get_opcode() in op_code and not inst.suspended:
                 packable = (set(srcs) == set(orig_src) and
                             not any(operand in visited_operands for operand in srcs + dests))
                 if packable:
                     return i
-            srcs = inst.getSrcOperands()
-            dests = inst.getDestOperands()
+            srcs = inst.get_src_operands()
+            dests = inst.get_dest_operands()
             visited_operands.update(srcs)
             visited_operands.update(dests)
         return None
 
     def pack_instructions(self, inst, inst_to_pack):
         """ Pack two instructions together """
-        srcs = inst.getSrcOperands()
-        dests = inst.getDestOperands() + inst_to_pack.getDestOperands()
+        srcs = inst.get_src_operands()
+        dests = inst.get_dest_operands() + inst_to_pack.get_dest_operands()
         inst.operandsList = dests + srcs
 
