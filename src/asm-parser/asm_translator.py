@@ -82,9 +82,9 @@ class SymbolTable:
         else:
             for key, val in self.dictionary.items():
                 if isinstance(val, LinkedInstruction):
-                    string += f"{key}: L{val.line}\n"
+                    string += f"    {key:<10} : L{val.line}\n"
                 else:
-                    string += f"{key}: {val}\n"
+                    string += f"    {key:<10} : {val}\n"
         return string
 
     def print_symbols(self):
@@ -198,12 +198,14 @@ class AsmTranslator:
         # Post translation optimization
         self.shrink_temp_variables()
         self.remove_redundant_copies()
+        self.simplify_port_spills()
+        self.shrink_temp_variables()
         self.pack_analog_copies()
 
     def shrink_temp_variables(self):
         """ Shrink temporary variables in the bit-serial statement list """
         print("INFO: Simplifying temporary variables in the bit-serial assembly...")
-        temp_var_shrinker = TempVariablesShrinker(self.bitSerialStatementList, self.allRegs, self.debugLevel)
+        temp_var_shrinker = TempVariablesShrinker(self.bitSerialStatementList, self.pimMode, self.allRegs, self.debugLevel)
         temp_var_shrinker.shrink_temp_variables()
         self.bitSerialStatementList = temp_var_shrinker.new_instruction_sequence
         if self.debugLevel >= 1:
@@ -212,9 +214,18 @@ class AsmTranslator:
     def remove_redundant_copies(self):
         """ Remove redundant copy instructions in the bit-serial statement list """
         print("INFO: Removing redundant copy instructions...")
-        copy_remover = RedundantCopyRemover(self.bitSerialStatementList, self.debugLevel)
+        copy_remover = RedundantCopyRemover(self.bitSerialStatementList, self.pimMode, self.debugLevel)
         copy_remover.remove_redendant_copies()
         self.bitSerialStatementList = copy_remover.new_instruction_sequence
+        if self.debugLevel >= 1:
+            print(self)
+
+    def simplify_port_spills(self):
+        """ Simplify port spills in the bit-serial statement list """
+        print("INFO: Simplifying port spills in the bit-serial assembly...")
+        port_spill_simplifier = PortSpillSimplifier(self.bitSerialStatementList, self.pimMode, self.inputList, self.outputList, self.debugLevel)
+        port_spill_simplifier.simplify_port_spills()
+        self.bitSerialStatementList = port_spill_simplifier.new_instruction_sequence
         if self.debugLevel >= 1:
             print(self)
 
@@ -223,7 +234,7 @@ class AsmTranslator:
         if self.pimMode != "analog":
             return
         print("INFO: Packing analog copies of port/zero/one instructions...")
-        analog_copy_packer = AnalogCopyPacker(self.bitSerialStatementList, self.debugLevel)
+        analog_copy_packer = AnalogCopyPacker(self.bitSerialStatementList, self.pimMode, self.debugLevel)
         analog_copy_packer.pack_analog_copies()
         self.bitSerialStatementList = analog_copy_packer.new_instruction_sequence
         if self.debugLevel >= 1:
@@ -521,8 +532,9 @@ class AsmTranslator:
 class PostTranslationOptimizer:
     """ Base class for post-translation optimizers """
 
-    def __init__(self, instruction_sequence, debug_level=0):
+    def __init__(self, instruction_sequence, pim_mode, debug_level=0):
         self.instruction_sequence = instruction_sequence
+        self.pim_mode = pim_mode
         self.debug_level = debug_level
         self.new_instruction_sequence = []
         self.line_map = {}
@@ -546,8 +558,8 @@ class PostTranslationOptimizer:
 class TempVariablesShrinker(PostTranslationOptimizer):
     """ Shrinks temporary variables to use the smallest set of indices """
 
-    def __init__(self, instruction_sequence, pim_regs, debug_level=0):
-        super().__init__(instruction_sequence, debug_level)
+    def __init__(self, instruction_sequence, pim_mode, pim_regs, debug_level=0):
+        super().__init__(instruction_sequence, pim_mode, debug_level)
         self.pim_regs = pim_regs
         self.symbol_table = SymbolTable()
         self.temp_manager = TempManager()
@@ -583,8 +595,8 @@ class TempVariablesShrinker(PostTranslationOptimizer):
 class RedundantCopyRemover(PostTranslationOptimizer):
     """ Remove redundant copy/move instructions from the instruction sequence """
 
-    def __init__(self, instruction_sequence, debug_level=0):
-        super().__init__(instruction_sequence, debug_level)
+    def __init__(self, instruction_sequence, pim_mode, debug_level=0):
+        super().__init__(instruction_sequence, pim_mode, debug_level)
 
     def remove_redendant_copies(self):
         removed_count = 0
@@ -601,13 +613,146 @@ class RedundantCopyRemover(PostTranslationOptimizer):
         print(f"INFO: Summary: Removed {removed_count} redundant copies.")
 
 
+class PortSpillSimplifier(PostTranslationOptimizer):
+    """ Simpify port spill instructions """
+
+    def __init__(self, instruction_sequence, pim_mode, input_ports, output_ports, debug_level=0):
+        super().__init__(instruction_sequence, pim_mode, debug_level)
+        self.input_ports = input_ports
+        self.output_ports = output_ports
+        self.symbol_inst_map = SymbolTable()
+        self.symbol_port_map = SymbolTable()
+        self.symbol_trace = {}  # linenum -> { operand : linked instruction, ... }
+
+    def simplify_port_spills(self):
+        removed_count = 0
+        # 1st pass: Replace read temp var with input port if possible
+        for i, inst in enumerate(self.instruction_sequence):
+            if inst.suspended:
+                continue
+            self.update_symbol_inst_map(inst)
+            self.update_symbol_port_map(inst)
+            # print(f"DEBUG: Processing instruction {i}: {inst}")
+            # self.debug_print()
+            self.replace_temp_var_with_in_port(inst)
+        # 2nd pass: Suspend unneeded instructions
+        line_deps = set()
+        for i, inst in reversed(list(enumerate(self.instruction_sequence))):
+            if inst.suspended:
+                continue
+            line = inst.line
+            to_keep = bool(line in line_deps)
+            if not to_keep and inst.get_opcode() == "write":
+                if len(inst.get_dest_operands()) == 1 and inst.get_dest_operands()[0] in self.output_ports:
+                    to_keep = True
+            if to_keep:
+                for src_inst in inst.sourceInstructionList:
+                    if src_inst is not None:
+                        line_deps.add(src_inst.line)
+                continue
+            # Suspend the instruction
+            inst.suspended = True
+            removed_count += 1
+        # 3rd pass: Update the final instruction sequence
+        for inst in self.instruction_sequence:
+            if not inst.suspended:
+                self.new_instruction_sequence.append(inst)
+        print(f"INFO: Summary: Removed {removed_count} read/write from port spill simplification.")
+
+    def debug_print(self):
+        """ Print debug information """
+        print("Symbol Trace:")
+        for line, item in self.symbol_trace.items():
+            string = f"Line {line}: "
+            for operand, inst in item.items():
+                if inst is not None:
+                    string += f"{operand} -> {inst.line}, "
+                else:
+                    string += f"{operand} -> None, "
+            print(string[:-2])  # Remove the last comma and space
+        print("Symbol Inst Map:")
+        self.symbol_inst_map.print_symbols()
+        print("Symbol Port Map:")
+        self.symbol_port_map.print_symbols()
+
+    def update_symbol_inst_map(self, inst):
+        """ Update symbol to inst map """
+        line = inst.line
+        self.symbol_trace.setdefault(line, {})
+        # Add dest operands
+        for dest in inst.get_dest_operands():
+            self.symbol_inst_map.addSymbol(dest, inst)
+            self.symbol_trace[line][dest] = inst
+        # Add src operands for analog PIM
+        opcode = inst.get_opcode()
+        if self.pim_mode == "analog" and (opcode in ["and2", "or2"] or opcode.startswith("maj3")):
+            for src in inst.get_src_operands():
+                self.symbol_inst_map.addSymbol(src, inst)
+                self.symbol_trace[line][src] = inst
+        else:
+            for src in inst.get_src_operands():
+                if self.symbol_inst_map.getSymbol(src) is not None:
+                    self.symbol_trace[line][src] = self.symbol_inst_map.getSymbol(src)
+                else:
+                    self.symbol_trace[line][src] = None
+
+    def update_symbol_port_map(self, inst):
+        """ Update symbol to port map """
+        # Map symbol to input port operands if applicable
+        opcode = inst.get_opcode()
+        if opcode == "write":
+            if len(inst.get_src_operands()) == 1:
+                operand_to_trace = inst.get_src_operands()[0]
+                operand_to_be_replaced = inst.get_dest_operands()[0]
+                in_port = self.trace_in_port_operand(inst.line, operand_to_trace)
+                if in_port:
+                    self.symbol_port_map.addSymbol(operand_to_be_replaced, in_port)
+                elif self.symbol_port_map.getSymbol(operand_to_be_replaced) is not None:
+                    self.symbol_port_map.removeSymbol(operand_to_be_replaced)
+
+    def trace_in_port_operand(self, line, symbol):
+        """ Trace the input port operand if symbol is an alias of it """
+        if self.symbol_trace[line] is None or symbol not in self.symbol_trace[line]:
+            return None
+        pred_inst = self.symbol_trace[line][symbol]
+        while pred_inst is not None:
+            if pred_inst.get_opcode() == "read":
+                if len(pred_inst.get_src_operands()) == 1 and pred_inst.get_src_operands()[0] in self.input_ports:
+                    return pred_inst.get_src_operands()[0]
+            elif pred_inst.get_opcode() == "write":
+                if len(pred_inst.get_src_operands()) == 1 and pred_inst.get_dest_operands()[0] in self.input_ports:
+                    return pred_inst.get_dest_operands()[0]
+            elif pred_inst.get_opcode() in ["copy", "mv"]:
+                if len(pred_inst.get_src_operands()) == 1:
+                    pred_line = pred_inst.line
+                    pred_operand = pred_inst.get_src_operands()[0]
+                    pred_inst = self.symbol_trace[pred_line][pred_operand]
+                    continue
+            break
+        return None
+
+    def replace_temp_var_with_in_port(self, inst):
+        """ Replace temporary variable with input port if possible """
+        if inst.get_opcode() == "read":
+            if len(inst.get_src_operands()) == 1:
+                operand_to_be_replaced = inst.get_src_operands()[0]
+                operand_to_use = self.symbol_port_map.getSymbol(operand_to_be_replaced)
+                if operand_to_use is not None:
+                    inst.operandsList[1] = operand_to_use
+                    inst.sourceInstructionList = [None]
+                    if self.debug_level >= 4:
+                        print(f"DEBUG: After replacement: {inst}")
+
+
 class AnalogCopyPacker(PostTranslationOptimizer):
     """ Pack analog copies of port/zero/one instructions for analog PIM mode """
 
-    def __init__(self, instruction_sequence, debug_level=0):
-        super().__init__(instruction_sequence, debug_level)
+    def __init__(self, instruction_sequence, pim_mode, debug_level=0):
+        super().__init__(instruction_sequence, pim_mode, debug_level)
 
     def pack_analog_copies(self):
+        if self.pim_mode != "analog":
+            return
         max_slots = 3  # 3 outputs at most for AAP
         pack_count = 0
         for i, inst in enumerate(self.instruction_sequence):
