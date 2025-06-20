@@ -73,6 +73,5 @@ class InoutVarReusing(DagTransformer):
                 if len(rest_gate_ids) <= 1:
                     break
                 target_gate_id, rest_gate_ids = self.find_first_input_destroying_gate(dag, rest_gate_ids)
-                #print(dag)
         return reuse_count
 

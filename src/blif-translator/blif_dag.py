@@ -447,10 +447,47 @@ class DAG:
             self.raise_exception("Topological sort failed: not all nodes were processed.")
         return order
  
+    def source_insertion_topo_sort(self):
+        """ Perform topological sort then insert sources right before first use """
+        if self.debug_level >= 1:
+            print("DEBUG: Performing topological sort with source insertion.")
+        indeg = dict(self.graph.in_degree(self.graph))
+        # Treat zero-degree non-in-port and port-copy gates as sources
+        def is_port_copy(gate_id):
+            if self.graph.nodes[gate_id]['gate_func'] in ['copy', 'copy_inout']:
+                preds = list(self.graph.predecessors(gate_id))
+                if len(preds) == 1 and preds[0] in self.__in_ports:
+                    return True
+            return False
+        is_source = {gate_id: (indeg[gate_id] == 0 and not self.is_in_port(gate_id)) or is_port_copy(gate_id) for gate_id in self.graph.nodes}
+        # Create original topological order
+        order = list(nx.topological_sort(self.graph))
+        # Split into sources and internal gates
+        src_gate_buffer = set()
+        for gate_id in order:
+            if is_source[gate_id]:
+                src_gate_buffer.add(gate_id)
+        new_order = []
+        for gate_id in order:
+            if not is_source[gate_id]:
+                preds = list(self.graph.predecessors(gate_id))
+                for pred in preds:
+                    if pred in src_gate_buffer:
+                        new_order.append(pred)
+                        src_gate_buffer.remove(pred)
+                new_order.append(gate_id)
+            else:
+                pass
+        if src_gate_buffer:
+            self.raise_exception(f"Source insertion failed: remaining sources {src_gate_buffer} not inserted.")
+        return new_order
+
     def get_topo_sorted_gate_id_list(self):
         """ Get a list of all gates in topological order """
         if self.topo_sort_algorithm == 1:
             return self.priority_khan_topo_sort()
+        elif self.topo_sort_algorithm == 2:
+            return self.source_insertion_topo_sort()
         else:
             return list(nx.topological_sort(self.graph))
 
@@ -462,11 +499,11 @@ class DAG:
             for _, _, edge_data in self.graph.out_edges(gate_id, data=True):
                 wire_name = edge_data.get('wire_name', None)
                 if wire_name is None:
-                    continue  # skip dep edges
-                if skip_port and (self.is_in_port(wire_name) or self.is_out_port(wire_name)):
-                    continue  # skip ports
+                    self.raise_exception(f"Edge without wire_name found for gate {gate_id}.")
                 if merge_segments:
                     wire_name = self.get_wire_base_name(wire_name)
+                if skip_port and (self.is_in_port(wire_name) or self.is_out_port(wire_name)):
+                    continue  # skip ports
                 wire_names.add(wire_name)
         return list(wire_names)
 
@@ -484,7 +521,11 @@ class DAG:
                 segmented_wires.append(self.get_wire_base_name(wire_name))
         reusable_inout_wires = []
         for wire_name in gate['inputs']:
+            # Skip input that already has a segment
             if wire_name in segmented_wires:
+                continue
+            # Skip input if it is an in/out port
+            if self.is_in_port(wire_name) or self.is_out_port(wire_name):
                 continue
             reusable_inout_wires.append(wire_name)
         return reusable_inout_wires
