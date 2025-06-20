@@ -177,9 +177,9 @@ class AsmTranslator:
     def shrink_temp_variables(self):
         """ Shrink temporary variables in the bit-serial statement list """
         print("INFO: Simplifying temporary variables in the bit-serial assembly...")
-        tempVariablesShrinker = TempVariablesShrinker(self.bitSerialStatementList, self.allRegs, self.debugLevel)
-        tempVariablesShrinker.shrinkTempVariables()
-        self.bitSerialStatementList = tempVariablesShrinker.newInstructionSequence
+        temp_var_shrinker = TempVariablesShrinker(self.bitSerialStatementList, self.allRegs, self.debugLevel)
+        temp_var_shrinker.shrink_temp_variables()
+        self.bitSerialStatementList = temp_var_shrinker.new_instruction_sequence
         if self.debugLevel >= 1:
             print(self)
 
@@ -188,7 +188,7 @@ class AsmTranslator:
         print("INFO: Removing redundant copy instructions...")
         copy_remover = RedundantCopyRemover(self.bitSerialStatementList, self.debugLevel)
         copy_remover.remove_redendant_copies()
-        self.bitSerialStatementList = copy_remover.newInstructionSequence
+        self.bitSerialStatementList = copy_remover.new_instruction_sequence
         if self.debugLevel >= 1:
             print(self)
 
@@ -199,7 +199,7 @@ class AsmTranslator:
         print("INFO: Packing analog copies of port/zero/one instructions...")
         analog_copy_packer = AnalogCopyPacker(self.bitSerialStatementList, self.debugLevel)
         analog_copy_packer.pack_analog_copies()
-        self.bitSerialStatementList = analog_copy_packer.newInstructionSequence
+        self.bitSerialStatementList = analog_copy_packer.new_instruction_sequence
         if self.debugLevel >= 1:
             print(self)
 
@@ -518,51 +518,14 @@ class AsmTranslator:
     def getBitSerialAsm(self):
         return self.bitSerialStatementList
 
-class TempVariablesShrinker:
-    """ Shrinks temporary variables to use the smallest set of indices """
 
-    def __init__(self, instructionSequence, pimRegs, debugLevel=0):
-        self.instructionSequence = instructionSequence
-        self.pimRegs = pimRegs
-        self.debugLevel = debugLevel
-        self.newInstructionSequence = []
-        self.symbolTable = SymbolTable()
-        self.tempManager = TempManager()
+class PostTranslationOptimizer:
+    """ Base class for post-translation optimizers """
 
-    def shrinkTempVariables(self):
-        for instruction in self.instructionSequence:
-            operandIdx = 0
-            hasPimReg = False
-            for operand in instruction.operandsList:
-                if not instruction.suspended:
-                    if "temp" in operand:
-                        newOperand = self.updateTempVariable(operand)
-                        instruction.operandsList[operandIdx] = newOperand
-                if operand in self.pimRegs:
-                    hasPimReg = True
-                operandIdx += 1
-            if not instruction.suspended:
-                self.newInstructionSequence.append(instruction)
-            elif hasPimReg:
-                if self.debugLevel >= 1:
-                    print(f'Warning: Suspended instruction with PIM register found: {instruction}')
-
-    def updateTempVariable(self, tempVariable):
-        avaialableTempVariable = self.symbolTable.getSymbol(tempVariable)
-        if avaialableTempVariable == None:
-            newTempVariable = f"temp{self.tempManager.newTemp()}"
-            self.symbolTable.addSymbol(tempVariable, newTempVariable)
-            return newTempVariable
-        else:
-            return avaialableTempVariable
-
-class RedundantCopyRemover:
-    """ Remove redundant copy/move instructions from the instruction sequence """
-
-    def __init__(self, instructionSequence, debugLevel=0):
-        self.instructionSequence = instructionSequence
-        self.debugLevel = debugLevel
-        self.newInstructionSequence = []
+    def __init__(self, instruction_sequence, debug_level=0):
+        self.instruction_sequence = instruction_sequence
+        self.debug_level = debug_level
+        self.new_instruction_sequence = []
         self.line_map = {}
 
     def update_line_map(self, removed_line, source_insts):
@@ -580,9 +543,52 @@ class RedundantCopyRemover:
             if src_inst is not None and src_inst.line in self.line_map:
                 inst.sourceInstructionList[idx] = self.line_map[src_inst.line]
 
+
+class TempVariablesShrinker (PostTranslationOptimizer):
+    """ Shrinks temporary variables to use the smallest set of indices """
+
+    def __init__(self, instruction_sequence, pim_regs, debug_level=0):
+        super().__init__(instruction_sequence, debug_level)
+        self.pim_regs = pim_regs
+        self.symbol_table = SymbolTable()
+        self.temp_manager = TempManager()
+
+    def shrink_temp_variables(self):
+        for instruction in self.instruction_sequence:
+            operand_idx = 0
+            has_pim_reg = False
+            for operand in instruction.operandsList:
+                if not instruction.suspended:
+                    if "temp" in operand:
+                        newOperand = self.update_temp_variable(operand)
+                        instruction.operandsList[operand_idx] = newOperand
+                if operand in self.pim_regs:
+                    has_pim_reg = True
+                operand_idx += 1
+            if not instruction.suspended:
+                self.new_instruction_sequence.append(instruction)
+            elif has_pim_reg:
+                if self.debug_level >= 1:
+                    print(f'Warning: Suspended instruction with PIM register found: {instruction}')
+
+    def update_temp_variable(self, temp_variable):
+        avaialable_temp_variable = self.symbol_table.getSymbol(temp_variable)
+        if avaialable_temp_variable == None:
+            new_temp_variable = f"temp{self.temp_manager.newTemp()}"
+            self.symbol_table.addSymbol(temp_variable, new_temp_variable)
+            return new_temp_variable
+        else:
+            return avaialable_temp_variable
+
+class RedundantCopyRemover(PostTranslationOptimizer):
+    """ Remove redundant copy/move instructions from the instruction sequence """
+
+    def __init__(self, instruction_sequence, debug_level=0):
+        super().__init__(instruction_sequence, debug_level)
+
     def remove_redendant_copies(self):
         removed_count = 0
-        for i, inst in enumerate(self.instructionSequence):
+        for i, inst in enumerate(self.instruction_sequence):
             if inst.suspended:
                 continue
             if inst.getOpCode() in ["copy", "mv"] and inst.getSrcOperands() == inst.getDestOperands():
@@ -591,22 +597,19 @@ class RedundantCopyRemover:
                 removed_count += 1
             else:
                 self.update_source_lines(inst)
-                self.newInstructionSequence.append(inst)
+                self.new_instruction_sequence.append(inst)
         print(f"INFO: Summary: Removed {removed_count} redundant copies.")
 
-
-class AnalogCopyPacker:
+class AnalogCopyPacker (PostTranslationOptimizer):
     """ Pack analog copies of port/zero/one instructions for analog PIM mode """
 
-    def __init__(self, instructionSequence, debugLevel=0):
-        self.instructionSequence = instructionSequence
-        self.debugLevel = debugLevel
-        self.newInstructionSequence = []
+    def __init__(self, instruction_sequence, debug_level=0):
+        super().__init__(instruction_sequence, debug_level)
 
     def pack_analog_copies(self):
         max_slots = 3  # 3 outputs at most for AAP
         pack_count = 0
-        for i, inst in enumerate(self.instructionSequence):
+        for i, inst in enumerate(self.instruction_sequence):
             if inst.suspended:
                 continue
             if inst.getOpCode() in ["copy", "mv"]:
@@ -616,34 +619,36 @@ class AnalogCopyPacker:
             elif inst.getOpCode() in ["zero", "one"]:
                 target_opcode = [inst.getOpCode()]
             else:
-                self.newInstructionSequence.append(inst)
+                self.update_source_lines(inst)
+                self.new_instruction_sequence.append(inst)
                 continue
             # look ahead for packing opportunities
             while len(inst.getDestOperands()) < max_slots:
                 idx_to_pack = self.find_next_packable_instruction(i, target_opcode, inst.getSrcOperands())
                 if idx_to_pack is not None:
-                    inst_to_pack = self.instructionSequence[idx_to_pack]
+                    inst_to_pack = self.instruction_sequence[idx_to_pack]
                     self.pack_instructions(inst, inst_to_pack)
                     inst_to_pack.suspended = True  # Mark the packed instruction as suspended
+                    self.update_line_map(inst_to_pack.line, [inst])
                     pack_count += 1
-                    if self.debugLevel >= 2:
+                    if self.debug_level >= 2:
                         print(f"DEBUG: Packing instruction {idx_to_pack} to instruction at index {i}")
                         print(f"       {idx_to_pack} -> {inst_to_pack}")
                         print(f"       {i} -> {inst}")
                     continue
                 else:
                     break
-            self.newInstructionSequence.append(inst)
+            self.new_instruction_sequence.append(inst)
         print(f"INFO: Summary: Packed {pack_count} analog copy/zero/one instructions.")
 
     def find_next_packable_instruction(self, idx, op_code, orig_src):
         """ Find the next instruction that can be packed with the current one """
         visited_operands = set()
         window_size = 100
-        for i in range(idx + 1, len(self.instructionSequence)):
+        for i in range(idx + 1, len(self.instruction_sequence)):
             if i - idx > window_size:
                 break
-            inst = self.instructionSequence[i]
+            inst = self.instruction_sequence[i]
             srcs = inst.getSrcOperands()
             dests = inst.getDestOperands()
             if inst.opCode in ["copy", "mv"] and srcs == dests:
