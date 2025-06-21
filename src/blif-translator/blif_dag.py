@@ -382,6 +382,7 @@ class DAG:
         """ Perform priority-aware topological sort based on Kahn's algorithm """
         if self.debug_level >= 1:
             print("DEBUG: Performing priority-aware topological sort based on Khan's algorithm.")
+        orig_indeg = dict(self.graph.in_degree(self.graph))
         indeg = dict(self.graph.in_degree(self.graph))
         # Treat zero-degree and port-copy gates as sources
         def is_port_copy(gate_id):
@@ -398,8 +399,17 @@ class DAG:
 
         def can_unlock_successor(gate_id):
             return any(indeg[succ] == 1 for succ in self.graph.successors(gate_id))
+        def gate_score(gate_id):
+            score = 0
+            for succ in self.graph.successors(gate_id):
+                if indeg[succ] == 1:
+                    score += 1
+                    # Optimization: Prioritize in_ports that drive ready multi-output successors
+                    if orig_indeg[succ] > 1 and self.is_in_port(gate_id):
+                        score += orig_indeg[succ]
+            return score
         def pick_most_critical(ready_list):
-            return max(ready_list, key=lambda x: sum(indeg[succ] == 1 for succ in self.graph.successors(x)))
+            return max(ready_list, key=gate_score)
 
         while ready_int or ready_src:
             if ready_int:
@@ -482,12 +492,163 @@ class DAG:
             self.raise_exception(f"Source insertion failed: remaining sources {src_gate_buffer} not inserted.")
         return new_order
 
+    def alsp_topo_sort(self):
+        """ Perform topological sort using ALSP algorithm """
+        if self.debug_level >= 1:
+            print("DEBUG: Performing topological sort with ALAP scheduling.")
+        # Compute duration
+        dur = {}
+        for v in self.graph.nodes:
+            dur[v] = 1
+        # Compute ASAP
+        asap = {}
+        for v in nx.topological_sort(self.graph):
+            preds = list(self.graph.predecessors(v))
+            asap[v] = 0 if not preds else max(asap[p] + 1 for p in preds)
+        # Compute ALAP
+        t_max = max(asap.values())
+        alap = {}
+        for v in reversed(list(nx.topological_sort(self.graph))):
+            succs = list(self.graph.successors(v))
+            alap[v] = t_max if not succs else min(alap[s] - 1 for s in succs)
+        # Compute slack
+        slack = {n: alap[n] - asap[n] for n in self.graph.nodes}
+        # Compute ALAP order
+        alap_order = sorted(alap, key=lambda n: (alap[n], slack[n]))
+        if self.debug_level >= 3:
+            print("DEBUG: ASAP, ALAP, Slack")
+            for v in alap_order:
+                print(f"    ASAP={asap[v]}, ALAP={alap[v]}, Slack={slack[v]}, Dur={dur[v]} : Gate {self.get_gate_info_str(v)}")
+        return alap_order
+
+    def register_pressure_topo_sort(self):
+        """ Topological sort based on register pressure """
+        if self.debug_level >= 1:
+            print("DEBUG: Performing topological sort with register pressure aware list scheduling.")
+        # Compute duration
+        dur = {}
+        for v in self.graph.nodes:
+            dur[v] = 1
+        # Compute ASAP
+        asap = {}
+        for v in nx.topological_sort(self.graph):
+            preds = list(self.graph.predecessors(v))
+            asap[v] = 0 if not preds else max(asap[p] + dur[v] for p in preds)
+        # Compute ALAP
+        t_max = max(asap.values())
+        alap = {}
+        for v in reversed(list(nx.topological_sort(self.graph))):
+            succs = list(self.graph.successors(v))
+            alap[v] = t_max if not succs else min(alap[s] - dur[v] for s in succs)
+        # Compute slack
+        slack = {n: alap[n] - asap[n] for n in self.graph.nodes}
+        # Run register pressure aware list scheduling
+        indeg = dict(self.graph.in_degree(self.graph))
+        ready = deque([gate_id for gate_id in self.graph.nodes if indeg[gate_id] == 0])
+        scheduled, live, order = set(), set(), []
+        t = 0
+        while ready:
+            def cost(n):
+                #if self.graph.nodes[n]['gate_func'] in ['in_port']:
+                #    return (-10000, -10000)  # schedule in_port first
+                urgency = alap[n] - t
+                urgency = 0
+                delta = 1
+                delta -= sum(1 for p in self.graph.predecessors(n) if p in live)
+                return (delta, urgency)
+            best = min(ready, key=cost)
+            ready.remove(best)
+            order.append(best)
+            scheduled.add(best)
+            for p in self.graph.predecessors(best):
+                live.discard(p)
+            live.add(best)
+            for succ in self.graph.successors(best):
+                if all(pred in scheduled for pred in self.graph.predecessors(succ)):
+                    ready.append(succ)
+            t += dur[best]
+        if self.debug_level >= 3:
+            print("DEBUG: New order")
+            for i, v in enumerate(order):
+                print(f"    ASAP={asap[v]}, ALAP={alap[v]}, Slack={slack[v]}, Dur={dur[v]} : Gate {self.get_gate_info_str(v)}")
+        return order
+
+    def register_pressure_topo_sort2(self):
+        """ Topological sort based on register pressure """
+        if self.debug_level >= 1:
+            print("DEBUG: Performing topological sort with register pressure aware list scheduling.")
+        # Compute duration
+        dur = {}
+        for v in self.graph.nodes:
+            dur[v] = 1
+        # Compute ASAP
+        asap = {}
+        for v in nx.topological_sort(self.graph):
+            preds = list(self.graph.predecessors(v))
+            asap[v] = 0 if not preds else max(asap[p] + dur[v] for p in preds)
+        # Compute ALAP
+        t_max = max(asap.values())
+        alap = {}
+        for v in reversed(list(nx.topological_sort(self.graph))):
+            succs = list(self.graph.successors(v))
+            alap[v] = t_max if not succs else min(alap[s] - dur[v] for s in succs)
+        # Compute slack
+        slack = {n: alap[n] - asap[n] for n in self.graph.nodes}
+        # Run register pressure aware list scheduling
+        indeg = dict(self.graph.in_degree(self.graph))
+        ready = deque([gate_id for gate_id in self.graph.nodes if indeg[gate_id] == 0])
+        scheduled, live, order = set(), set(), []
+        t = 0
+        while ready:
+            def cost(n):
+                if self.graph.nodes[n]['gate_func'] in ['in_port']:
+                    return (-10000, -10000)  # schedule in_port first
+                urgency = alap[n] - t
+                urgency = 0
+                delta = 1
+                delta -= sum(1 for p in self.graph.predecessors(n) if p in live)
+                return (delta, urgency)
+            best = min(ready, key=cost)
+            ready.remove(best)
+            order.append(best)
+            scheduled.add(best)
+            for p in self.graph.predecessors(best):
+                live.discard(p)
+            live.add(best)
+            for succ in self.graph.successors(best):
+                if all(pred in scheduled for pred in self.graph.predecessors(succ)):
+                    ready.append(succ)
+            t += dur[best]
+        # Pospone in-ports
+        new_order = []
+        added_in_ports = set()
+        for gate_id in order:
+            if self.is_in_port(gate_id):
+                continue
+            else:
+                for pred in self.graph.predecessors(gate_id):
+                    if self.is_in_port(pred) and pred not in added_in_ports:
+                        new_order.append(pred)
+                        added_in_ports.add(pred)
+                new_order.append(gate_id)
+        if self.debug_level >= 3:
+            print("DEBUG: New order")
+            for i, v in enumerate(new_order):
+                print(f"    ASAP={asap[v]}, ALAP={alap[v]}, Slack={slack[v]}, Dur={dur[v]} : Gate {self.get_gate_info_str(v)}")
+        return new_order
+
     def get_topo_sorted_gate_id_list(self):
         """ Get a list of all gates in topological order """
         if self.topo_sort_algorithm == 1:
             return self.priority_khan_topo_sort()
         elif self.topo_sort_algorithm == 2:
             return self.source_insertion_topo_sort()
+        elif self.topo_sort_algorithm == 3:
+            return self.alsp_topo_sort()
+        elif self.topo_sort_algorithm == 4:
+            return self.register_pressure_topo_sort()
+        elif self.topo_sort_algorithm == 5:
+            return self.register_pressure_topo_sort2()
         else:
             return list(nx.topological_sort(self.graph))
 
