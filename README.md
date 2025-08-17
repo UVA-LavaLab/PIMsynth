@@ -1,6 +1,7 @@
 # bit-serial-compiler
 
 ## Prerequisite
+
 In Linux environment, make sure `apptainer` command is available:
 ```
 $ apptainer --version
@@ -8,25 +9,44 @@ apptainer version 1.3.3
 ```
 
 ## How to build
-Check out current repo and all submodules:
+
+Check out this repo and all submodules:
 ```
-git clone --recurse-submodules https://github.com/deyuan/bit-serial-compiler.git
+git clone --recurse-submodules https://github.com/UVA-LavaLab/PIMsynth.git
 ```
+
+Build apptainer sif image:
+```
+./apptainer-build.sh
+```
+
+Build all submodules:
+```
+./apptainer-run.sh build_all.sh
+```
+
+Run an example:
+```
+cd testbench/
+../apptainer-run.sh ./run_benchmark.sh inv_nand 4 digital add_int32
+```
+
+## For developers
 
 Setup fetch/push remote (skip if you don't modify these submodules):
 ```
 # for each submodule, use originial url to fetch, and use local url to push
 cd llvm-project
-git remote set-url --push origin https://github.com/deyuan/bit-serial-compiler.git
+git remote set-url --push origin https://github.com/UVA-LavaLab/PIMsynth.git
 git remote -v
 cd abc
-git remote set-url --push origin https://github.com/deyuan/bit-serial-compiler.git
+git remote set-url --push origin https://github.com/UVA-LavaLab/PIMsynth.git
 git remote -v
 cd yosys
-git remote set-url --push origin https://github.com/deyuan/bit-serial-compiler.git
+git remote set-url --push origin https://github.com/UVA-LavaLab/PIMsynth.git
 git remote -v
 cd PIMeval-PIMbench
-git remote set-url --push origin https://github.com/deyuan/bit-serial-compiler.git
+git remote set-url --push origin https://github.com/UVA-LavaLab/PIMsynth.git
 git remote -v
 ```
 
@@ -77,10 +97,11 @@ cd PIMeval-PIMbench
 Run bit-serial compiler after building all submodules:
 ```
 cd testbench/
-./run_benchmark.sh inv_nand 4 add_int32
+../apptainer-run.sh ./run_benchmark.sh inv_nand 4 digital add_int32
 ```
 
 ## Methodology
+
 ```
     *.v (verilog input)
      |
