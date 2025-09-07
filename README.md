@@ -1,8 +1,10 @@
 # PIMsynth: Bit-Serial Compiler
 
+![License](https://img.shields.io/badge/license-MIT-green.svg)
+
 ## Prerequisite
 
-In Linux environment, make sure `apptainer` command is available:
+A Linux environment with `apptainer` is recommended to ease the build of third-party dependencies:
 ```
 $ apptainer --version
 apptainer version 1.3.3
@@ -10,7 +12,7 @@ apptainer version 1.3.3
 
 ## How to build
 
-Check out this repo and all submodules:
+Check out this repo and all git submodules:
 ```
 git clone --recurse-submodules https://github.com/UVA-LavaLab/PIMsynth.git
 ```
@@ -20,7 +22,7 @@ Build apptainer sif image:
 ./apptainer-build.sh
 ```
 
-Build all submodules:
+Build all git submodules:
 ```
 ./apptainer-run.sh build_all.sh
 ```
@@ -31,11 +33,70 @@ cd testbench/
 ../apptainer-run.sh ./run_benchmark.sh inv_nand 4 digital add_int32
 ```
 
+## Methodology
+
+```
+    *.v (verilog input)
+     |
+     v
+    yosys
+     |
+     v
+    *.blif (tech-independent)
+     |
+     v  <-- *.genlib (bit-serial ISA)
+    abc
+     |
+     v
+    *.blif (DAG)
+     |
+     v
+    blif translator
+     |
+     v
+    *.c (IR-1, before scheduling)
+     |
+     v
+    clang/llvm
+     |
+     v
+    *.s (IR-2, after scheduling)
+     |
+     v
+    asm translator
+     |
+     v
+    *.hpp (bit-serial micro-program) --> test generator --> PIMeval simulation
+```
+
+## Source Code Organization
+
+Main bit-serial compilation flow:
+* `bit_serial_compiler.py`: Main entry to call bit-serial compiler
+
+Third-party dependencies:
+* `yosys`: Yosys logic synthesizer
+* `abc`: ABC logic synthesizer
+* `llvm-project`: LLVM compiler
+* `PIMeval-PIMbench`: PIM simulator and benchmarks
+
+Source files:
+* `src-genlib/`: GenLib standard library definitions as bit-serial ISA for logic synthesis
+* `src-verilog`
+  * `benchmarks`: RTL of PIM operations optimized for bit-serial compilation
+  * `submodules`: Foudamental RTL modules (IMPL_TYPE: 0 xor-preferred, 1 maj-preferred)
+* `src/`
+  * `blif-translator/`: Translating BLIF DAG into IR-1 for scheduling
+  * `asm-parser/`: Translating IR-2 (assembly code after scheduling, register allocation and spilling) into PIM microprograms
+  * `test-gen/`: PIM test program generator
+* `testbench/`
+  * `run_benchmark.sh`: Helper script to compile a benchmark Verilog with a specific bit-serial ISA and number of registers
+
 ## For developers
 
-Setup fetch/push remote (skip if you don't modify these submodules):
+Setup fetch/push remote (skip if you don't modify these git submodules):
 ```
-# for each submodule, use originial url to fetch, and use local url to push
+# for each git submodule, use originial url to fetch, and use local url to push
 cd llvm-project
 git remote set-url --push origin https://github.com/UVA-LavaLab/PIMsynth.git
 git remote -v
@@ -100,67 +161,6 @@ cd testbench/
 ../apptainer-run.sh ./run_benchmark.sh inv_nand 4 digital add_int32
 ```
 
-## Methodology
-
-```
-    *.v (verilog input)
-     |
-     v
-    yosys
-     |
-     v
-    *.blif (tech-independent)
-     |
-     v  <-- *.genlib (bit-serial ISA)
-    abc
-     |
-     v
-    *.blif
-     |
-     v
-    blif translator
-     |
-     v
-    *.c (IR)
-     |
-     v
-    clang
-     |
-     v
-    *.s (risc-v assembly)
-     |
-     v
-    asm translator
-     |
-     v
-    *.hpp (bit-serial micro-program) --> PIMeval simulation
-```
-
-## Source Code Organization
-
-Main bit-serial compiler flow:
-* `bit_serial_compiler.py`: Main entry to call bit-serial compiler
-
-Submodules:
-* `abc`: ABC logic synthesizer submodule
-* `yosys`: Yosys logic synthesizer submodule
-* `llvm-project`: LLVM compiler submodule
-* `PIMeval-PIMbench`: PIM simulator
-
-Source files:
-* `src/`
-  * `genlibs/`: GenLib definitions as bit-serial ISA
-  * `verilog/`: Verilog source code
-  * `blif-translator/`: BLIF translator written in Python
-  * `asm-parser/`: RISC-V ASM parser and PIM code generator written in Python
-  * `scripts/`: Utility scripts
-* `benchmarks/`: Verilog source code written in bit-serial manner
-* `testbench/`
-  * `run_benchmark.sh`: Script to compile a benchmark Verilog with a specific bit-serial ISA and number of registers
-
-Test directories:
-* `tests/`: Testcases
-
 ## Bit-Serial Compiler UI
 
 ```
@@ -214,4 +214,5 @@ If you use this repository in your research, please cite our paper:
 ## Contact
 
 * Deyuan Guo - dg7vp AT virginia DOT edu
+* Mohammadhosein Gholamrezaei - uab9qt AT virginia DOT edu
 * Kevin Skadron - skadron AT virginia DOT edu
