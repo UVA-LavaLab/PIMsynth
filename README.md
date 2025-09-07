@@ -1,4 +1,4 @@
-# bit-serial-compiler
+# PIMsynth: Bit-Serial Compiler
 
 ## Prerequisite
 
@@ -195,3 +195,23 @@ how to use:
     --from-stage asm        require --asm
 ```
 
+## Citation
+
+If you use this repository in your research, please cite our paper:
+* **PIMsynth: A Unified Compiler Framework for Bit-Serial Processing-In-Memory Architectures**  
+* DOI: https://doi.org/10.1109/LCA.2025.3600588
+
+```
+@article{guo2025pimsynth,
+  title={PIMsynth: A Unified Compiler Framework for Bit-Serial Processing-In-Memory Architectures},
+  author={Guo, Deyuan and Gholamrezaei, Mohammadhosein and Hofmann, Matthew and Venkat, Ashish and Zhang, Zhiru and Skadron, Kevin},
+  journal={IEEE Computer Architecture Letters},
+  year={2025},
+  publisher={IEEE}
+}
+```
+
+## Contact
+
+* Deyuan Guo - dg7vp AT virginia DOT edu
+* Kevin Skadron - skadron AT virginia DOT edu
