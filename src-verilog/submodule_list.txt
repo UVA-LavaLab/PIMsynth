@@ -4,6 +4,7 @@ maj3.v
 adder_1bit_half.v
 adder_1bit.v
 adder_nbit.v
+adder_nbit_cin.v
 adder_nbit_cout.v
 
 subtractor_1bit.v
@@ -13,6 +14,7 @@ subtractor_nbit.v
 abs_nbit.v
 
 multiplier_nbit.v
+multiplier_nbit_full.v
 mul_full_2bit.v
 mul_full_4bit.v
 mul_partial_2bit.v
@@ -35,3 +37,13 @@ ne_nbit.v
 shift_l_nbit.v
 shift_r_nbit.v
 shift_r_nbit_arith.v
+
+leading_one_detector_8.v
+leading_one_detector_16.v
+leading_one_detector_32.v
+left_shifter_4.v
+left_shifter_10.v
+left_shifter_23.v
+right_shifter_5.v
+right_shifter_11.v
+right_shifter_24.v

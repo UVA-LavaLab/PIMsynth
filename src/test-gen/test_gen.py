@@ -591,7 +591,7 @@ $(TARGET_PIM): {self.get_pim_test_file_name()}
 	$(CXX) $(CXXFLAGS) $< -o $@ $(LDFLAGS)
 
 $(TARGET_BITWISE): {self.get_bitwise_test_file_name()}
-	$(CXX) $< -o $@
+	$(CXX) -std=c++20 $< -o $@
 
 clean:
 	rm -f $(TARGET_PIM) $(TARGET_BITWISE)

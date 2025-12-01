@@ -119,6 +119,7 @@ $PROJ_ROOT/bit_serial_compiler.py \
     --num-regs "$num_reg" \
     --output "$target" \
     --outdir "$outdir" \
+    --to-stage pim \
     --num-tests 10 \
     --pim-mode "$pim_mode" \
     2>&1 | tee "$outdir/$target.log"
