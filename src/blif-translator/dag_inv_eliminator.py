@@ -46,16 +46,77 @@ class InvEliminator(DagTransformer):
         driver_gate_id = driver_gate_ids[0]
         load_gate_ids = dag.get_wire_fanout_gate_ids(out_wire)
 
-        # Remove the inverter gate and wires
-        dag.remove_wire(driver_gate_id, inv_gate_id)
+        # Check if any load gate already has in_wire as an input
+        # If so, we need to duplicate the driver gate to handle both direct and inverted connections
+        loads_with_direct_wire = []
+        loads_without_direct_wire = []
+        
         for load_gate_id in load_gate_ids:
-            dag.remove_wire(inv_gate_id, load_gate_id)
-        dag.remove_gate(inv_gate_id)
+            if in_wire in dag.graph.nodes[load_gate_id]['inputs']:
+                loads_with_direct_wire.append(load_gate_id)
+            else:
+                loads_without_direct_wire.append(load_gate_id)
 
-        # Reconnect and invert the fanout gate inputs
-        for load_gate_id in load_gate_ids:
-            dag.add_wire(in_wire, driver_gate_id, load_gate_id)
-            dag.replace_input_wire(load_gate_id, out_wire, in_wire)
-            dag.invert_input_wire(load_gate_id, in_wire)
+        # If some loads already have the direct wire, we need to duplicate the driver
+        if loads_with_direct_wire:
+            if self.debug_level >= 2:
+                print(f'DAG-Transform: Duplicating driver gate {driver_gate_id} for inverted connections')
+            
+            # Create a copy of the driver gate with a unique ID
+            new_driver_id = dag.uniqufy_gate_id(f"{driver_gate_id}_inv_dup")
+            driver_gate = dag.graph.nodes[driver_gate_id]
+            dag.add_gate(
+                gate_id=new_driver_id,
+                gate_func=driver_gate['gate_func'],
+                inputs=driver_gate['inputs'].copy(),
+                outputs=[]  # Will add output wire below
+            )
+            
+            # Copy the inverted set
+            dag.graph.nodes[new_driver_id]['inverted'] = driver_gate['inverted'].copy()
+            
+            # Connect the new driver to the same inputs as the original driver
+            for pred_id in dag.graph.predecessors(driver_gate_id):
+                wire_name = dag.get_wire_name(pred_id, driver_gate_id)
+                dag.add_wire(wire_name, pred_id, new_driver_id)
+            
+            # Create a new wire from the duplicated driver
+            new_wire = dag.uniqufy_wire_name(in_wire)
+            dag.graph.nodes[new_driver_id]['outputs'].append(new_wire)
+            
+            # Remove the inverter gate and wires
+            dag.remove_wire(driver_gate_id, inv_gate_id)
+            for load_gate_id in load_gate_ids:
+                dag.remove_wire(inv_gate_id, load_gate_id)
+            dag.remove_gate(inv_gate_id)
+            
+            # Connect loads that already have the direct wire to the new duplicated driver
+            for load_gate_id in loads_with_direct_wire:
+                dag.add_wire(new_wire, new_driver_id, load_gate_id)
+                dag.replace_input_wire(load_gate_id, out_wire, new_wire)
+                dag.invert_input_wire(load_gate_id, new_wire)
+            
+            # Connect loads that don't have the direct wire to the original driver
+            for load_gate_id in loads_without_direct_wire:
+                if not dag.graph.has_edge(driver_gate_id, load_gate_id):
+                    dag.add_wire(in_wire, driver_gate_id, load_gate_id)
+                dag.replace_input_wire(load_gate_id, out_wire, in_wire)
+                dag.invert_input_wire(load_gate_id, in_wire)
+        else:
+            # Standard case: no loads have the direct wire, so we can eliminate normally
+            # Remove the inverter gate and wires
+            dag.remove_wire(driver_gate_id, inv_gate_id)
+            for load_gate_id in load_gate_ids:
+                dag.remove_wire(inv_gate_id, load_gate_id)
+            dag.remove_gate(inv_gate_id)
+
+            # Reconnect and invert the fanout gate inputs
+            for load_gate_id in load_gate_ids:
+                # Only add wire if it doesn't already exist
+                if not dag.graph.has_edge(driver_gate_id, load_gate_id):
+                    dag.add_wire(in_wire, driver_gate_id, load_gate_id)
+                dag.replace_input_wire(load_gate_id, out_wire, in_wire)
+                dag.invert_input_wire(load_gate_id, in_wire)
+        
         return 1
 
