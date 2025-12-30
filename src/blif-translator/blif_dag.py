@@ -356,6 +356,15 @@ class DAG:
         return self.graph.has_node(wire_name_or_gate_id) and \
                self.graph.nodes[wire_name_or_gate_id]['gate_func'] == 'out_port'
 
+    def is_constant_wire(self, gate_id, wire_name):
+        """ Check if a wire input to a gate is driven by a constant gate (zero or one) """
+        if not self.graph.has_node(gate_id):
+            return False
+        for u, v, data in self.graph.in_edges(gate_id, data=True):
+            if data.get('wire_name') == wire_name:
+                return self.graph.nodes[u].get('gate_func') in ['zero', 'one']
+        return False
+
     def get_wire_fanin_gate_ids(self, wire_name):
         """ Get the fanin gate IDs for a given wire name """
         gate_ids = set()
@@ -673,22 +682,30 @@ class DAG:
         gate = self.graph.nodes[gate_id]
         if gate['gate_func'] not in ['and2', 'or2', 'maj3']:
             return []
-        segmented_wires = []
+        
+        # Track base names of wires already segmented at this gate's output
+        seen_base_names = set()
         for _, _, edge_data in self.graph.out_edges(gate_id, data=True):
             wire_name = edge_data.get('wire_name', None)
-            if wire_name is None:
-                continue
-            if self.is_wire_segment(wire_name):
-                segmented_wires.append(self.get_wire_base_name(wire_name))
+            if wire_name is not None and self.is_wire_segment(wire_name):
+                seen_base_names.add(self.get_wire_base_name(wire_name))
+        
         reusable_inout_wires = []
         for wire_name in gate['inputs']:
-            # Skip input that already has a segment
-            if wire_name in segmented_wires:
+            base_name = self.get_wire_base_name(wire_name)
+            
+            # Ensure only one segment per base wire is reused to avoid tree-branching in wire chains
+            if base_name in seen_base_names:
                 continue
-            # Skip input if it is an in/out port
+            
+            # Skip input if it is an in/out port.
+            # These should be copied physically rather than reused in-out.
             if self.is_in_port(wire_name) or self.is_out_port(wire_name):
                 continue
+            
             reusable_inout_wires.append(wire_name)
+            seen_base_names.add(base_name)
+            
         return reusable_inout_wires
 
     def sanitize_name(self, wire_name):
