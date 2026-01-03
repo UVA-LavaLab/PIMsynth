@@ -210,7 +210,7 @@ class DAG:
 
         # Update inputs
         inputs = self.graph.nodes[gate_id]['inputs']
-        inputs[inputs.index(old_wire_name)] = new_wire_name
+        inputs = [new_wire_name if x == old_wire_name else x for x in inputs]
         self.graph.nodes[gate_id]['inputs'] = inputs
         if old_wire_name in self.graph.nodes[gate_id]['inverted']:
             self.graph.nodes[gate_id]['inverted'].remove(old_wire_name)
