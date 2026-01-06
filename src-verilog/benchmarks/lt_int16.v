@@ -4,7 +4,7 @@
 
 module lt_int16 #(
     parameter WIDTH = 16,
-    parameter IMPL_TYPE = 0
+    parameter IMPL_TYPE = 1
 )(
     input [WIDTH-1:0] A,
     input [WIDTH-1:0] B,

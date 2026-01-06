@@ -1,10 +1,10 @@
 // 16-bit Signed Integer Max
-// Dependencies: gt_int_nbit.v subtractor_1bit_cmp.v
+// Dependencies: gt_int_nbit.v subtractor_1bit_cmp.v, mux_nbit.v
 // deyuan, 03/30/2025
 
 module max_int16 #(
     parameter WIDTH = 16,
-    parameter IMPL_TYPE = 0
+    parameter IMPL_TYPE = 1
 )(
     input [WIDTH-1:0] A,
     input [WIDTH-1:0] B,
@@ -21,6 +21,6 @@ module max_int16 #(
         .Y(gt)
     );
 
-    assign Y = gt ? A : B;
+    mux_nbit #(.WIDTH(WIDTH)) max_sel ( .A(A), .B(B), .sel(gt), .Y(Y));
 
 endmodule
