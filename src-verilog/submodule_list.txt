@@ -35,5 +35,3 @@ ne_nbit.v
 shift_l_nbit.v
 shift_r_nbit.v
 shift_r_nbit_arith.v
-
-mux_nbit.v
