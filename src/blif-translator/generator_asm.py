@@ -61,7 +61,8 @@ class GeneratorAsm():
         in_items = [f"{self.data_type} *{item}_pi" for item in inputs]
         outputs = self.sanitize_token_list(self.dag.get_out_ports())
         out_items = [f"{self.data_type} *{item}_po" for item in outputs]
-        return f"\t{',\n\t'.join(in_items + out_items)}\n"
+        sep = ',\n\t'
+        return f"\t{sep.join(in_items + out_items)}\n"
 
     def generate_function_body(self):
         """ Generate function body """
