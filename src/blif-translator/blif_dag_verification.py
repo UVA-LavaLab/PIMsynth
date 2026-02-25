@@ -22,7 +22,7 @@ class DagVerifier:
         for i, test_input in enumerate(self.test_inputs):
             test_output = self.simulate(test_input, pim_mode)
             test_outputs.append(test_output)
-            if self.debug_level >= 1:
+            if self.debug_level >= 2:
                 print(f'DAG-Verification: Test {i} {pim_mode}, Outputs: {[int(o) for o in test_output]}, Inputs: {[int(i) for i in test_input]}')
         if not self.cached_outputs:
             self.cached_outputs = test_outputs
