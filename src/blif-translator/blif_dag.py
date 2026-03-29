@@ -381,7 +381,7 @@ class DAG:
 
     def get_topo_sorted_gate_id_list(self):
         """ Get a list of all gates in topological order """
-        return dag_topo_sort.get_topo_sorted_gate_id_list(self)
+        return blif_dag_topo_sort.get_topo_sorted_gate_id_list(self)
 
     def get_wire_name_list(self, skip_port=True, merge_segments=True):
         """ Get a list of internal wires in sorted gate order """
