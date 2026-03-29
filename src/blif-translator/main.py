@@ -27,6 +27,7 @@ from dag_wire_copy_inserter import WireCopyInserter
 
 from generator_asm import GeneratorAsm
 from generator_bitwise import GeneratorBitwise
+from generator_pim_ir1 import GeneratorPimIr1
 
 # TODO: avoid importing util from parent directory
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
@@ -54,7 +55,7 @@ class BlifTranslator:
         arg_parser.add_argument('--input-file', '-i', type=str, required=True, help='Input circuit in BLIF format')
         arg_parser.add_argument('--module-name', '-m', type=str, required=True, help='Bit-serial compiler module name')
         arg_parser.add_argument('--output-file-prefix', '-o', type=str, required=True, help='Bit-serial compiler output file name prefix')
-        arg_parser.add_argument('--output-formats', '-f', type=str, required=True, help='Output formats: comma-separated: asm and/or bitwise')
+        arg_parser.add_argument('--output-formats', '-f', type=str, required=True, help='Output formats: comma-separated: asm, bitwise, pim_ir1')
         arg_parser.add_argument('--num-regs', '-r', type=int, default=4, choices=range(2, 16), help='Number of registers 2~16')
         arg_parser.add_argument('--pim-mode', '-p', type=str, default='digital', choices=['digital', 'analog'], help='PIM architecture mode: digital, analog')
         arg_parser.add_argument('--visualize', action='store_true', default=False, help='Enable visualization of the DAG')
@@ -164,6 +165,14 @@ class BlifTranslator:
             generator = GeneratorBitwise(dag, self.num_regs, self.module_name, self.pim_mode)
             code = generator.generate_code()
             out_file = self.output_file_prefix + '.bitwise.c'
+            if os.path.isfile(out_file):
+                print(f"Warning: Output file '{out_file}' already exists and will be overwritten.")
+            util.writeToFile(out_file, code)
+        if 'pim_ir1' in self.output_formats:
+            print("Info: Generating PIM IR-1")
+            generator = GeneratorPimIr1(dag, self.pim_mode, self.num_regs)
+            code = generator.generate_code()
+            out_file = self.output_file_prefix + '.pim_ir1'
             if os.path.isfile(out_file):
                 print(f"Warning: Output file '{out_file}' already exists and will be overwritten.")
             util.writeToFile(out_file, code)

@@ -44,6 +44,7 @@ class bitSerialCompiler:
         self.top_module = ''
         self.gen_run_sh = False
         self.gen_bitwise = False
+        self.gen_pim_ir1 = False
         self.pim_mode = ''
         self.impl_type = None
         self.parser = self.create_argparse()
@@ -132,8 +133,9 @@ class bitSerialCompiler:
         parser.add_argument('--llvm-args', type=str, default='', help='Extra arguments passed to LLVM')
         parser.add_argument('--top-module', metavar='[name]', type=str, default='', help='Specify Verilog top module')
         parser.add_argument('--num-tests', '-n', type=int, default=100, help='Number of test cases.')
-        parser.add_argument('--gen-run-sh', action='store_false', help='Generate intermediate run scripts, default true')
-        parser.add_argument('--gen-bitwise', action='store_false', help='Generate bit-wise C code, default true')
+        parser.add_argument('--gen-run-sh', action='store_false', help='Toggle run script generation, default true')
+        parser.add_argument('--gen-bitwise', action='store_false', help='Toggle bit-wise C code generation, default true')
+        parser.add_argument('--gen-pim-ir1', action='store_false', help='Toggle PIM IR-1 file generation, default true')
         parser.add_argument('--pim-mode', type=str, default='digital', choices=['digital', 'analog'], help='The PIM architecture mode (analog/digital).')
         parser.add_argument('--impl-type', type=int, help='Override the IMPL_TYPE Verilog parameter')
         parser.add_argument('--golden-function-path', '-g', type=str, default=None, help='The path to the golden function file hpp file.')
@@ -179,6 +181,7 @@ class bitSerialCompiler:
         self.top_module = args.top_module
         self.gen_run_sh = args.gen_run_sh
         self.gen_bitwise = args.gen_bitwise
+        self.gen_pim_ir1 = args.gen_pim_ir1
         self.pim_mode = args.pim_mode
         self.impl_type = args.impl_type
         self.golden_function_path = args.golden_function_path
@@ -454,7 +457,12 @@ class bitSerialCompiler:
         blif_translator = os.path.join(script_location, 'src/blif-translator/main.py')
         blif_file = self.blif if self.blif else os.path.join(self.outdir, self.output + '.blif')
         output_file_prefix = os.path.join(self.outdir, self.output)
-        output_formats = 'asm,bitwise' if self.gen_bitwise else 'asm'
+        formats = ['asm']
+        if self.gen_bitwise:
+            formats.append('bitwise')
+        if self.gen_pim_ir1:
+            formats.append('pim_ir1')
+        output_formats = ','.join(formats)
         cmd = ['python3', blif_translator, '-f', output_formats, '-i', blif_file, '-m', self.output, '-o', output_file_prefix, '-r', str(self.num_regs), '-p', self.pim_mode]
         self.generate_run_script(cmd, self.output + '.run_blif2c.sh')
         result = subprocess.run(cmd)
@@ -465,6 +473,8 @@ class bitSerialCompiler:
         print("INFO: Allowed number of registers:", self.num_regs)
         if self.gen_bitwise:
             print("INFO: Generated bit-wise C file:", self.output + '.bitwise.c')
+        if self.gen_pim_ir1:
+            print("INFO: Generated PIM IR-1 file:", self.output + '.pim_ir1')
 
         print(self.hbar)
         return True
