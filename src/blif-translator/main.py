@@ -29,8 +29,7 @@ from generator_asm import GeneratorAsm
 from generator_bitwise import GeneratorBitwise
 from generator_pim_ir1 import GeneratorPimIr1
 
-# TODO: avoid importing util from parent directory
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'utils')))
 import util
 
 

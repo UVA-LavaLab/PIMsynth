@@ -505,7 +505,7 @@ class bitSerialCompiler:
         print("INFO: Compiling RISC-V ASM to PIM API ...")
 
         script_location = os.path.dirname(os.path.abspath(__file__))
-        asm_translator = os.path.join(script_location, 'src/asm-parser/main.py')
+        asm_translator = os.path.join(script_location, 'src/schedulers/llvm-riscv/main.py')
         asm_file = os.path.join(self.outdir, self.output + '.s')
         cpp_file = os.path.join(self.outdir, self.output + '.hpp')
         cmd = ['python3', asm_translator, '-f', 'cpp', '-i', asm_file, '-m', self.output, '-o', cpp_file, '-r', str(self.num_regs), '-p', self.pim_mode]

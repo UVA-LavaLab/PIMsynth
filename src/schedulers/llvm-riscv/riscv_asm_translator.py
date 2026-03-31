@@ -8,7 +8,7 @@ Author: Deyuan Guo <guodeyuan@gmail.com> - Analog PIM support
 Date: 2024-09-27
 """
 
-from parser import *
+from riscv_asm_parser import *
 
 class LinkedInstruction(Instruction):
     def __init__(self, opCode, operandsList, line, sourceInstructionList = None, suspended = False):

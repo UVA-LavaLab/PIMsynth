@@ -11,14 +11,16 @@ Date: 2024-09-27
 import sys
 import argparse
 import os
-from parser import Parser
-from asm_translator import AsmTranslator
+from riscv_asm_parser import Parser
+from riscv_asm_translator import AsmTranslator
+
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', 'utils')))
+from util import *
+
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', 'code-gen')))
 from stats_generator import StatsGenerator
 from code_gen_pimeval_digital import PimEvalAPIDigitalCodeGenerator
 from code_gen_pimeval_analog import PimEvalAPIAnalogCodeGenerator
-
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-from util import *
 
 
 if __name__ == "__main__":
