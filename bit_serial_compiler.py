@@ -47,6 +47,7 @@ class bitSerialCompiler:
         self.gen_pim_ir1 = False
         self.pim_mode = ''
         self.impl_type = None
+        self.scheduler = 'llvm-riscv'
         self.parser = self.create_argparse()
         self.hbar = "============================================================"
 
@@ -85,13 +86,8 @@ class bitSerialCompiler:
             if not success:
                 return False
 
-        if self.stages[self.from_stage] <= self.stages['c'] and self.stages[self.to_stage] >= self.stages['asm']:
-            success = self.run_c_to_asm()
-            if not success:
-                return False
-
         if self.stages[self.from_stage] <= self.stages['asm'] and self.stages[self.to_stage] >= self.stages['pim']:
-            success = self.run_asm_to_pim()
+            success = self.run_scheduling()
             if not success:
                 return False
 
@@ -139,6 +135,7 @@ class bitSerialCompiler:
         parser.add_argument('--pim-mode', type=str, default='digital', choices=['digital', 'analog'], help='The PIM architecture mode (analog/digital).')
         parser.add_argument('--impl-type', type=int, help='Override the IMPL_TYPE Verilog parameter')
         parser.add_argument('--golden-function-path', '-g', type=str, default=None, help='The path to the golden function file hpp file.')
+        parser.add_argument('--scheduler', type=str, default='llvm-riscv', choices=['llvm-riscv'], help='Scheduler to use (default: llvm-riscv)')
         return parser
 
     def parse_args(self):
@@ -185,6 +182,7 @@ class bitSerialCompiler:
         self.pim_mode = args.pim_mode
         self.impl_type = args.impl_type
         self.golden_function_path = args.golden_function_path
+        self.scheduler = args.scheduler
         return True
 
     def sanity_check_input_file(self, input_file, tag):
@@ -264,6 +262,7 @@ class bitSerialCompiler:
         if self.llvm_args:
             print("LLVM args:", self.llvm_args)
         print("Number of Registers:", self.num_regs)
+        print("Scheduler:", self.scheduler)
         print(self.hbar)
 
     def create_outdir_if_needed(self):
@@ -479,42 +478,34 @@ class bitSerialCompiler:
         print(self.hbar)
         return True
 
-    def run_c_to_asm(self):
-        """ Compile C to ASM """
-        print("INFO: Compiling C to RISC-V ASM ...")
-
-        c_file = self.c if self.c else os.path.join(self.outdir, self.output + '.c')
-        asm_file = os.path.join(self.outdir, self.output + '.s')
-        cmd = [self.clang_path, '-O3', '-target', 'riscv32-unknown-elf', '-S', c_file, '-o', asm_file]
-        if self.clang_g:
-            cmd.append('-g')
-        if self.llvm_args:
-            cmd += self.llvm_args.split()
-        self.generate_run_script(cmd, self.output + '.run_clang.sh')
-        result = subprocess.run(cmd)
-        if result.returncode != 0:
-            print('Error: CLANG/LLVM failed.')
-            return False
-        print("INFO: Generated ASM file:", self.output + '.s')
-
-        print(self.hbar)
-        return True
-
-    def run_asm_to_pim(self):
-        """ Compile ASM to PIM """
-        print("INFO: Compiling RISC-V ASM to PIM API ...")
+    def run_scheduling(self):
+        """ Run scheduling via selected scheduler. """
+        print("INFO: Running scheduler: %s" % self.scheduler)
 
         script_location = os.path.dirname(os.path.abspath(__file__))
-        asm_translator = os.path.join(script_location, 'src/schedulers/llvm-riscv/main.py')
-        asm_file = os.path.join(self.outdir, self.output + '.s')
-        cpp_file = os.path.join(self.outdir, self.output + '.hpp')
-        cmd = ['python3', asm_translator, '-f', 'cpp', '-i', asm_file, '-m', self.output, '-o', cpp_file, '-r', str(self.num_regs), '-p', self.pim_mode]
-        self.generate_run_script(cmd, self.output + '.run_asm2pim.sh')
-        result = subprocess.run(cmd)
-        if result.returncode != 0:
-            print('Error: CLANG/LLVM failed.')
+        schedulers_dir = os.path.join(script_location, 'src', 'schedulers')
+        if schedulers_dir not in sys.path:
+            sys.path.insert(0, schedulers_dir)
+        import run_scheduler as scheduler_dispatcher
+
+        c_file = self.c if self.c else os.path.join(self.outdir, self.output + '.c')
+
+        try:
+            scheduler_dispatcher.run(
+                self.scheduler,
+                c_file=c_file,
+                outdir=self.outdir,
+                output=self.output,
+                module_name=self.output,
+                num_regs=self.num_regs,
+                pim_mode=self.pim_mode,
+                clang_path=self.clang_path,
+                clang_g=self.clang_g,
+                llvm_args=self.llvm_args,
+            )
+        except Exception as e:
+            print('Error: Scheduler failed:', e)
             return False
-        print("INFO: Generated C++ file:", self.output + '.hpp')
 
         print(self.hbar)
         return True
