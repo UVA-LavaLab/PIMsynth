@@ -1,38 +1,75 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-File: generator_asm.py
-Description: Generator for C with RISC-V inline assembly
+File: pim_ir1_to_inline_asm_translator.py
+Description: Translate PIM IR-1 to C with RISC-V inline assembly.
+    Refactored from generator_asm.py to operate on parsed PIM IR-1
+    instead of the BLIF DAG.
 Author: Mohammadhosein Gholamrezaei <uab9qt@virginia.edu> - BLIF-to-C parser generator code framework
 Author: Deyuan Guo <guodeyuan@gmail.com> - Designed and implemented RISC-V inline assembly format
                                          - Support bus inputs and outputs
                                          - Support inline assembly for analog PIM
+                                         - Refactored to IR-1 based translation
 Date: 2024-09-17
 """
 
+import os
+import sys
 
-class GeneratorAsm():
-    """ Generator for C with RISC-V inline assembly """
+_script_dir = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, os.path.join(_script_dir, '..', '..', 'utils'))
 
-    def __init__(self, dag, num_regs, func_name, pim_mode):
+from pim_ir1_reader import PimIr1Data
+
+
+ANALOG_TO_GATE_FUNC = {
+    'copy_a': 'copy',
+    'copy_inout_a': 'copy_inout',
+    'inv1a': 'inv1',
+    'and2a': 'and2',
+    'or2a': 'or2',
+    'maj3a_o1': 'maj3',
+    'maj3a_o2': 'maj3',
+    'maj3a_o3': 'maj3',
+    'zero_a': 'zero',
+    'one_a': 'one',
+}
+
+
+def _parse_opcode(opcode):
+    """Split opcode into (base, inv_suffix).
+
+    'and2__n10' -> ('and2', '__n10')
+    'inv1a__n1' -> ('inv1a', '__n1')
+    'inv1'      -> ('inv1', '')
+    """
+    idx = opcode.find('__n')
+    if idx >= 0:
+        return opcode[:idx], opcode[idx:]
+    return opcode, ''
+
+
+def _get_gate_func(opcode_base, mode):
+    """Map an IR-1 opcode base to the original gate_func name.
+
+    Digital opcodes are identity (e.g. 'inv1' -> 'inv1').
+    Analog opcodes strip the analog suffix (e.g. 'inv1a' -> 'inv1').
+    """
+    if mode == 'analog':
+        if opcode_base not in ANALOG_TO_GATE_FUNC:
+            raise ValueError(f"Unknown analog opcode: {opcode_base}")
+        return ANALOG_TO_GATE_FUNC[opcode_base]
+    return opcode_base
+
+
+class PimIr1ToInlineAsmTranslator():
+    """Translate a PimIr1Data object to C source with RISC-V inline assembly."""
+
+    def __init__(self, ir1_data):
         """ Init """
-        self.dag = dag
+        self.ir1 = ir1_data
         self.data_type = "int"
-        self.num_regs = num_regs
-        self.func_name = func_name
-        self.pim_mode = pim_mode
-
-    def sanitize_token(self, token):
-        """ Sanitize token name to be used as a C variable name
-            Bus name: a[0] -> a_0_
-        """
-        return self.dag.sanitize_name(token)
-
-    def sanitize_token_list(self, token_list):
-        """ Sanitize token names to be used as a C variable names
-            Bus name: a[0] -> a_0_
-        """
-        return [self.dag.sanitize_name(token) for token in token_list]
+        self.func_name = "func"
 
     def generate_code(self):
         """ Generate C code """
@@ -57,9 +94,9 @@ class GeneratorAsm():
 
     def generate_function_args(self):
         """ Generate function args passed by pointers """
-        inputs = self.sanitize_token_list(self.dag.get_in_ports())
+        inputs = self.ir1.inputs
         in_items = [f"{self.data_type} *{item}_pi" for item in inputs]
-        outputs = self.sanitize_token_list(self.dag.get_out_ports())
+        outputs = self.ir1.outputs
         out_items = [f"{self.data_type} *{item}_po" for item in outputs]
         sep = ',\n\t'
         return f"\t{sep.join(in_items + out_items)}\n"
@@ -79,7 +116,7 @@ class GeneratorAsm():
 
     def generate_temporary_variables(self):
         """ Generate temporary variables for wires """
-        wire_list = self.dag.get_wire_name_list()
+        wire_list = self.ir1.temps
         if len(wire_list) == 0:
             return ""
         variables = ', '.join(wire_list)
@@ -87,12 +124,12 @@ class GeneratorAsm():
 
     def generate_temporary_variables_in(self):
         """ Generate temp variables that dereference input pointers """
-        inputs = self.sanitize_token_list(self.dag.get_in_ports())
+        inputs = self.ir1.inputs
         return f"\t{self.data_type} {', '.join([f'{item} = *{item}_pi' for item in inputs])};\n"
 
     def generate_temporary_variables_out(self):
         """ Generate temp variables for storing outputs """
-        outputs = self.sanitize_token_list(self.dag.get_out_ports())
+        outputs = self.ir1.outputs
         return f"\t{self.data_type} {', '.join(outputs)};\n"
 
     def raise_exception(self, message):
@@ -103,6 +140,7 @@ class GeneratorAsm():
         """ Generate the RISC-V register clobbering list """
         # risc-v register: ra, a0-a7, s0-s11, t0-t6
         # ra: return address, a0-a7: argument registers, s0-s11: callee saved registers, t0-t6: temporary registers
+        num_regs = self.ir1.num_regs
         regs_special = ['"ra"']
         regs_args = [f'"a{i}"' for i in range(8)]
         regs_saved = [f'"s{i}"' for i in range(12)]
@@ -110,33 +148,30 @@ class GeneratorAsm():
         # clobber list: use t0-t6 for 1-7 registers, use s0-s11 for 8-19 registers
         regs_temp_to_use = 0
         regs_saved_to_use = 0
-        if self.num_regs > 7 and self.num_regs <= 19:
+        if num_regs > 7 and num_regs <= 19:
             regs_temp_to_use = 7
-            regs_saved_to_use = self.num_regs - 7
-        if self.num_regs <= 7:
-            regs_temp_to_use = self.num_regs
+            regs_saved_to_use = num_regs - 7
+        if num_regs <= 7:
+            regs_temp_to_use = num_regs
         regs_to_clobber = regs_special + regs_args + regs_saved[regs_saved_to_use:] + regs_temp[regs_temp_to_use:]
         return ','.join(regs_to_clobber)
 
-    def get_asm_instructions(self, gate_id, sn, clobber):
-        """ Return a dictionary that maps logic gate names to assembly code generation functions """
-        if self.pim_mode == "digital":
-            return self.get_asm_instructions_digital(gate_id, sn, clobber)
-        if self.pim_mode == "analog":
-            return self.get_asm_instructions_analog(gate_id, sn, clobber)
-        raise ValueError(f"Error: Unknown pim mode {self.pim_mode}")
+    def get_asm_instructions(self, sn, opcode, outputs, inputs, clobber):
+        """ Dispatch to digital or analog asm generation based on mode """
+        opcode_base, inv_suffix = _parse_opcode(opcode)
+        gate_func = _get_gate_func(opcode_base, self.ir1.mode)
+        info = f" {gate_func}{inv_suffix}"
 
-    def get_asm_instructions_digital(self, gate_id, sn, clobber):
-        """ Return a dictionary that maps logic gate names to assembly code generation functions for digital PIM """
+        if self.ir1.mode == "digital":
+            return self.get_asm_instructions_digital(gate_func, info, outputs, inputs, sn, clobber)
+        if self.ir1.mode == "analog":
+            return self.get_asm_instructions_analog(gate_func, info, outputs, inputs, sn, clobber)
+        raise ValueError(f"Error: Unknown pim mode {self.ir1.mode}")
+
+    def get_asm_instructions_digital(self, gate_func, info, outputs, inputs, sn, clobber):
+        """ Return assembly code for digital PIM """
         # =r: output register, r: input register
         # return a single line assembly code. Be careful with " and \\n
-        gate = self.dag.graph.nodes[gate_id]
-        gate_func = gate['gate_func']
-        if gate_func in ['in_port', 'out_port']:
-            return ""  # Skip input and output ports
-        inputs = self.sanitize_token_list(gate['inputs'])
-        outputs = self.sanitize_token_list(gate['outputs'])
-        info = self.get_gate_func_encoding(gate_id)
         code = ''
         if gate_func == 'inv1':
             if len(outputs) == 1 and len(inputs) == 1:
@@ -192,6 +227,7 @@ class GeneratorAsm():
                 self.raise_exception(f"Invalid xnor2 operands: {len(outputs)} outputs and {len(inputs)} inputs.")
         elif gate_func == 'mux2':
             if len(outputs) == 1 and len(inputs) == 3:
+                # #PIM_OP operand order: dest, sel, data1, data0 (data inputs swapped)
                 code += f'"#PIM_OP {sn} {info} %0 %1 %3 %2 \\n'
                 code += ' not s1, %1 \\n'
                 code += ' and s2, s1, %2 \\n'
@@ -228,11 +264,11 @@ class GeneratorAsm():
             else:
                 self.raise_exception(f"Invalid one operands: {len(outputs)} outputs and {len(inputs)} inputs.")
         else:
-            self.raise_exception(f"Error: Unknown gate function {gate_func} for gate {gate_id}")
+            self.raise_exception(f"Error: Unknown digital gate function {gate_func}")
         return f'\tasm({code});\n'
 
-    def get_asm_instructions_analog(self, gate_id, sn, clobber):
-        """ Return a dictionary that maps logic gate names to assembly code generation functions for analog PIM """
+    def get_asm_instructions_analog(self, gate_func, info, outputs, inputs, sn, clobber):
+        """ Return assembly code for analog PIM """
         # return a single line assembly code. Be careful with " and \\n
         # r: input register
         # +r: both input and output
@@ -240,13 +276,6 @@ class GeneratorAsm():
         # =r: output register
         # =&r: output must be different from inputs using early clobber
         # TODO: Remove the assumption from ASM translator that the first operand of the last instruction is %0
-        gate = self.dag.graph.nodes[gate_id]
-        gate_func = gate['gate_func']
-        if gate_func in ['in_port', 'out_port']:
-            return ""  # Skip input and output ports
-        inputs = self.sanitize_token_list(gate['inputs'])
-        outputs = self.sanitize_token_list(gate['outputs'])
-        info = self.get_gate_func_encoding(gate_id)
         code = ''
         if gate_func == 'copy':
             # Note: This is regular wire copy
@@ -351,33 +380,8 @@ class GeneratorAsm():
             else:
                 self.raise_exception(f"Invalid one operands: {len(outputs)} outputs and {len(inputs)} inputs.")
         else:
-            self.raise_exception(f"Error: Unknown gate function {gate_func} for gate {gate_id}")
+            self.raise_exception(f"Error: Unknown analog gate function {gate_func}")
         return f'\tasm({code});\n'
-
-    def get_inv(self, gate_id, in_idx):
-        """ Check if an input pin index is inverted for a given gate ID """
-        is_inv_input = self.dag.graph.nodes[gate_id]['inputs'][in_idx] in self.dag.graph.nodes[gate_id]['inverted']
-        return is_inv_input
-
-    def get_gate_func_encoding(self, gate_id):
-        """ Get gate_func encoding for passing information to ASM translator """
-        gate = self.dag.graph.nodes[gate_id]
-        info = f" {gate['gate_func']}"
-
-        # Append input inversion information
-        inv_str = ''
-        for i, _ in enumerate(gate['inputs']):
-            inv_str += '1' if self.get_inv(gate_id, i) else '0'
-        if '1' in inv_str:
-            info += f"__n{inv_str}"
-
-        return info
-
-    def generate_single_asm_statement(self, gate_id, sn, clobber):
-        """ Generate a single assembly statement based on the logic gate type """
-        # Pass information from BLIF translator to ASM translator
-        # Format: #PIM_OP <serial-number> <gate_func> operands
-        return self.get_asm_instructions(gate_id, sn, clobber)
 
     def generate_all_asm_statements(self):
         """ Generate C asm statement sequence """
@@ -387,9 +391,9 @@ class GeneratorAsm():
         # RISC-V inline assembly
         code = '\tasm("#PIM_OP BEGIN ##########");\n'
 
-        # Generate assembly statements for each item in the statement list
-        for i, gate_id in enumerate(self.dag.get_topo_sorted_gate_id_list()):
-            code += self.generate_single_asm_statement(gate_id, i, clobber)
+        # Generate assembly statements for each instruction in IR-1
+        for sn, (opcode, outputs, inputs) in enumerate(self.ir1.instructions):
+            code += self.get_asm_instructions(sn, opcode, outputs, inputs, clobber)
 
         code += '\tasm("#PIM_OP END ##########");\n'
         return code
@@ -397,7 +401,11 @@ class GeneratorAsm():
     def generate_statements_output(self):
         """ Generate statements to store output temp vars to pointers """
         code = ""
-        outputs = [port.replace("[", "_").replace("]", "_") for port in self.dag.get_out_ports()]
-        for port in outputs:
+        for port in self.ir1.outputs:
             code += "\t*" + port + '_po = ' + port + ";\n"
         return code
+
+
+def translate_ir1_to_c(ir1_data):
+    """Convenience function: translate PimIr1Data to C source string."""
+    return PimIr1ToInlineAsmTranslator(ir1_data).generate_code()

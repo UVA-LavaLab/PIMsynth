@@ -56,7 +56,6 @@ class GeneratorPimIr1():
         code += f".inputs {' '.join(inputs)}\n"
         code += f".outputs {' '.join(outputs)}\n"
         temps = self.sanitize_token_list(self.dag.get_wire_name_list())
-        temps.sort()
         code += f".temps {' '.join(temps)}\n"
         code += "\n"
         return code

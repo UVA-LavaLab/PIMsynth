@@ -27,14 +27,12 @@ class bitSerialCompiler:
         self.genlib = ''
         self.aig = ''
         self.blif = ''
-        self.c = ''
-        self.asm = ''
         self.output = ''
         self.outdir = ''
         self.num_regs = 0
         self.from_stage = ''
         self.to_stage = ''
-        self.stages = {'verilog':1, 'blif':2, 'c':3, 'asm':4, 'pim':5, 'test':6}
+        self.stages = {'verilog':1, 'blif':2, 'pim_ir1':3, 'asm':4, 'pim':5, 'test':6}
         self.abc_path = ''
         self.yosys_path = ''
         self.clang_path = ''
@@ -44,7 +42,6 @@ class bitSerialCompiler:
         self.top_module = ''
         self.gen_run_sh = False
         self.gen_bitwise = False
-        self.gen_pim_ir1 = False
         self.pim_mode = ''
         self.impl_type = None
         self.scheduler = 'llvm-riscv'
@@ -81,12 +78,12 @@ class bitSerialCompiler:
             if not success:
                 return False
 
-        if self.stages[self.from_stage] <= self.stages['blif'] and self.stages[self.to_stage] >= self.stages['c']:
-            success = self.run_blif_to_c()
+        if self.stages[self.from_stage] <= self.stages['blif'] and self.stages[self.to_stage] >= self.stages['pim_ir1']:
+            success = self.run_blif_to_ir1()
             if not success:
                 return False
 
-        if self.stages[self.from_stage] <= self.stages['asm'] and self.stages[self.to_stage] >= self.stages['pim']:
+        if self.stages[self.from_stage] <= self.stages['pim_ir1'] and self.stages[self.to_stage] >= self.stages['pim']:
             success = self.run_scheduling()
             if not success:
                 return False
@@ -107,31 +104,28 @@ class bitSerialCompiler:
           Input requirements:
             --from-stage verilog    require --verilog and --genlib
             --from-stage blif       require --blif
-            --from-stage c          require --c
-            --from-stage asm        require --asm
         """)
         parser = argparse.ArgumentParser(epilog=extra_help_msg, formatter_class=argparse.RawTextHelpFormatter)
         parser.add_argument('--verilog', metavar='[files]', type=str, default='', help='Input Verilog files', nargs='+')
         parser.add_argument('--genlib', metavar='[file]', type=str, default='', help='Input GenLib file')
         parser.add_argument('--blif', metavar='[file]', type=str, default='', help='Input BLIF file')
-        parser.add_argument('--c', metavar='[file]', type=str, default='', help='Input C file')
-        parser.add_argument('--asm', metavar='[file]', type=str, default='', help='Input ASM file')
         parser.add_argument('--num-regs', metavar='N', type=int, default=4, help='Number of registers 2~19', choices=range(2, 20))
         parser.add_argument('--output', metavar='[filename]', type=str, default='tmp', help='Output filename without suffix')
         parser.add_argument('--outdir', metavar='[path]', type=str, default='.', help='Output location, default current dir')
+        valid_from_stages = ['verilog', 'blif']
+        valid_to_stages = ['blif', 'pim_ir1', 'pim', 'test']
         parser.add_argument('--from-stage', metavar='[stage]', type=str,
-                help='From stage: verilog (default), blif, c, asm, pim',
-                choices=self.stages, default='verilog')
+                help='From stage: verilog (default), blif',
+                choices=valid_from_stages, default='verilog')
         parser.add_argument('--to-stage', metavar='[stage]', type=str,
-                help='To stage: verilog, blif, c, asm, pim (default)',
-                choices=self.stages, default='test')
+                help='To stage: blif, pim_ir1, pim, test (default)',
+                choices=valid_to_stages, default='test')
         parser.add_argument('--clang-g', action='store_false', help='Toggle clang -g, default true')
         parser.add_argument('--llvm-args', type=str, default='', help='Extra arguments passed to LLVM')
         parser.add_argument('--top-module', metavar='[name]', type=str, default='', help='Specify Verilog top module')
         parser.add_argument('--num-tests', '-n', type=int, default=100, help='Number of test cases.')
         parser.add_argument('--gen-run-sh', action='store_false', help='Toggle run script generation, default true')
         parser.add_argument('--gen-bitwise', action='store_false', help='Toggle bit-wise C code generation, default true')
-        parser.add_argument('--gen-pim-ir1', action='store_false', help='Toggle PIM IR-1 file generation, default true')
         parser.add_argument('--pim-mode', type=str, default='digital', choices=['digital', 'analog'], help='The PIM architecture mode (analog/digital).')
         parser.add_argument('--impl-type', type=int, help='Override the IMPL_TYPE Verilog parameter')
         parser.add_argument('--golden-function-path', '-g', type=str, default=None, help='The path to the golden function file hpp file.')
@@ -144,15 +138,11 @@ class bitSerialCompiler:
         self.verilog = args.verilog
         self.genlib = args.genlib
         self.blif = args.blif
-        self.c = args.c
-        self.asm = args.asm
         for file in self.verilog:
             if not self.sanity_check_input_file(file, 'Verilog'):
                 return False
         if (not self.sanity_check_input_file(self.genlib, 'GenLib')
-                or not self.sanity_check_input_file(self.blif, 'BLIF')
-                or not self.sanity_check_input_file(self.c, 'C')
-                or not self.sanity_check_input_file(self.asm, 'ASM')):
+                or not self.sanity_check_input_file(self.blif, 'BLIF')):
             return False
         self.output = args.output
         if not self.output or ' ' in self.output:
@@ -168,9 +158,7 @@ class bitSerialCompiler:
             return False
         if (not self.sanity_check_from_to(self.verilog, 'verilog')
                 or not self.sanity_check_from_to(self.genlib, 'genlib', 'verilog')
-                or not self.sanity_check_from_to(self.blif, 'blif')
-                or not self.sanity_check_from_to(self.c, 'c')
-                or not self.sanity_check_from_to(self.asm, 'asm')):
+                or not self.sanity_check_from_to(self.blif, 'blif')):
             return False
         self.num_regs = args.num_regs
         self.clang_g = args.clang_g
@@ -178,7 +166,6 @@ class bitSerialCompiler:
         self.top_module = args.top_module
         self.gen_run_sh = args.gen_run_sh
         self.gen_bitwise = args.gen_bitwise
-        self.gen_pim_ir1 = args.gen_pim_ir1
         self.pim_mode = args.pim_mode
         self.impl_type = args.impl_type
         self.golden_function_path = args.golden_function_path
@@ -248,10 +235,6 @@ class bitSerialCompiler:
             print("Input GenLib File:", self.genlib)
         if self.blif:
             print("Input BLIF File:", self.blif)
-        if self.c:
-            print("Input C File:", self.c)
-        if self.asm:
-            print("Input ASM File:", self.asm)
         if self.output:
             print("Output Filename (without suffix):", self.output)
         if self.outdir:
@@ -448,32 +431,28 @@ class bitSerialCompiler:
         print(self.hbar)
         return True
 
-    def run_blif_to_c(self):
-        """ Compile BLIF to C """
-        print("INFO: Compiling BLIF to C ...")
+    def run_blif_to_ir1(self):
+        """ Compile BLIF to PIM IR-1 """
+        print("INFO: Compiling BLIF to PIM IR-1 ...")
 
         script_location = os.path.dirname(os.path.abspath(__file__))
         blif_translator = os.path.join(script_location, 'src/blif-translator/main.py')
         blif_file = self.blif if self.blif else os.path.join(self.outdir, self.output + '.blif')
         output_file_prefix = os.path.join(self.outdir, self.output)
-        formats = ['asm']
+        formats = ['pim_ir1']
         if self.gen_bitwise:
             formats.append('bitwise')
-        if self.gen_pim_ir1:
-            formats.append('pim_ir1')
         output_formats = ','.join(formats)
         cmd = ['python3', blif_translator, '-f', output_formats, '-i', blif_file, '-m', self.output, '-o', output_file_prefix, '-r', str(self.num_regs), '-p', self.pim_mode]
-        self.generate_run_script(cmd, self.output + '.run_blif2c.sh')
+        self.generate_run_script(cmd, self.output + '.run_blif2ir1.sh')
         result = subprocess.run(cmd)
         if result.returncode != 0:
-            print('Error: BLIF to C parser failed.')
+            print('Error: BLIF translator failed.')
             return False
-        print("INFO: Generated C file:", self.output + '.c')
+        print("INFO: Generated PIM IR-1 file:", self.output + '.pim_ir1')
         print("INFO: Allowed number of registers:", self.num_regs)
         if self.gen_bitwise:
             print("INFO: Generated bit-wise C file:", self.output + '.bitwise.c')
-        if self.gen_pim_ir1:
-            print("INFO: Generated PIM IR-1 file:", self.output + '.pim_ir1')
 
         print(self.hbar)
         return True
@@ -488,12 +467,12 @@ class bitSerialCompiler:
             sys.path.insert(0, schedulers_dir)
         import run_scheduler as scheduler_dispatcher
 
-        c_file = self.c if self.c else os.path.join(self.outdir, self.output + '.c')
+        ir1_file = os.path.join(self.outdir, self.output + '.pim_ir1')
 
         try:
             scheduler_dispatcher.run(
                 self.scheduler,
-                c_file=c_file,
+                ir1_file=ir1_file,
                 outdir=self.outdir,
                 output=self.output,
                 module_name=self.output,

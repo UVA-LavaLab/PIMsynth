@@ -25,7 +25,6 @@ from dag_inout_var_reusing import InoutVarReusing
 from dag_multi_dest_optimizer import MultiDestOptimizer
 from dag_wire_copy_inserter import WireCopyInserter
 
-from generator_asm import GeneratorAsm
 from generator_bitwise import GeneratorBitwise
 from generator_pim_ir1 import GeneratorPimIr1
 
@@ -54,7 +53,7 @@ class BlifTranslator:
         arg_parser.add_argument('--input-file', '-i', type=str, required=True, help='Input circuit in BLIF format')
         arg_parser.add_argument('--module-name', '-m', type=str, required=True, help='Bit-serial compiler module name')
         arg_parser.add_argument('--output-file-prefix', '-o', type=str, required=True, help='Bit-serial compiler output file name prefix')
-        arg_parser.add_argument('--output-formats', '-f', type=str, required=True, help='Output formats: comma-separated: asm, bitwise, pim_ir1')
+        arg_parser.add_argument('--output-formats', '-f', type=str, required=True, help='Output formats: comma-separated: bitwise, pim_ir1')
         arg_parser.add_argument('--num-regs', '-r', type=int, default=4, choices=range(2, 16), help='Number of registers 2~16')
         arg_parser.add_argument('--pim-mode', '-p', type=str, default='digital', choices=['digital', 'analog'], help='PIM architecture mode: digital, analog')
         arg_parser.add_argument('--visualize', action='store_true', default=False, help='Enable visualization of the DAG')
@@ -70,9 +69,6 @@ class BlifTranslator:
         self.pim_mode = args.pim_mode
         self.visualize = args.visualize
         self.debug_level = args.debug_level
-
-        if self.debug_level >= 2 and 'asm' in self.output_formats:
-            self.visualize = True
 
         success = True
         if not os.path.isfile(self.input_file):
@@ -150,15 +146,6 @@ class BlifTranslator:
     def run_code_generation(self, dag):
         """ Run code generation based on the output format """
         code = ''
-        if 'asm' in self.output_formats:
-            print("Info: Generating inline assembly IR for PIM")
-            # TODO: use self.module_name instead of func here
-            generator = GeneratorAsm(dag, self.num_regs, 'func', self.pim_mode)
-            code = generator.generate_code()
-            out_file = self.output_file_prefix + '.c'
-            if os.path.isfile(out_file):
-                print(f"Warning: Output file '{out_file}' already exists and will be overwritten.")
-            util.writeToFile(out_file, code)
         if 'bitwise' in self.output_formats:
             print("Info: Generating bitwise IR for PIM")
             generator = GeneratorBitwise(dag, self.num_regs, self.module_name, self.pim_mode)
@@ -167,14 +154,14 @@ class BlifTranslator:
             if os.path.isfile(out_file):
                 print(f"Warning: Output file '{out_file}' already exists and will be overwritten.")
             util.writeToFile(out_file, code)
-        if 'pim_ir1' in self.output_formats:
-            print("Info: Generating PIM IR-1")
-            generator = GeneratorPimIr1(dag, self.pim_mode, self.num_regs)
-            code = generator.generate_code()
-            out_file = self.output_file_prefix + '.pim_ir1'
-            if os.path.isfile(out_file):
-                print(f"Warning: Output file '{out_file}' already exists and will be overwritten.")
-            util.writeToFile(out_file, code)
+
+        print("Info: Generating PIM IR-1")
+        generator = GeneratorPimIr1(dag, self.pim_mode, self.num_regs)
+        code = generator.generate_code()
+        out_file = self.output_file_prefix + '.pim_ir1'
+        if os.path.isfile(out_file):
+            print(f"Warning: Output file '{out_file}' already exists and will be overwritten.")
+        util.writeToFile(out_file, code)
 
 
     def run(self, input_args):

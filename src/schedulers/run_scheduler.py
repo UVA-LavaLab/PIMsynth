@@ -5,10 +5,10 @@ File: run_scheduler.py
 Description: Common scheduler dispatcher.
     Selects and delegates to the appropriate scheduler implementation.
 
-    Scheduler contract (target interface):
-        run(ir1_file, ir2_file, module_name, num_regs, pim_mode, **kwargs)
+    Current scheduler contract:
+        run(ir1_file, outdir, output, module_name, num_regs, pim_mode, **kwargs)
     Input: IR-1 file (pre-scheduling)
-    Output: IR-2 file (post-scheduling)
+    Output: HPP file (currently; will become IR-2 once decoupled from code-gen)
 
 Author: Deyuan Guo <guodeyuan@gmail.com>
 Author: Mohammadhosein Gholamrezaei <uab9qt@virginia.edu>

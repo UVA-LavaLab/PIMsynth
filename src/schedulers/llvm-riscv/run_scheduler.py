@@ -3,7 +3,7 @@
 """
 File: run_scheduler.py
 Description: LLVM RISC-V scheduler entry point.
-    Pipeline: .c -> clang -> .s -> RISC-V asm parser/translator -> .hpp
+    Pipeline: .pim_ir1 -> .c -> clang -> .s -> RISC-V asm parser/translator -> .hpp
 Author: Deyuan Guo <guodeyuan@gmail.com>
 """
 
@@ -17,6 +17,8 @@ sys.path.insert(0, _script_dir)
 sys.path.insert(0, os.path.join(_script_dir, '..', '..', 'utils'))
 sys.path.insert(0, os.path.join(_script_dir, '..', '..', 'code-gen'))
 
+from pim_ir1_reader import read_pim_ir1
+from pim_ir1_to_inline_asm_translator import translate_ir1_to_c
 from riscv_asm_parser import Parser
 from riscv_asm_translator import AsmTranslator
 from stats_generator import StatsGenerator
@@ -88,16 +90,22 @@ def _generate_run_script(cmd, outdir, output, filename):
     print("INFO: Created run script:", run_file)
 
 
-def run(c_file, outdir, output, module_name, num_regs, pim_mode,
+def run(ir1_file, outdir, output, module_name, num_regs, pim_mode,
         clang_path, clang_g=True, llvm_args='', **_kwargs):
-    """Run the full LLVM RISC-V scheduler pipeline: .c -> .s -> .hpp
+    """Run the full LLVM RISC-V scheduler pipeline: .pim_ir1 -> .c -> .s -> .hpp
 
     Args:
-        c_file: Input C file with RISC-V inline assembly (from blif-translator).
-            Will be replaced by ir1_file once IR-1 input is supported.
+        ir1_file: Input PIM IR-1 file (pre-scheduling).
     """
+    c_file = os.path.join(outdir, output + '.c')
     asm_file = os.path.join(outdir, output + '.s')
     hpp_file = os.path.join(outdir, output + '.hpp')
+
+    print("INFO: Translating PIM IR-1 to inline assembly C ...")
+    ir1_data = read_pim_ir1(ir1_file)
+    c_code = translate_ir1_to_c(ir1_data)
+    writeToFile(c_file, c_code)
+    print("INFO: Generated C file:", c_file)
 
     print("INFO: Compiling C to RISC-V ASM ...")
     clang_cmd = run_clang(c_file, asm_file, clang_path, clang_g, llvm_args)
@@ -111,10 +119,8 @@ def run(c_file, outdir, output, module_name, num_regs, pim_mode,
 
 if __name__ == '__main__':
     ap = argparse.ArgumentParser(
-        description='LLVM RISC-V scheduler: .c -> .s -> .hpp')
-    ap.add_argument('--c-file', '-c', required=True, help='Input C file')
-    ap.add_argument('--asm-file', '-s', required=True, help='Output .s file')
-    ap.add_argument('--hpp-file', '-o', required=True, help='Output .hpp file')
+        description='LLVM RISC-V scheduler: .pim_ir1 -> .c -> .s -> .hpp')
+    ap.add_argument('--ir1-file', '-i', required=True, help='Input PIM IR-1 file')
     ap.add_argument('--module-name', '-m', required=True, help='Module name')
     ap.add_argument('--num-regs', '-r', type=int, default=4, help='Num regs')
     ap.add_argument('--pim-mode', '-p', default='digital',
@@ -127,7 +133,7 @@ if __name__ == '__main__':
     ap.add_argument('--output', default='tmp', help='Output name prefix')
     args = ap.parse_args()
 
-    run(c_file=args.c_file, asm_file=args.asm_file, hpp_file=args.hpp_file,
+    run(ir1_file=args.ir1_file,
         module_name=args.module_name, num_regs=args.num_regs,
         pim_mode=args.pim_mode, clang_path=args.clang_path,
         clang_g=args.clang_g, llvm_args=args.llvm_args,
