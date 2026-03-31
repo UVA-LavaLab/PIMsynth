@@ -60,7 +60,7 @@ if [ ! -f "$genlib_file" ]; then
 fi
 
 target="${bit_serial_isa}__${num_reg}__${pim_mode}__${benchmark_name}"
-outdir="$SCRIPT_DIR/outputs__$target"
+outdir="$SCRIPT_DIR/outputs/$target"
 
 # Delete the output directory if it already exists
 if [ -d "$outdir" ]; then
@@ -143,7 +143,7 @@ cd ..
     echo "################################################################################"
     echo "SUMMARY"
     echo "Output Directory:         $outdir"
-    echo "Output Directory Name:    outputs__$target"
+    echo "Output Directory Name:    outputs/$target"
     grep "Info:  #R" "$outdir/$target.log"
     grep -E '\b(row_r|row_w|rreg\..*) :' "$outdir/$target.log"
     grep -E '\b(row_ap@.*|row_aap@.*) :' "$outdir/$target.log"
