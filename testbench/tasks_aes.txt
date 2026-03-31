@@ -1,0 +1,8 @@
+# Debug task list -- uncomment/comment as needed
+# Format: isa  num_regs  mode  benchmark
+
+#inv_and_xor  2  digital  aes_sbox
+#inv_and_xor  3  digital  aes_sbox
+#inv_and_xor  4  digital  aes_sbox
+inv_and_xor  5  digital  aes_sbox
+

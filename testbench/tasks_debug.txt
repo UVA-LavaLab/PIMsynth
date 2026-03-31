@@ -1,0 +1,8 @@
+# Debug task list -- uncomment/comment as needed
+# Format: isa  num_regs  mode  benchmark
+
+inv_nand          4  digital  add_int32
+inv_and_xnor_mux  4  digital  mul_int8
+inv_maj_and_or    4  digital  add_int32
+inv_maj_and_or    4  analog   add_int32
+
