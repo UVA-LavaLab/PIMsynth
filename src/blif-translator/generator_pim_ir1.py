@@ -7,6 +7,11 @@ Author: Deyuan Guo <guodeyuan@gmail.com>
 Date: 2026-02-12
 """
 
+import sys
+import os
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'utils'))
+from util import natural_sorted
+
 
 class GeneratorPimIr1():
     """ Generator for PIM IR-1 intermediate representation
@@ -51,11 +56,11 @@ class GeneratorPimIr1():
         code += f".module {self.dag.module_name}\n"
         code += f".mode {self.pim_mode}\n"
         code += f".num_regs {self.num_regs}\n"
-        inputs = self.sanitize_token_list(self.dag.get_in_ports())
-        outputs = self.sanitize_token_list(self.dag.get_out_ports())
+        inputs = natural_sorted(self.sanitize_token_list(self.dag.get_in_ports()))
+        outputs = natural_sorted(self.sanitize_token_list(self.dag.get_out_ports()))
         code += f".inputs {' '.join(inputs)}\n"
         code += f".outputs {' '.join(outputs)}\n"
-        temps = self.sanitize_token_list(self.dag.get_wire_name_list())
+        temps = natural_sorted(self.sanitize_token_list(self.dag.get_wire_name_list()))
         code += f".temps {' '.join(temps)}\n"
         code += "\n"
         return code

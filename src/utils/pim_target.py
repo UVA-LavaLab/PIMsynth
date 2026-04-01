@@ -3,8 +3,9 @@
 """
 File: pim_target.py
 Description: Minimal PIM target machine description for scheduling
-Author: Deyuan Guo <guodeyuan@gmail.com>
-Date: 2026-03-29
+Author: Deyuan Guo <dg7vp@virginia.edu>
+Author: Mohammadhosein Gholamrezaei <uab9qt@virginia.edu>
+Author: Matthew Hoffmann <mrh259@cornell.edu>
 """
 
 # Costs are in DRAM cycles; a typical cycle is tCK = 0.63ns
@@ -26,6 +27,7 @@ OPCODES = {
     'maj3':  { 'latency': 'tCCD', 'operands': ['reg_out', 'reg_in', 'reg_in', 'reg_in'] },
     'zero':  { 'latency': 'tCCD', 'operands': ['reg_out'] },
     'one':   { 'latency': 'tCCD', 'operands': ['reg_out'] },
+    'mv':    { 'latency': 'tCCD', 'operands': ['reg_out', 'reg_in'] },
 
     # -- Digital spill ops (latency: tRC) --
     'read':  { 'latency': 'tRC', 'operands': ['reg_out', 'row_in'] },

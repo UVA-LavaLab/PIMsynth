@@ -17,34 +17,16 @@ from code_gen_pimeval_base import PimEvalAPICodeGeneratorBase
 
 
 class PimEvalAPIDigitalCodeGenerator(PimEvalAPICodeGeneratorBase):
-    def mapPimAsmRegToPimEvalAPI(self, pimAsmReg):
-        regMap = {
-            "t0": "PIM_RREG_R1",
-            "t1": "PIM_RREG_R2",
-            "t2": "PIM_RREG_R3",
-            "t3": "PIM_RREG_R4",
-            "t4": "PIM_RREG_R5",
-            "t5": "PIM_RREG_R6",
-            "t6": "PIM_RREG_R7",
-            "s0": "PIM_RREG_R8",
-            "s1": "PIM_RREG_R9",
-            "s2": "PIM_RREG_R10",
-            "s3": "PIM_RREG_R11",
-            "s4": "PIM_RREG_R12",
-            "s5": "PIM_RREG_R13",
-            "s6": "PIM_RREG_R14",
-            "s7": "PIM_RREG_R15",
-            "s8": "PIM_RREG_R16",
-        }
-        if pimAsmReg in regMap:
-            return regMap[pimAsmReg]
-        else:
-            raise ValueError(f"Invalid register: {pimAsmReg}")
+    def mapRegToPimEvalAPI(self, reg):
+        """Map generic register name rN to PIMeval API constant PIM_RREG_R{N+1}."""
+        if reg.startswith('r') and reg[1:].isdigit():
+            return f"PIM_RREG_R{int(reg[1:]) + 1}"
+        raise ValueError(f"Invalid register: {reg}")
 
-    def mapPimAsmOpCodeToPimEvalAPI(self, pimOpCode):
+    def mapOpCodeToPimEvalAPI(self, pimOpCode):
         opCodeMap = {
             "inv1": "pimOpNot",
-            "mv": "pimOpMove",  # Note: from RISC-V assembly
+            "mv": "pimOpMove",
             "and2": "pimOpAnd",
             "or2": "pimOpOr",
             "xor2": "pimOpXor",
@@ -68,7 +50,7 @@ class PimEvalAPIDigitalCodeGenerator(PimEvalAPICodeGeneratorBase):
         code += f"\tpimOpReadRowToSa({sourceOperand});\n"
 
         destinationOperand = instruction.operandsList[0]
-        code += f"\tpimOpMove({self.firstIoPort}, PIM_RREG_SA, {self.mapPimAsmRegToPimEvalAPI(destinationOperand)});\n\n"
+        code += f"\tpimOpMove({self.firstIoPort}, PIM_RREG_SA, {self.mapRegToPimEvalAPI(destinationOperand)});\n\n"
 
         return code
 
@@ -76,7 +58,7 @@ class PimEvalAPIDigitalCodeGenerator(PimEvalAPICodeGeneratorBase):
         code = self.generateInstructionComment(instruction)
 
         sourceOperand = instruction.operandsList[0]
-        code += f"\tpimOpMove({self.firstIoPort}, {self.mapPimAsmRegToPimEvalAPI(sourceOperand)}, PIM_RREG_SA);\n"
+        code += f"\tpimOpMove({self.firstIoPort}, {self.mapRegToPimEvalAPI(sourceOperand)}, PIM_RREG_SA);\n"
 
         destinationOperand = self.formatOperand(instruction.operandsList[1])
         code += f"\tpimOpWriteSaToRow({destinationOperand});\n\n"
@@ -85,7 +67,7 @@ class PimEvalAPIDigitalCodeGenerator(PimEvalAPICodeGeneratorBase):
 
     def generateLogicalInstructionOperands(self, operandsList):
         reorderedOperandList = operandsList[1:] + [operandsList[0]]
-        functionOperands = list(map(self.mapPimAsmRegToPimEvalAPI, reorderedOperandList))
+        functionOperands = list(map(self.mapRegToPimEvalAPI, reorderedOperandList))
         code = f"{concatenateListElements(functionOperands)}"
         return code
 
@@ -93,14 +75,14 @@ class PimEvalAPIDigitalCodeGenerator(PimEvalAPICodeGeneratorBase):
         if not (instruction.opCode == "one"):
             return None
         code = f"\t// one {instruction.operandsList[0]} (Line: {instruction.line})\n"
-        code += f"\tpimOpSet({self.firstIoPort}, {self.mapPimAsmRegToPimEvalAPI(instruction.operandsList[0])}, true);\n\n"
+        code += f"\tpimOpSet({self.firstIoPort}, {self.mapRegToPimEvalAPI(instruction.operandsList[0])}, true);\n\n"
         return code
 
     def handleZeroInstruction(self, instruction):
         if not (instruction.opCode == "zero"):
             return None
         code = f"\t// zero {instruction.operandsList[0]} (Line: {instruction.line})\n"
-        code += f"\tpimOpSet({self.firstIoPort}, {self.mapPimAsmRegToPimEvalAPI(instruction.operandsList[0])}, false);\n\n"
+        code += f"\tpimOpSet({self.firstIoPort}, {self.mapRegToPimEvalAPI(instruction.operandsList[0])}, false);\n\n"
         return code
 
     def generateLogicInstruction(self, instruction):
@@ -111,7 +93,7 @@ class PimEvalAPIDigitalCodeGenerator(PimEvalAPICodeGeneratorBase):
         if code != None:
             return code
         code = self.generateInstructionComment(instruction)
-        pimEvalFunctionName = self.mapPimAsmOpCodeToPimEvalAPI(instruction.opCode)
+        pimEvalFunctionName = self.mapOpCodeToPimEvalAPI(instruction.opCode)
         code += f"\t{pimEvalFunctionName}({self.firstIoPort}, {self.generateLogicalInstructionOperands(instruction.operandsList)});\n\n"
         return code
 

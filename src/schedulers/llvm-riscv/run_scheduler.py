@@ -3,7 +3,7 @@
 """
 File: run_scheduler.py
 Description: LLVM RISC-V scheduler entry point.
-    Pipeline: .pim_ir1 -> .c -> clang -> .s -> RISC-V asm parser/translator -> .hpp
+    Pipeline: .pim_ir1 -> .c -> clang -> .s -> RISC-V asm parser/translator -> .pim_ir2
 Author: Deyuan Guo <guodeyuan@gmail.com>
 """
 
@@ -15,15 +15,12 @@ import argparse
 _script_dir = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, _script_dir)
 sys.path.insert(0, os.path.join(_script_dir, '..', '..', 'utils'))
-sys.path.insert(0, os.path.join(_script_dir, '..', '..', 'code-gen'))
 
 from pim_ir1_reader import read_pim_ir1
 from pim_ir1_to_inline_asm_translator import translate_ir1_to_c
 from riscv_asm_parser import Parser
 from riscv_asm_translator import AsmTranslator
-from stats_generator import StatsGenerator
-from code_gen_pimeval_digital import PimEvalAPIDigitalCodeGenerator
-from code_gen_pimeval_analog import PimEvalAPIAnalogCodeGenerator
+from pim_ir2_writer import CodeGenPimIr2
 from util import getFileLines, writeToFile
 
 
@@ -44,8 +41,8 @@ def run_clang(c_file, asm_file, clang_path, clang_g=True, llvm_args=''):
     return cmd
 
 
-def run_asm_to_hpp(asm_file, hpp_file, module_name, num_regs, pim_mode):
-    """Parse RISC-V assembly and generate PIMeval HPP."""
+def run_asm_to_ir2(asm_file, ir2_file, module_name, num_regs, pim_mode):
+    """Parse RISC-V assembly, translate, and generate PIM IR-2."""
     lines = getFileLines(asm_file)
 
     parser = Parser(moduleName=module_name)
@@ -63,20 +60,16 @@ def run_asm_to_hpp(asm_file, hpp_file, module_name, num_regs, pim_mode):
     asm_translator.post_translation_optimization()
     bit_serial_asm = asm_translator.getBitSerialAsm()
 
-    stats = StatsGenerator(bit_serial_asm).generateStats()
-    print("Info: ", stats)
-
-    generator_map = {
-        'analog': PimEvalAPIAnalogCodeGenerator,
-        'digital': PimEvalAPIDigitalCodeGenerator,
-    }
-    if pim_mode not in generator_map:
-        raise ValueError(f"Unsupported PIM mode: {pim_mode}")
-
-    generator = generator_map[pim_mode](
-        bit_serial_asm, module_name, asm_translator.ports)
-    code = f"//{stats}\n" + generator.generateCode()
-    writeToFile(hpp_file, code)
+    ir2_gen = CodeGenPimIr2(
+        bit_serial_asm,
+        module_name,
+        pim_mode,
+        num_regs,
+        list(set(parser.inputList)),
+        list(set(parser.outputList)),
+    )
+    ir2_code = ir2_gen.generate_code()
+    writeToFile(ir2_file, ir2_code)
 
 
 def _generate_run_script(cmd, outdir, output, filename):
@@ -92,14 +85,14 @@ def _generate_run_script(cmd, outdir, output, filename):
 
 def run(ir1_file, outdir, output, module_name, num_regs, pim_mode,
         clang_path, clang_g=True, llvm_args='', **_kwargs):
-    """Run the full LLVM RISC-V scheduler pipeline: .pim_ir1 -> .c -> .s -> .hpp
+    """Run the LLVM RISC-V scheduler pipeline: .pim_ir1 -> .c -> .s -> .pim_ir2
 
     Args:
         ir1_file: Input PIM IR-1 file (pre-scheduling).
     """
     c_file = os.path.join(outdir, output + '.c')
     asm_file = os.path.join(outdir, output + '.s')
-    hpp_file = os.path.join(outdir, output + '.hpp')
+    ir2_file = os.path.join(outdir, output + '.pim_ir2')
 
     print("INFO: Translating PIM IR-1 to inline assembly C ...")
     ir1_data = read_pim_ir1(ir1_file)
@@ -112,14 +105,14 @@ def run(ir1_file, outdir, output, module_name, num_regs, pim_mode,
     _generate_run_script(clang_cmd, outdir, output, output + '.run_clang.sh')
     print("INFO: Generated ASM file:", asm_file)
 
-    print("INFO: Compiling RISC-V ASM to PIM API ...")
-    run_asm_to_hpp(asm_file, hpp_file, module_name, num_regs, pim_mode)
-    print("INFO: Generated HPP file:", hpp_file)
+    print("INFO: Translating RISC-V ASM to PIM IR-2 ...")
+    run_asm_to_ir2(asm_file, ir2_file, module_name, num_regs, pim_mode)
+    print("INFO: Generated PIM IR-2 file:", ir2_file)
 
 
 if __name__ == '__main__':
     ap = argparse.ArgumentParser(
-        description='LLVM RISC-V scheduler: .pim_ir1 -> .c -> .s -> .hpp')
+        description='LLVM RISC-V scheduler: .pim_ir1 -> .c -> .s -> .pim_ir2')
     ap.add_argument('--ir1-file', '-i', required=True, help='Input PIM IR-1 file')
     ap.add_argument('--module-name', '-m', required=True, help='Module name')
     ap.add_argument('--num-regs', '-r', type=int, default=4, help='Num regs')

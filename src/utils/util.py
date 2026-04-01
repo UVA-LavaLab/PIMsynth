@@ -40,3 +40,15 @@ def writeToFile(file_name, content):
 def concatenateListElements(lst):
     return ', '.join(map(str, lst))
 
+def natural_sort_key(s):
+    """Sort key that treats embedded numbers numerically.
+    e.g. A_2_ < A_10_, temp3 < temp12.
+    """
+    import re
+    return [int(part) if part.isdigit() else part
+            for part in re.split(r'(\d+)', s)]
+
+def natural_sorted(lst):
+    """Sort a list of strings with natural numeric ordering."""
+    return sorted(lst, key=natural_sort_key)
+

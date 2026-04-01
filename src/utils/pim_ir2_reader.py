@@ -1,28 +1,28 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-File: pim_ir1_reader.py
-Description: Parser for PIM IR-1 intermediate representation files.
+File: pim_ir2_reader.py
+Description: Parser for PIM IR-2 intermediate representation files.
 Author: Deyuan Guo <dg7vp@virginia.edu>
 Author: Mohammadhosein Gholamrezaei <uab9qt@virginia.edu>
 Author: Matthew Hoffmann <mrh259@cornell.edu>
 
-PIM IR-1 format (pre-scheduling):
+PIM IR-2 format (post-scheduling):
 
-    # PIM IR-1
+    # PIM IR-2
     .module <name>
     .mode <digital|analog>
     .num_regs <N>
     .inputs <...>
     .outputs <...>
-    .temps <...>
+    .spills <...>
 
     <opcode>[__n<inv>] <dest1> [<dest2>...], <src1>[, <src2>...]
 """
 
 
-class PimIr1Data:
-    """Structured representation of a parsed .pim_ir1 file."""
+class PimIr2Data:
+    """Structured representation of a parsed .pim_ir2 file."""
 
     def __init__(self):
         self.module_name = ''
@@ -30,18 +30,18 @@ class PimIr1Data:
         self.num_regs = 0
         self.inputs = []
         self.outputs = []
-        self.temps = []
-        self.instructions = []  # list of (opcode, outputs_list, inputs_list)
+        self.spills = []
+        self.instructions = []  # list of (opcode, dests_list, srcs_list)
 
 
 def _parse_instruction(line):
-    """Parse a single IR-1 instruction line.
+    """Parse a single IR-2 instruction line.
 
     Format:
         opcode dest1 [dest2 ...], src1[, src2[, ...]]
         opcode dest1               (no comma when there are no inputs)
 
-    Returns (opcode, outputs_list, inputs_list).
+    Returns (opcode, dests_list, srcs_list).
     """
     parts = line.split(None, 1)
     opcode = parts[0]
@@ -49,18 +49,18 @@ def _parse_instruction(line):
 
     if ',' in rest:
         before_comma, after_comma = rest.split(',', 1)
-        outputs = before_comma.split()
-        inputs = [s.strip() for s in after_comma.split(',')]
+        dests = before_comma.split()
+        srcs = [s.strip() for s in after_comma.split(',')]
     else:
-        outputs = rest.split() if rest else []
-        inputs = []
+        dests = rest.split() if rest else []
+        srcs = []
 
-    return opcode, outputs, inputs
+    return opcode, dests, srcs
 
 
-def read_pim_ir1(filepath):
-    """Read a .pim_ir1 file and return a PimIr1Data object."""
-    data = PimIr1Data()
+def read_pim_ir2(filepath):
+    """Read a .pim_ir2 file and return a PimIr2Data object."""
+    data = PimIr2Data()
     with open(filepath, 'r') as f:
         for line in f:
             line = line.strip()
@@ -76,8 +76,8 @@ def read_pim_ir1(filepath):
                 data.inputs = line.split()[1:]
             elif line.startswith('.outputs '):
                 data.outputs = line.split()[1:]
-            elif line.startswith('.temps '):
-                data.temps = line.split()[1:]
+            elif line.startswith('.spills '):
+                data.spills = line.split()[1:]
             elif line.startswith('.'):
                 pass  # skip unknown directives
             else:

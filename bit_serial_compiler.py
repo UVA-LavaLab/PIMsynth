@@ -32,7 +32,7 @@ class bitSerialCompiler:
         self.num_regs = 0
         self.from_stage = ''
         self.to_stage = ''
-        self.stages = {'verilog':1, 'blif':2, 'pim_ir1':3, 'asm':4, 'pim':5, 'test':6}
+        self.stages = {'verilog':1, 'blif':2, 'pim_ir1':3, 'pim_ir2':4, 'pim':5, 'test':6}
         self.abc_path = ''
         self.yosys_path = ''
         self.clang_path = ''
@@ -83,8 +83,13 @@ class bitSerialCompiler:
             if not success:
                 return False
 
-        if self.stages[self.from_stage] <= self.stages['pim_ir1'] and self.stages[self.to_stage] >= self.stages['pim']:
+        if self.stages[self.from_stage] <= self.stages['pim_ir1'] and self.stages[self.to_stage] >= self.stages['pim_ir2']:
             success = self.run_scheduling()
+            if not success:
+                return False
+
+        if self.stages[self.from_stage] <= self.stages['pim_ir2'] and self.stages[self.to_stage] >= self.stages['pim']:
+            success = self.run_code_gen()
             if not success:
                 return False
 
@@ -113,12 +118,12 @@ class bitSerialCompiler:
         parser.add_argument('--output', metavar='[filename]', type=str, default='tmp', help='Output filename without suffix')
         parser.add_argument('--outdir', metavar='[path]', type=str, default='.', help='Output location, default current dir')
         valid_from_stages = ['verilog', 'blif']
-        valid_to_stages = ['blif', 'pim_ir1', 'pim', 'test']
+        valid_to_stages = ['blif', 'pim_ir1', 'pim_ir2', 'pim', 'test']
         parser.add_argument('--from-stage', metavar='[stage]', type=str,
                 help='From stage: verilog (default), blif',
                 choices=valid_from_stages, default='verilog')
         parser.add_argument('--to-stage', metavar='[stage]', type=str,
-                help='To stage: blif, pim_ir1, pim, test (default)',
+                help='To stage: blif, pim_ir1, pim_ir2, pim, test (default)',
                 choices=valid_to_stages, default='test')
         parser.add_argument('--clang-g', action='store_false', help='Toggle clang -g, default true')
         parser.add_argument('--llvm-args', type=str, default='', help='Extra arguments passed to LLVM')
@@ -458,7 +463,7 @@ class bitSerialCompiler:
         return True
 
     def run_scheduling(self):
-        """ Run scheduling via selected scheduler. """
+        """ Run scheduling via selected scheduler. Produces .pim_ir2. """
         print("INFO: Running scheduler: %s" % self.scheduler)
 
         script_location = os.path.dirname(os.path.abspath(__file__))
@@ -484,6 +489,31 @@ class bitSerialCompiler:
             )
         except Exception as e:
             print('Error: Scheduler failed:', e)
+            return False
+
+        print(self.hbar)
+        return True
+
+    def run_code_gen(self):
+        """ Run code generation: .pim_ir2 -> .hpp """
+        print("INFO: Running code generation ...")
+
+        script_location = os.path.dirname(os.path.abspath(__file__))
+        codegen_dir = os.path.join(script_location, 'src', 'code-gen')
+        if codegen_dir not in sys.path:
+            sys.path.insert(0, codegen_dir)
+        import run_code_gen as codegen_dispatcher
+
+        ir2_file = os.path.join(self.outdir, self.output + '.pim_ir2')
+        hpp_file = os.path.join(self.outdir, self.output + '.hpp')
+
+        try:
+            codegen_dispatcher.run(
+                ir2_file=ir2_file,
+                hpp_file=hpp_file,
+            )
+        except Exception as e:
+            print('Error: Code generation failed:', e)
             return False
 
         print(self.hbar)

@@ -25,54 +25,40 @@ class PimEvalAPIAnalogCodeGenerator(PimEvalAPICodeGeneratorBase):
         self.zero = "zero"
         self.one = "one"
 
-    def mapPimAsmRegToPimEvalAPI(self, pimAsmReg, isInverted=False):
-        # Note: 14 registers are supported.
-        # register 14 and 15 are reserved
+    def mapRegToPimEvalAPI(self, reg, isInverted=False):
+        """Map generic register name rN to analog PIMeval API operand.
+
+        Registers 14 and 15 are reserved for internal use.
+        """
         if isInverted:
             regFile = self.regFileNot
         else:
             regFile = self.regFile
-        regMap = {
-            "t0": f"{regFile}, 0",
-            "t1": f"{regFile}, 1",
-            "t2": f"{regFile}, 2",
-            "t3": f"{regFile}, 3",
-            "t4": f"{regFile}, 4",
-            "t5": f"{regFile}, 5",
-            "t6": f"{regFile}, 6",
-            "s0": f"{regFile}, 7",
-            "s1": f"{regFile}, 8",
-            "s2": f"{regFile}, 9",
-            "s3": f"{regFile}, 10",
-            "s4": f"{regFile}, 11",
-            "s5": f"{regFile}, 12",
-            "s6": f"{regFile}, 13",
-        }
-        if pimAsmReg in regMap:
-            return regMap[pimAsmReg]
-        else:
-            raise ValueError(f"Invalid register: {pimAsmReg}")
+        if reg.startswith('r') and reg[1:].isdigit():
+            idx = int(reg[1:])
+            return f"{regFile}, {idx}"
+        raise ValueError(f"Invalid register: {reg}")
 
 
     def generateReadInstruction(self, instruction):
         code = self.generateInstructionComment(instruction)
         sourceOperand = self.formatOperand(instruction.operandsList[1])
         destinationOperand = instruction.operandsList[0]
-        code += f"\tpimOpAAP(1, 1, {sourceOperand}, {self.mapPimAsmRegToPimEvalAPI(destinationOperand)});\n\n"
+        code += f"\tpimOpAAP(1, 1, {sourceOperand}, {self.mapRegToPimEvalAPI(destinationOperand)});\n\n"
         return code
 
     def generateWriteInstruction(self, instruction):
         code = self.generateInstructionComment(instruction)
         sourceOperand = instruction.operandsList[0]
         destinationOperand = self.formatOperand(instruction.operandsList[1])
-        code += f"\tpimOpAAP(1, 1, {self.mapPimAsmRegToPimEvalAPI(sourceOperand)}, {destinationOperand});\n\n"
+        code += f"\tpimOpAAP(1, 1, {self.mapRegToPimEvalAPI(sourceOperand)}, {destinationOperand});\n\n"
         return code
 
     def handleZeroInstruction(self, instruction):
         if not (instruction.opCode == "zero"):
             return None
         code = self.generateInstructionComment(instruction)
-        dests = [self.mapPimAsmRegToPimEvalAPI(operand) for operand in instruction.operandsList]
+        dests = [self.mapRegToPimEvalAPI(operand) for operand in instruction.operandsList]
         if len(dests) == 1:
             code += f"\tpimOpAAP(1, 1, {self.zero}, 0, {dests[0]});\n\n"
         elif len(dests) == 2:
@@ -87,7 +73,7 @@ class PimEvalAPIAnalogCodeGenerator(PimEvalAPICodeGeneratorBase):
         if not (instruction.opCode == "one"):
             return None
         code = self.generateInstructionComment(instruction)
-        dests = [self.mapPimAsmRegToPimEvalAPI(operand) for operand in instruction.operandsList]
+        dests = [self.mapRegToPimEvalAPI(operand) for operand in instruction.operandsList]
         if len(dests) == 1:
             code += f"\tpimOpAAP(1, 1, {self.one}, 0, {dests[0]});\n\n"
         elif len(dests) == 2:
@@ -104,9 +90,9 @@ class PimEvalAPIAnalogCodeGenerator(PimEvalAPICodeGeneratorBase):
         code = self.generateInstructionComment(instruction)
         code += f"\tpimOpAAP(1, 1, {self.zero}, 0, {self.regFile}, 14);\n"
         if instruction.operandsList[0] in instruction.operandsList[1:]:
-            code += f"\tpimOpAP(3, {self.mapPimAsmRegToPimEvalAPI(instruction.operandsList[1])}, {self.mapPimAsmRegToPimEvalAPI(instruction.operandsList[2])}, {self.regFile}, 14);\n\n"
+            code += f"\tpimOpAP(3, {self.mapRegToPimEvalAPI(instruction.operandsList[1])}, {self.mapRegToPimEvalAPI(instruction.operandsList[2])}, {self.regFile}, 14);\n\n"
         else:
-            code += f"\tpimOpAAP(3, 1, {self.mapPimAsmRegToPimEvalAPI(instruction.operandsList[1])}, {self.mapPimAsmRegToPimEvalAPI(instruction.operandsList[2])}, {self.regFile}, 14, {self.mapPimAsmRegToPimEvalAPI(instruction.operandsList[0])});\n\n"
+            code += f"\tpimOpAAP(3, 1, {self.mapRegToPimEvalAPI(instruction.operandsList[1])}, {self.mapRegToPimEvalAPI(instruction.operandsList[2])}, {self.regFile}, 14, {self.mapRegToPimEvalAPI(instruction.operandsList[0])});\n\n"
         return code
 
     def handleOrInstruction(self, instruction):
@@ -115,9 +101,9 @@ class PimEvalAPIAnalogCodeGenerator(PimEvalAPICodeGeneratorBase):
         code = self.generateInstructionComment(instruction)
         code += f"\tpimOpAAP(1, 1, {self.one}, 0, {self.regFile}, 14);\n"
         if instruction.operandsList[0] in instruction.operandsList[1:]:
-            code += f"\tpimOpAP(3, {self.mapPimAsmRegToPimEvalAPI(instruction.operandsList[1])}, {self.mapPimAsmRegToPimEvalAPI(instruction.operandsList[2])}, {self.regFile}, 14);\n\n"
+            code += f"\tpimOpAP(3, {self.mapRegToPimEvalAPI(instruction.operandsList[1])}, {self.mapRegToPimEvalAPI(instruction.operandsList[2])}, {self.regFile}, 14);\n\n"
         else:
-            code += f"\tpimOpAAP(3, 1, {self.mapPimAsmRegToPimEvalAPI(instruction.operandsList[1])}, {self.mapPimAsmRegToPimEvalAPI(instruction.operandsList[2])}, {self.regFile}, 14, {self.mapPimAsmRegToPimEvalAPI(instruction.operandsList[0])});\n\n"
+            code += f"\tpimOpAAP(3, 1, {self.mapRegToPimEvalAPI(instruction.operandsList[1])}, {self.mapRegToPimEvalAPI(instruction.operandsList[2])}, {self.regFile}, 14, {self.mapRegToPimEvalAPI(instruction.operandsList[0])});\n\n"
         return code
 
     def handleMajInstruction(self, instruction):
@@ -133,23 +119,23 @@ class PimEvalAPIAnalogCodeGenerator(PimEvalAPICodeGeneratorBase):
             inv0, inv1, inv2 = [c == '1' for c in instruction.opCode.split('__n')[1][:3]]
 
         # Prepare source operands
-        operand_src0 = self.mapPimAsmRegToPimEvalAPI(instruction.operandsList[-3], isInverted=inv0)
-        operand_src1 = self.mapPimAsmRegToPimEvalAPI(instruction.operandsList[-2], isInverted=inv1)
-        operand_src2 = self.mapPimAsmRegToPimEvalAPI(instruction.operandsList[-1], isInverted=inv2)
+        operand_src0 = self.mapRegToPimEvalAPI(instruction.operandsList[-3], isInverted=inv0)
+        operand_src1 = self.mapRegToPimEvalAPI(instruction.operandsList[-2], isInverted=inv1)
+        operand_src2 = self.mapRegToPimEvalAPI(instruction.operandsList[-1], isInverted=inv2)
         sources = [operand_src0, operand_src1, operand_src2]
 
         # Prepare destination operands
         if num_operands == 4:
-            operand_dest0 = self.mapPimAsmRegToPimEvalAPI(instruction.operandsList[0])
+            operand_dest0 = self.mapRegToPimEvalAPI(instruction.operandsList[0])
             dests = [operand_dest0]
         elif num_operands == 5:
-            operand_dest0 = self.mapPimAsmRegToPimEvalAPI(instruction.operandsList[0])
-            operand_dest1 = self.mapPimAsmRegToPimEvalAPI(instruction.operandsList[1])
+            operand_dest0 = self.mapRegToPimEvalAPI(instruction.operandsList[0])
+            operand_dest1 = self.mapRegToPimEvalAPI(instruction.operandsList[1])
             dests = [operand_dest0, operand_dest1]
         elif num_operands == 6:
-            operand_dest0 = self.mapPimAsmRegToPimEvalAPI(instruction.operandsList[0])
-            operand_dest1 = self.mapPimAsmRegToPimEvalAPI(instruction.operandsList[1])
-            operand_dest2 = self.mapPimAsmRegToPimEvalAPI(instruction.operandsList[2])
+            operand_dest0 = self.mapRegToPimEvalAPI(instruction.operandsList[0])
+            operand_dest1 = self.mapRegToPimEvalAPI(instruction.operandsList[1])
+            operand_dest2 = self.mapRegToPimEvalAPI(instruction.operandsList[2])
             dests = [operand_dest0, operand_dest1, operand_dest2]
 
         # Safety check
@@ -179,10 +165,10 @@ class PimEvalAPIAnalogCodeGenerator(PimEvalAPICodeGeneratorBase):
             return None
         code = self.generateInstructionComment(instruction)
         if instruction.operandsList[0] in instruction.operandsList[1:]:
-            code += f"\tpimOpAAP(1, 1, {self.mapPimAsmRegToPimEvalAPI(instruction.operandsList[1], isInverted=True)}, {self.regFile}, 14);\n"
-            code += f"\tpimOpAAP(1, 1, {self.regFile}, 14, {self.mapPimAsmRegToPimEvalAPI(instruction.operandsList[0])});\n\n"
+            code += f"\tpimOpAAP(1, 1, {self.mapRegToPimEvalAPI(instruction.operandsList[1], isInverted=True)}, {self.regFile}, 14);\n"
+            code += f"\tpimOpAAP(1, 1, {self.regFile}, 14, {self.mapRegToPimEvalAPI(instruction.operandsList[0])});\n\n"
         else:
-            code += f"\tpimOpAAP(1, 1, {self.mapPimAsmRegToPimEvalAPI(instruction.operandsList[1], isInverted=True)}, {self.mapPimAsmRegToPimEvalAPI(instruction.operandsList[0])});\n\n"
+            code += f"\tpimOpAAP(1, 1, {self.mapRegToPimEvalAPI(instruction.operandsList[1], isInverted=True)}, {self.mapRegToPimEvalAPI(instruction.operandsList[0])});\n\n"
         return code
 
     def handleMoveInstruction(self, instruction):
@@ -190,8 +176,8 @@ class PimEvalAPIAnalogCodeGenerator(PimEvalAPICodeGeneratorBase):
         if instruction.opCode not in ['mv', 'copy', 'copy_inout']:
             return None
         code = self.generateInstructionComment(instruction)
-        srcs = [self.mapPimAsmRegToPimEvalAPI(operand) for operand in instruction.operandsList[-1:]]
-        dests = [self.mapPimAsmRegToPimEvalAPI(operand) for operand in instruction.operandsList[:-1]
+        srcs = [self.mapRegToPimEvalAPI(operand) for operand in instruction.operandsList[-1:]]
+        dests = [self.mapRegToPimEvalAPI(operand) for operand in instruction.operandsList[:-1]
                  if operand != instruction.operandsList[-1]]
         if len(dests) == 0:
             pass
