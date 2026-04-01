@@ -1,0 +1,5 @@
+# Demo task list -- uncomment/comment as needed
+# Format: isa  num_regs  mode  benchmark
+
+inv_nand          4  digital  add_int8
+
