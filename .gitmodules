@@ -10,3 +10,6 @@
 [submodule "PIMeval-PIMbench"]
 	path = PIMeval-PIMbench
 	url = https://github.com/UVA-LavaLab/PIMeval-PIMbench.git
+[submodule "src/schedulers/memir"]
+	path = src/schedulers/memir
+	url = https://github.com/matth2k/memir.git
