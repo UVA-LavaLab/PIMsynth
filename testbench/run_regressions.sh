@@ -36,7 +36,9 @@ while [[ $# -gt 0 ]]; do
         -h|--help)
             echo "Usage: $0 <task_list_file> [--compile-only] [--continue]"
             echo ""
-            echo "  <task_list_file>  File with one task per line: isa num_regs mode benchmark"
+            echo "  <task_list_file>  File with one task per line: isa num_regs mode benchmark [scheduler]"
+            echo "                    scheduler is optional (default: llvm-riscv)"
+            echo "                    valid schedulers: llvm-riscv, memir-lscan, memir-cp"
             echo "  --compile-only    Skip make + test execution (compile and collect stats only)"
             echo "  --continue        Resume from previous run (skip completed tasks)"
             echo ""
@@ -123,7 +125,8 @@ COMPLETED_TARGETS=()
 
 for task in "${TASKS[@]}"; do
     TASK_IDX=$((TASK_IDX + 1))
-    read -r isa num_reg pim_mode benchmark <<< "$task"
+    read -r isa num_reg pim_mode benchmark scheduler <<< "$task"
+    scheduler="${scheduler:-llvm-riscv}"
     target="${isa}__${num_reg}__${pim_mode}__${benchmark}"
     outdir="$OUTPUT_ROOT/$target"
     logfile="$outdir/$target.log"
@@ -171,7 +174,7 @@ for task in "${TASKS[@]}"; do
     fi
 
     # --- Compile ---
-    echo "  Compiling..."
+    echo "  Compiling (scheduler: $scheduler)..."
     if ! $PROJ_ROOT/bit_serial_compiler.py \
         --verilog "${verilog_files[@]}" \
         --genlib "$genlib_file" \
@@ -180,6 +183,7 @@ for task in "${TASKS[@]}"; do
         --outdir "$outdir" \
         --num-tests 10 \
         --pim-mode "$pim_mode" \
+        --scheduler "$scheduler" \
         > "$logfile" 2>&1; then
         echo "  ERROR: Compilation failed."
         FAILED=$((FAILED + 1))

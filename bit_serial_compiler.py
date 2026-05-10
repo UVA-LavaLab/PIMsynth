@@ -134,7 +134,9 @@ class bitSerialCompiler:
         parser.add_argument('--pim-mode', type=str, default='digital', choices=['digital', 'analog'], help='The PIM architecture mode (analog/digital).')
         parser.add_argument('--impl-type', type=int, help='Override the IMPL_TYPE Verilog parameter')
         parser.add_argument('--golden-function-path', '-g', type=str, default=None, help='The path to the golden function file hpp file.')
-        parser.add_argument('--scheduler', type=str, default='llvm-riscv', choices=['llvm-riscv'], help='Scheduler to use (default: llvm-riscv)')
+        parser.add_argument('--scheduler', type=str, default='llvm-riscv',
+                            choices=['llvm-riscv', 'memir-lscan', 'memir-cp'],
+                            help='Scheduler to use (default: llvm-riscv)')
         return parser
 
     def parse_args(self):

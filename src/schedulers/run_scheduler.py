@@ -19,7 +19,7 @@ import sys
 
 _script_dir = os.path.dirname(os.path.abspath(__file__))
 
-AVAILABLE_SCHEDULERS = ['llvm-riscv']
+AVAILABLE_SCHEDULERS = ['llvm-riscv', 'memir-lscan', 'memir-cp']
 
 _scheduler_cache = {}
 
@@ -35,11 +35,25 @@ def _get_llvm_riscv_scheduler():
     return _scheduler_cache['llvm-riscv']
 
 
+def _get_memir_driver():
+    """Lazy import of the memir driver module."""
+    if 'memir' not in _scheduler_cache:
+        mod_path = os.path.join(_script_dir, 'memir_driver.py')
+        spec = importlib.util.spec_from_file_location('memir_driver', mod_path)
+        mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+        _scheduler_cache['memir'] = mod
+    return _scheduler_cache['memir']
+
+
 def run(scheduler_name, **kwargs):
     """Dispatch to the selected scheduler."""
     if scheduler_name == 'llvm-riscv':
         scheduler = _get_llvm_riscv_scheduler()
         scheduler.run(**kwargs)
+    elif scheduler_name in ('memir-lscan', 'memir-cp'):
+        driver = _get_memir_driver()
+        driver.run(scheduler_name=scheduler_name, **kwargs)
     else:
         raise ValueError(f"Unknown scheduler: {scheduler_name}. "
                          f"Available: {AVAILABLE_SCHEDULERS}")

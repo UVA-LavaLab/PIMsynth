@@ -1,0 +1,5 @@
+# memir scheduler task list (llvm baseline)
+# Format: isa  num_regs  mode  benchmark  scheduler
+
+# --- memir CP-SAT ---
+inv_nand  4  digital  add_int8  llvm-riscv
