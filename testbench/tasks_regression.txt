@@ -1,0 +1,33 @@
+# Regression task list
+# Format: isa  num_regs  mode  benchmark
+# Comment out lines with # to skip tasks.
+# Each line maps 1:1 to a row in the results table.
+
+# --- Digital inv_nand ---
+inv_nand  2  digital  add_int32
+inv_nand  4  digital  add_int32
+inv_nand 10  digital  add_int32
+inv_nand  4  digital  mul_int8
+inv_nand  4  digital  popcount_int32
+
+# --- Digital inv_and_xnor_mux ---
+inv_and_xnor_mux  4  digital  add_int32
+inv_and_xnor_mux  4  digital  mul_int8
+inv_and_xnor_mux  4  digital  abs_int32
+inv_and_xnor_mux  4  digital  not_int8
+inv_and_xnor_mux  4  digital  xor_int32
+inv_and_xnor_mux  4  digital  gt_int32
+inv_and_xnor_mux  4  digital  eq_int32
+inv_and_xnor_mux  4  digital  max_int32
+inv_and_xnor_mux  4  digital  shift_r_int32
+inv_and_xnor_mux  4  digital  popcount_int32
+
+# --- Digital inv_maj_and_or ---
+inv_maj_and_or  4  digital  add_int32
+
+# --- Analog inv_maj_and_or ---
+inv_maj_and_or  6  analog  add_int32
+inv_maj_and_or  6  analog  mul_int8
+inv_maj_and_or  6  analog  xor_int32
+inv_maj_and_or  6  analog  gt_int32
+

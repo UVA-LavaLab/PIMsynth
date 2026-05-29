@@ -63,7 +63,7 @@ fi
 
 target="${bit_serial_isa}__${num_reg}__${pim_mode}__${benchmark_name}"
 golden_function_header_file="$SCRIPT_DIR/$GOLDEN_MODELS_DIR/${benchmark_name}.golden.hpp"
-outdir="$SCRIPT_DIR/outputs__$target"
+outdir="$SCRIPT_DIR/outputs/$target"
 
 # Check if the golden model headr file exitst
 if [ ! -f "$golden_function_header_file" ]; then
@@ -151,7 +151,7 @@ cd ..
     echo "################################################################################"
     echo "SUMMARY"
     echo "Output Directory:         $outdir"
-    echo "Output Directory Name:    outputs__$target"
+    echo "Output Directory Name:    outputs/$target"
     grep "Info:  #R" "$outdir/$target.log"
     grep -E '\b(row_r|row_w|rreg\..*) :' "$outdir/$target.log"
     grep -E '\b(row_ap@.*|row_aap@.*) :' "$outdir/$target.log"

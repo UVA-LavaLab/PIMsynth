@@ -579,8 +579,8 @@ REPO_ROOT := $(shell git rev-parse --show-toplevel)
 LIB_PIMEVAL_PATH := $(REPO_ROOT)/PIMeval-PIMbench/libpimeval
 
 CXX = g++
-CXXFLAGS = -I$(LIB_PIMEVAL_PATH)/include # Path to header files
-LDFLAGS = -L$(LIB_PIMEVAL_PATH)/lib -l:libpimeval.a # Path to static library and linking
+CXXFLAGS = -I$(LIB_PIMEVAL_PATH)/include
+LDFLAGS = -L$(LIB_PIMEVAL_PATH)/lib -lpimeval
 
 TARGET_PIM = {self.get_pim_executable_file_name()}
 TARGET_BITWISE = {self.get_bitwise_executable_file_name()}
