@@ -1,7 +1,7 @@
 #!/bin/bash
 set +x
 source common.sh
-benchmark_name="mul_fp32"
+benchmark_name="mul_fp8"
 
 # Collect submodule verilog files from submodule_list.txt
 verilog_files=()
@@ -33,7 +33,7 @@ fi
 
 bit_serial_isa="inv_nand"
 num_reg=4
-pim_mode="digital"
+pim_mode="analog"
 target="${bit_serial_isa}__${num_reg}__${pim_mode}__${benchmark_name}"
 outdir="$SCRIPT_DIR/outputs__$target"
 genlib_file="$GENLIB_DIR/${bit_serial_isa}.genlib"
@@ -49,4 +49,4 @@ $PROJ_ROOT/apptainer-run.sh $PROJ_ROOT/bit_serial_compiler.py \
     --num-tests 10 \
     --pim-mode "$pim_mode" \
     2>&1 | tee "$outdir/$target.log"
-    
+
